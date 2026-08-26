@@ -41,7 +41,7 @@
 |---|---|---|
 | **macOS** | ✅ 原生支持 | 自带的 `bash`/`patch` 即可（`pgrep` 也已内置） |
 | **Linux** | ✅ 原生支持 | 自带 `patch`；部分精简发行版需 `sudo apt install patch` |
-| **Windows** | ✅ 装完 Git for Windows 即可 | **Git for Windows 已自带** `bash`、`diff`、`patch` 与 `git`，无需再装。唯一用到的 `pgrep` 只在「重启」那一条命令里出现，Windows 用 `taskkill` 替代即可（见下） |
+| **Windows** | ✅ 装完 Git for Windows 即可 | **Git for Windows 已自带** `bash`、`diff`、`patch` 与 `git`，无需再装。唯一用到的 `pgrep` 只在「重启」那一条命令里出现，Windows 用 `taskkill` 替代即可（见下）。安装脚本现已**优先用 `npm root -g` 定位 DSH**（跨平台可靠），失败再兜底扫描常见全局目录（含 `%APPDATA%\npm`）——无需手动设置 `NODE_PATH` |
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）

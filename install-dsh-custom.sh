@@ -109,16 +109,29 @@ if [ -n "${DSH_SOURCE:-}" ]; then
   LAYOUT="source"
   info "Using source/monorepo layout (DSH_SOURCE=$SOURCE_ROOT)"
 else
-  info "Locating DSH global install dir..."
-  DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace('/package.json',''))}catch(e){console.log('')}" 2>/dev/null)
+  info "Locating DSH global install dir (npm root -g first, cross-platform)..."
+  # 方法 A：npm root -g（最可靠——任何平台返回正确全局目录）
+  GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
+  DSH_DIR=""
+  if [ -n "$GLOBAL_ROOT" ] && [ -d "$GLOBAL_ROOT/@deepseek-ai/dsh" ]; then
+    DSH_DIR="$GLOBAL_ROOT/@deepseek-ai/dsh"
+  fi
+  # 方法 B：require.resolve 兜底（[\\/] 兼容 Windows 反斜杠路径）
   if [ -z "$DSH_DIR" ]; then
-    DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+    DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json$/,''))}catch(e){console.log('')}" 2>/dev/null)
+  fi
+  # 方法 C：常见全局目录扫描兜底（含 Windows %APPDATA%/%LOCALAPPDATA%）
+  if [ -z "$DSH_DIR" ]; then
+    DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
+      "$LOCALAPPDATA"/*/node_modules "$APPDATA"/*/node_modules \
+      -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
   fi
   if [ -z "$DSH_DIR" ]; then
     err "Cannot find DSH global install dir."
     echo "  If you installed DSH from source (monorepo), set DSH_SOURCE to the source root:"
     echo "    export DSH_SOURCE=/path/to/deepseek-harness   # then rerun"
     echo "  Otherwise install @deepseek-ai/dsh globally first: npm install -g @deepseek-ai/dsh"
+    echo "  Windows 用户：npm root -g 应输出您的全局 node_modules 路径；若在上面找不到，请检查 %APPDATA%\\npm"
     exit 1
   fi
   ok "Found DSH: $DSH_DIR"

@@ -41,7 +41,7 @@ The install script is written in **bash** and depends on **Unix command-line too
 |---|---|---|
 | **macOS** | ✅ Native | Built-in `bash`/`patch` (`pgrep` also built-in) |
 | **Linux** | ✅ Native | `patch` built-in; some minimal distros need `sudo apt install patch` |
-| **Windows** | ✅ After Git for Windows | **Git for Windows includes** `bash`, `diff`, `patch`, and `git`. The only `pgrep` usage is in the restart command; Windows uses `taskkill` instead (see below) |
+| **Windows** | ✅ After Git for Windows | **Git for Windows includes** `bash`, `diff`, `patch`, and `git`. The only `pgrep` usage is in the restart command; Windows uses `taskkill` instead (see below). The install scripts now locate DSH via `npm root -g` first (cross-platform), then fall back to common global dirs including `%APPDATA%\npm` — no `NODE_PATH` needed |
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed

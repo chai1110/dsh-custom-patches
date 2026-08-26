@@ -49,13 +49,26 @@ FILES=(
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# 1. 定位 DSH 安装目录
-DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace('/package.json',''))}catch(e){console.log('')}" 2>/dev/null)
+# 1. 定位 DSH 安装目录（跨平台：macOS / Linux / Windows）
+#    方法 A：npm root -g（最可靠——npm 全局根，任何平台都返回正确值）
+#    方法 B：require.resolve 兜底（用 [\\/] 兼容 Windows 反斜杠路径）
+#    方法 C：常见全局目录扫描兜底（含 Windows %APPDATA%/%LOCALAPPDATA%）
+DSH_DIR=""
+GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
+if [ -n "$GLOBAL_ROOT" ] && [ -d "$GLOBAL_ROOT/@deepseek-ai/dsh" ]; then
+  DSH_DIR="$GLOBAL_ROOT/@deepseek-ai/dsh"
+fi
 if [ -z "$DSH_DIR" ]; then
-  DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+  DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json$/,''))}catch(e){console.log('')}" 2>/dev/null)
+fi
+if [ -z "$DSH_DIR" ]; then
+  DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
+    "$LOCALAPPDATA"/*/node_modules "$APPDATA"/*/node_modules \
+    -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
 fi
 if [ -z "$DSH_DIR" ]; then
   echo -e "${RED}❌ 未找到 DSH 安装目录，请先安装 @deepseek-ai/dsh@$TARGET_VERSION${NC}"
+  echo -e "   （Windows 请确认 npm 全局目录：npm root -g 应输出您的全局 node_modules 路径）"
   exit 1
 fi
 echo -e "${GREEN}✅ 找到 DSH: $DSH_DIR${NC}"
