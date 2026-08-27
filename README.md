@@ -2,8 +2,8 @@
 > 📖 [中文版](README.zh.md)
 
 
-Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
-**① Composer ↑/↓ key send history** and **② Edit last message and regenerate (Codex-style)**.
+Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
+**① Composer ↑/↓ key send history**, **② Edit last message and regenerate (Codex-style)**, and **③ Archived session recovery**.
 
 - Target version: **`@deepseek-ai/dsh@0.1.1-rc.2`**
 - License: **MIT** (see [LICENSE](LICENSE))
@@ -11,7 +11,7 @@ Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/d
 
 > **What this is / isn't**: This is a set of **compiled-artifact patches**, not an official plugin, not a source fork.
 > It uses `diff`/`patch` to directly modify DSH's installed npm package files (compiled JS in `node_modules`),
-> adding two features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
+> adding three features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
 
 ---
 
@@ -30,6 +30,14 @@ Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/d
 - Click **Cancel** to restore original
 
 **How it works**: Editing uses DSH session layer's **surface replace** (append-only log + shadow replacement) — history is preserved, but the model and UI only see the replaced sequence.
+
+### 3. Archived Session Recovery
+- DSH officially supports archiving sessions (hide from sidebar), but **provides no UI to view or restore them** — archived sessions are "visible nowhere"
+- This patch adds an **"Archived Sessions"** section in **Settings** (below "Right Panel Workspace")
+- Lists all archived sessions with their titles
+- Click a session title to open it
+- Click **"Restore"** to unarchive — the session reappears in the sidebar session list
+- Works by adding `unarchiveSession` API end-to-end: host workspace registry → apiproxy route + schema → client runtime + connection RPC → settings UI
 
 ---
 

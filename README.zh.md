@@ -2,8 +2,8 @@
 > 📖 [English](README.md)
 
 
-为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加两个官方暂未提供的实用功能：
-**① 输入框 ↑/↓ 键发送历史** 与 **② 编辑最后一条消息并重新生成（Codex 风格）**。
+为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用功能：
+**① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成（Codex 风格）** 与 **③ 归档会话恢复**。
 
 - 适配版本：**`@deepseek-ai/dsh@0.1.1-rc.2`**
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
@@ -30,6 +30,14 @@
 - 点击 **取消** 恢复原样
 
 **机制说明**：编辑通过 DSH 会话层的 **surface replace**（append-only 日志 + 阴影替换）实现——历史记录保留，但模型与界面只看替换后的新序列。
+
+### 3. 归档会话恢复
+- DSH 官方支持归档会话（从侧边栏隐藏），但**没有提供查看或恢复归档会话的 UI**——归档后"完全看不到"
+- 本补丁在**设置面板**新增「已归档会话」列（位于「右边栏工作区」下方）
+- 列出所有已归档会话及标题
+- 点会话标题可直接打开
+- 点「恢复」取消归档，会话重新出现在侧边栏列表中
+- 全链路实现：host 端 `unarchiveSession` 方法 → apiproxy 路由+schema → 客户端 runtime+connection RPC → 设置面板 UI
 
 ---
 
