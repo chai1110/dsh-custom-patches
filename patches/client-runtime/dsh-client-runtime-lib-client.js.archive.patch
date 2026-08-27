@@ -1,0 +1,134 @@
+--- @deepseek-ai/dsh-client-runtime/lib/client.js
++++ @deepseek-ai/dsh-client-runtime/lib/client.js
+@@ -6332,6 +6332,8 @@
+ 			contextsByKind = /* @__PURE__ */ new Map();
+ 			contextsBySeq = /* @__PURE__ */ new Map();
+ 			inputs = /* @__PURE__ */ new Map();
++			/** Event seqs shadowed by surface replacements (folded from replace surfaceOps). */
++			shadowed = /* @__PURE__ */ new Set();
+ 			locationIndex = new ConversationLocationIndex();
+ 			dirty = /* @__PURE__ */ new Set();
+ 			revised = /* @__PURE__ */ new Set();
+@@ -6366,6 +6368,7 @@
+ 				this.hasMore = hasMore;
+ 				const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq);
+ 				for (const entry of sorted) this.inputs.set(entry.event.seq, entry);
++				this.scanShadowed(sorted);
+ 				this.locationIndex.rebuild(sorted);
+ 				this.timelineDirty = true;
+ 				for (const entry of sorted) this.matchInput(entry);
+@@ -6375,6 +6378,15 @@
+ 				this.replacePending = true;
+ 				return "immediate";
+ 			}
++			/** Fold every replace surfaceOp in a window into the shadowed-seq set. */
++			scanShadowed(sorted) {
++				this.shadowed.clear();
++				for (const entry of sorted) {
++					if (!isReplacementSurfaceEvent(entry.event)) continue;
++					const op = entry.event.surfaceOp;
++					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++				}
++			}
+ 			/**
+ 			* Add one contiguous live tail event without scanning existing Contexts.
+ 			* @param input - appended Event and optional wire view.
+@@ -6382,6 +6394,13 @@
+ 			*/
+ 			append(input) {
+ 				if (this.inputs.has(input.event.seq)) return "none";
++				if (isReplacementSurfaceEvent(input.event)) {
++					const op = input.event.surfaceOp;
++					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++					this.inputs.set(input.event.seq, input);
++					this.replaceWindow(this.sortedInputs(), this.hasMore);
++					return "immediate";
++				}
+ 				this.revised.clear();
+ 				this.inputs.set(input.event.seq, input);
+ 				let publication = "none";
+@@ -6414,6 +6433,7 @@
+ 				for (const entry of fresh) this.inputs.set(entry.event.seq, entry);
+ 				this.hasMore = hasMore;
+ 				const previousTimeline = this.locationIndex.snapshot();
++				this.scanShadowed(this.sortedInputs());
+ 				const changedLocations = this.locationIndex.rebuild(this.sortedInputs());
+ 				if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true;
+ 				const affected = this.refreshMatchLocations(changedLocations);
+@@ -6500,6 +6520,7 @@
+ 				return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq);
+ 			}
+ 			matchInput(input) {
++				if (this.shadowed.has(input.event.seq)) return "none";
+ 				return this.dispatchInput(input, (definition, id, role) => this.acceptMatch(definition, id, role, input));
+ 			}
+ 			collectInput(input, pending) {
+@@ -7256,6 +7277,43 @@
+ 				return result;
+ 			}
+ 			/**
++			* Rewrite the last user message of this session and regenerate from it
++			* (host-side `session.editLastPrompt`). Only the most recent user
++			* message is editable; failures land in the snapshot's promptError.
++			* @param text - replacement plain text.
++			* @returns the prompt result (also mirrored into promptError on failure).
++			*/
++			async editLastPrompt(text) {
++				this.promptError = null;
++				this.lastAgentError = null;
++				this.notifier.markDirty();
++				let result;
++				try {
++					if (this.address === void 0) result = (await this.api.sessions.editLastPrompt({
++						sessionId: this.sessionId,
++						text
++					})).result;
++					else result = {
++						ok: false,
++						error: {
++							code: "subagent-not-resumable",
++							message: "subagent conversations are read-only",
++							details: { childSessionId: this.address.childSessionId }
++						}
++					};
++				} catch (error) {
++					result = transportError(error);
++				}
++				if (!result.ok) {
++					this.promptError = {
++						op: "edit-last-prompt",
++						error: result.error
++					};
++					this.notifier.markDirty();
++				}
++				return result;
++			}
++			/**
+ 			* Resolve one image referenced by this session into browser-consumable bytes.
+ 			* @param attachmentId - opaque id found in the folded session log.
+ 			* @returns the authenticated reference and decoded bytes.
+@@ -9620,6 +9678,12 @@
+ 			*/
+ 			async archiveSession(sessionId) {
+ 				const { result } = await this.api.workspace.archiveSession({ sessionId });
++				if (result.ok) this.installArchived(result.value.archivedSessionIds);
++				return result;
++			}
++			/** Restore a previously archived session (unarchive). */
++			async unarchiveSession(sessionId) {
++				const { result } = await this.api.workspace.unarchiveSession({ sessionId });
+ 				if (result.ok) this.installArchived(result.value.archivedSessionIds);
+ 				return result;
+ 			}
+@@ -10028,6 +10092,11 @@
+ 				const result = await this.manager.archiveSession(sessionId);
+ 				if (!result.ok) throw new Error(`session archive failed: ${result.error.code}: ${result.error.message}`);
+ 			}
++			/** Restore a previously archived session (unarchive). */
++			async unarchiveSession(sessionId) {
++				const result = await this.manager.unarchiveSession(sessionId);
++				if (!result.ok) throw new Error(`session unarchive failed: ${result.error.code}: ${result.error.message}`);
++			}
+ 			/**
+ 			* Move a session within its Workspace's manual order (DOM-insertBefore-like).
+ 			* @param workspaceId - owning workspace.

@@ -1,6 +1,6 @@
---- dsh-client-connection/lib/client.js.bak	2026-08-16 21:36:55
-+++ dsh-client-connection/lib/client.js	2026-08-16 21:37:23
-@@ -5421,6 +5421,15 @@
+--- @deepseek-ai/dsh-client-connection/lib/client.js
++++ @deepseek-ai/dsh-client-connection/lib/client.js
+@@ -5417,6 +5417,15 @@
  				kind: literal("success"),
  				text: string().optional()
  			}).optional()
@@ -16,7 +16,7 @@
  		});
  		/** Opaque attachment id after string-shape validation. */
  		const attachmentIdSchema = string().min(1);
-@@ -6079,6 +6088,7 @@
+@@ -6076,6 +6085,7 @@
  			"session.rename": sessionRenameValueSchema,
  			"session.fork": sessionForkValueSchema,
  			"session.prompt": sessionPromptValueSchema,
@@ -24,7 +24,7 @@
  			"session.attachment": sessionAttachmentValueSchema,
  			"session.updateQueue": sessionUpdateQueueValueSchema,
  			"session.cancel": sessionCancelValueSchema,
-@@ -6291,6 +6301,7 @@
+@@ -6288,6 +6298,7 @@
  				rename: (payload, signal) => this.callUnary("session.rename", payload, signal),
  				fork: (payload, signal) => this.callUnary("session.fork", payload, signal),
  				prompt: (payload, signal) => this.callUnary("session.prompt", payload, signal),
@@ -32,7 +32,17 @@
  				attachment: (payload, signal) => this.callUnary("session.attachment", payload, signal),
  				updateQueue: (payload, signal) => this.callUnary("session.updateQueue", payload, signal),
  				cancel: (payload, signal) => this.callUnary("session.cancel", payload, signal)
-@@ -9901,6 +9912,7 @@
+@@ -6312,7 +6323,8 @@
+ 				delete: (payload, signal) => this.callUnary("workspace.delete", payload, signal),
+ 				insertBefore: (payload, signal) => this.callUnary("workspace.insertBefore", payload, signal),
+ 				insertSessionBefore: (payload, signal) => this.callUnary("workspace.insertSessionBefore", payload, signal),
+-				archiveSession: (payload, signal) => this.callUnary("workspace.archiveSession", payload, signal)
++				archiveSession: (payload, signal) => this.callUnary("workspace.archiveSession", payload, signal),
++				unarchiveSession: (payload, signal) => this.callUnary("workspace.unarchiveSession", payload, signal)
+ 			};
+ 			skills = { list: (payload, signal) => this.callUnary("skill.list", payload, signal) };
+ 			agentPresets = {
+@@ -10013,6 +10025,7 @@
  					case "session.rename": return this.api.sessions.rename(request);
  					case "session.fork": return this.api.sessions.fork(request);
  					case "session.prompt": return this.api.sessions.prompt(request);
@@ -40,3 +50,11 @@
  					case "session.attachment": return this.api.sessions.attachment(request);
  					case "session.updateQueue": return this.api.sessions.updateQueue(request);
  					case "session.cancel": return this.api.sessions.cancel(request);
+@@ -10032,6 +10045,7 @@
+ 					case "workspace.insertBefore": return this.api.workspace.insertBefore(request);
+ 					case "workspace.insertSessionBefore": return this.api.workspace.insertSessionBefore(request);
+ 					case "workspace.archiveSession": return this.api.workspace.archiveSession(request);
++					case "workspace.unarchiveSession": return this.api.workspace.unarchiveSession(request);
+ 					case "skill.list": return this.api.skills.list(request);
+ 					case "agentPreset.list": return this.api.agentPresets.list(request);
+ 					case "agentPreset.select": return this.api.agentPresets.select(request);

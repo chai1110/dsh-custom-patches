@@ -1,0 +1,75 @@
+--- @deepseek-ai/dsh-client-ui-workspace/lib/client.js
++++ @deepseek-ai/dsh-client-ui-workspace/lib/client.js
+@@ -1646,7 +1646,7 @@
+ 		* @param props - composed slot props (shell owner share + store + injected actions).
+ 		* @returns the region element tree.
+ 		*/
+-		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostDescription, renderSlot, t }) {
++		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, unarchiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostDescription, renderSlot, t }) {
+ 			const home = useHostDescription((description) => description?.home);
+ 			const workspaces = useWorkspaces((state) => state.items);
+ 			const workspacePhase = useWorkspaces((state) => state.phase);
+@@ -2417,6 +2417,9 @@
+ 				},
+ 				archiveSession: async (sessionId) => {
+ 					await ctx.workspaces.archiveSession(sessionId);
++				},
++				unarchiveSession: async (sessionId) => {
++					await ctx.workspaces.unarchiveSession(sessionId);
+ 				},
+ 				insertSessionBefore: async (workspaceId, sessionId, beforeSessionId) => {
+ 					await ctx.workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId);
+@@ -2450,6 +2453,53 @@
+ 				inject: pickerInjected,
+ 				locale: NS
+ 			}, WorkspacePicker));
++
++			// 设置面板：已归档会话（查看 + 恢复）
++			ctx.slots.inject("settings.section", () => ctx.slots.register({
++				name: "settings.section",
++				id: "archived-sessions",
++				order: 45,
++				label: () => "已归档会话",
++				locale: NS
++			}, function ArchivedSessionsSettings() {
++				const wsSnapshot = (0, react.useSyncExternalStore)(
++					(listener) => ctx.workspaces.list.subscribe(listener),
++					() => ctx.workspaces.list.getSnapshot()
++				);
++				const sessionsSnapshot = (0, react.useSyncExternalStore)(
++					(listener) => ctx.sessions.list.subscribe(listener),
++					() => ctx.sessions.list.getSnapshot()
++				);
++				const archivedIds = wsSnapshot.archivedSessionIds || [];
++				const byId = sessionsSnapshot.byId || {};
++				const archived = archivedIds.map(function (id) { return byId[id]; }).filter(function (s) { return s !== void 0 && !s.blank; });
++				const [restoring, setRestoring] = (0, react.useState)(null);
++				const doRestore = function (id) {
++					setRestoring(id);
++					ctx.workspaces.unarchiveSession(id).then(function () { setRestoring(null); }).catch(function () { setRestoring(null); });
++				};
++				if (!archived.length) {
++					return (0, react_jsx_runtime.jsx)("div", { style: { padding: "16px 20px", fontSize: 13, opacity: 0.6 }, children: "没有已归档的会话。" });
++				}
++				return (0, react_jsx_runtime.jsx)("div", { style: { padding: "8px 20px", display: "flex", flexDirection: "column", gap: 4 },
++					children: archived.map(function (s) {
++						return (0, react_jsx_runtime.jsxs)("div", {
++							key: s.id,
++							style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.2))" },
++							children: [
++								(0, react_jsx_runtime.jsx)("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, cursor: "pointer" }, onClick: function () { ctx.sessions.open(s.id); }, children: (s.displayTitle || s.title || s.id) }),
++								(0, react_jsx_runtime.jsx)("button", {
++									type: "button",
++									onClick: function () { doRestore(s.id); },
++									disabled: restoring === s.id,
++									style: { fontSize: 12, cursor: "pointer", background: "transparent", border: "1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.3))", borderRadius: 6, padding: "2px 10px", color: "inherit" },
++									children: restoring === s.id ? "恢复中…" : "恢复"
++								})
++							]
++						}, s.id);
++					})
++				});
++			}));
+ 		}
+ 		//#endregion
+ 		exports.apply = apply;
