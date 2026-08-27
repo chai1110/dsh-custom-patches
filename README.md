@@ -248,80 +248,23 @@ bash install-dsh-custom.sh -y
 
 ```
 dsh-custom-patches/
-├── README.md               # This file (English)
-├── README.zh.md            # 中文版
-├── install-dsh-custom.sh   # 【Recommended】One-click install (version diagnosis + built-in detection + backup + apply; supports older version args)
-├── apply-dsh-patches.sh    # Basic install script (auto-locate, validate version, backup, apply; supports older version args)
-├── check-update.sh         # Check if official has a new version, assess re-adaptation need (can specify version)
-├── versions.md             # Version tracking table (official version × patch compatibility × official built-in status)
-├── ADAPTING.md             # Operation manual for adapting to new official versions (for maintainers)
-├── CONTRIBUTING.md         # Contribution guide (issues, features, adaptations, docs)
-├── POSTMORTEM.md           # Postmortem and patch generation standards (avoid repeat mistakes)
-├── docs/
-│   └── SSH-REMOTE.md       # SSH remote workspace plugin → points to separate repo cslht11/dsh-ssh-remote
-├── LICENSE                 # MIT License
-└── patches/                # Patch files (organized by plugin package)
-    ├── host-apiproxy/            → Adds session.editLastPrompt endpoint
-    ├── agent-loop/               → turn() skips duplicate messages with same id
-    ├── client-connection/        → Client RPC surface + schema mirror
-    ├── client-runtime/           → editLastPrompt + folder-aware replace shadow
-    └── client-ui-conversation/   → Input history + edit button UI
+├── install-dsh-custom.sh   # One-click install (recommended)
+├── apply-dsh-patches.sh    # Basic install (supports older version args)
+├── check-update.sh         # Check if official has a new version
+├── versions.md             # Version tracking table
+├── ADAPTING.md             # How to adapt to new official versions
+├── patches/                # Patch files (organized by package)
+└── LICENSE                 # MIT
 ```
-
-> These 5 patches correspond to 5 npm plugin packages: `dsh-host-apiproxy` · `dsh-agent-loop` · `dsh-client-connection` · `dsh-client-runtime` · `dsh-client-ui-conversation`
-
----
-
-## 🤔 Can I Modify This? How to Contribute / Contact
-
-**Yes, contributions welcome.** This project is **MIT** licensed — free to use, modify, and redistribute.
-
-Understand its shape first, then decide how to "modify":
-
-- **Want to use these features directly**: clone → `bash install-dsh-custom.sh -y` (see "Quick Start").
-- **Want to add your own features**: This repo is a **patch set**. To extend it, modify the compiled JS files in your local DSH's `node_modules/@deepseek-ai/<package>/lib/`, then generate a patch with `diff` and add it to `patches/` in this repo. Full workflow in [**How Maintainers Add Features**](#-how-maintainers-add-features) below.
-- **Want to modify DSH itself at source level**: That's a separate path — fork [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) and modify directly. Note that official [CONTRIBUTING.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/CONTRIBUTING.md) **does not accept external PRs** at this time, so these two features are only available via this patch approach for now.
-
-**Questions, feedback, issues**: open an **Issue** in this repo (enabled), or email <heitieya@163.com>.
-
-**Want to contribute directly?** Full process, standards, and verification requirements in **[CONTRIBUTING.md](CONTRIBUTING.md)** (issues / new patches / new version adaptations / docs).
-
----
-
-## 🛠 How Maintainers Add Features
-
-> For: repo maintainers (or anyone contributing a new patch).
-
-1. Directly modify compiled JS files in your local DSH's `node_modules/@deepseek-ai/<package>/lib/` (keep `*.bak` originals).
-2. Generate a patch file with `diff`:
-   ```bash
-   diff -u <package>/lib/<file>.bak <package>/lib/<file> > <name>.patch
-   ```
-3. Name patches with paths relative to the plugin package, e.g. `dsh-client-ui-conversation-lib-client.js.patch` (add version suffix for version-specific patches, e.g. `.rc7`).
-4. Update the mapping array in `install-dsh-custom.sh` and `apply-dsh-patches.sh` (`FILES`), adding the new patch.
-5. Commit and push:
-   ```bash
-   git add -A
-   git commit -m "feat: add <feature description>"
-   git push origin main
-   ```
-
-> Commit identity is fixed as `cslht11 <heitieya@163.com>`; push goes through gh active account cslht11.
 
 ---
 
 ## 📄 License
 
-This project uses [**MIT License**](LICENSE) (Copyright © 2026 cslht11).
-
-You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided you retain the above copyright notice and permission notice. **The software is provided "as is", without warranty of any kind.**
-
-> Note: This patch set modifies compiled artifacts of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). DSH's own code and license are governed by the official repo [LICENSE](https://github.com/deepseek-ai/deepseek-harness); this license only covers patches, scripts, and documentation in this repo.
-
----
+MIT — see [LICENSE](LICENSE).
 
 ## 📎 Related Resources
 
-- DeepSeek Harness official repo: <https://github.com/deepseek-ai/deepseek-harness>
-- DeepSeek Harness npm: `@deepseek-ai/dsh`
-- This repo: <https://github.com/cslht11/dsh-custom-patches>
+- SSH 多机并行插件: [cslht11/dsh-ssh-remote](https://github.com/cslht11/dsh-ssh-remote)
+- 供应商配置模板: [cslht11/dsh-provider-config](https://github.com/cslht11/dsh-provider-config)
+- DeepSeek Harness 官方: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)

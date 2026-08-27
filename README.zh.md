@@ -249,80 +249,23 @@ bash install-dsh-custom.sh -y
 
 ```
 dsh-custom-patches/
-├── README.md               # 本文件（英文）
-├── README.zh.md            # 中文版
-├── install-dsh-custom.sh   # 【推荐】一键安装（诊断版本 + 检测官方是否内置 + 备份 + 应用；支持老版本参数）
-├── apply-dsh-patches.sh    # 基础安装脚本（自动定位、校验版本、备份、应用；支持老版本参数）
-├── check-update.sh         # 检测官方是否有新版本，评估是否需要重新适配（可指定版本）
-├── versions.md             # 版本追踪表（官方版本 × 补丁适用性 × 官方是否内置功能）
-├── ADAPTING.md             # 适配官方新版的操作手册（面向维护者）
-├── CONTRIBUTING.md         # 贡献指南（怎么报问题、加功能、适配、改进文档）
-├── POSTMORTEM.md           # 事故复盘与补丁生成规范（避免重复踩坑）
-├── docs/
-│   └── SSH-REMOTE.md       # SSH 远程工作区插件 → 指向独立仓库 cslht11/dsh-ssh-remote
-├── LICENSE                 # MIT 许可证
-└── patches/                # 补丁文件（按插件包分目录）
-    ├── host-apiproxy/            → 新增 session.editLastPrompt 端点
-    ├── agent-loop/               → turn() 跳过同 id 重复消息
-    ├── client-connection/        → 客户端 RPC 调用面 + schema 镜像
-    ├── client-runtime/           → editLastPrompt + 折叠器感知 replace 阴影
-    └── client-ui-conversation/   → 输入历史 + 编辑按钮 UI
+├── install-dsh-custom.sh   # 一键安装（推荐）
+├── apply-dsh-patches.sh    # 基础安装（支持老版本参数）
+├── check-update.sh         # 检测官方是否有新版本
+├── versions.md             # 版本追踪表
+├── ADAPTING.md             # 适配官方新版的操作手册
+├── patches/                # 补丁文件（按包分目录）
+└── LICENSE                 # MIT
 ```
-
-> 这 5 个补丁对应 5 个 npm 插件包：`dsh-host-apiproxy` · `dsh-agent-loop` · `dsh-client-connection` · `dsh-client-runtime` · `dsh-client-ui-conversation`
-
----
-
-## 🤔 我可以改它吗？如何贡献 / 联系
-
-**能，欢迎。** 本项目以 **MIT** 授权，你可以自由使用、修改、再分发。
-
-需要先理解它的形态，再决定怎么"改"：
-
-- **想直接用这套功能**：clone → `bash install-dsh-custom.sh -y` 即可（见「快速开始」）。
-- **想给它加自己的新功能**：本项目是**补丁集**，二次开发的方式是——在你自己 DSH 的 `node_modules/@deepseek-ai/<包>/lib/` 里改代码，再用 `diff` 生成补丁加入本仓库的 `patches/`。完整流程见[「维护者如何新增功能」](#-维护者如何新增功能)。
-- **想从源码层面改 DSH 本身**：那是另一条路——fork DeepSeek Harness 官方源码再改。请注意官方 [CONTRIBUTING.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/CONTRIBUTING.md) 明确**暂不接受外部 PR**，所以这两个功能目前只能通过本补丁方式获得。
-
-**想反馈问题 / 提建议 / 问问题**：在仓库的 **Issues** 里新建即可（已开启），或发邮件到 <heitieya@163.com>。
-
-**想直接动手贡献？** 完整的流程、规范与验证要求见 **[CONTRIBUTING.md](CONTRIBUTING.md)**（报问题 / 新增补丁 / 适配新版 / 改进文档）。
-
----
-
-## 🛠 维护者如何新增功能
-
-> 适用人群：本仓库维护者（或想贡献新补丁的人）。
-
-1. 在本地 DSH 的 `node_modules/@deepseek-ai/<包>/lib/` 里直接改代码（并保留 `*.bak` 原始备份）。
-2. 用 `diff` 生成补丁文件：
-   ```bash
-   diff -u <包>/lib/<文件>.bak <包>/lib/<文件> > <名>.patch
-   ```
-3. 补丁文件命名用相对于插件包的路径，如 `dsh-client-ui-conversation-lib-client.js.patch`（含版本号时加后缀，如 `.rc7`）。
-4. 更新脚本里的映射数组（`install-dsh-custom.sh` 与 `apply-dsh-patches.sh` 的 `FILES`），加入新补丁。
-5. 提交并推送：
-   ```bash
-   git add -A
-   git commit -m "feat: 添加 <功能说明>"
-   git push origin main
-   ```
-
-> 提交时仓库身份已固定为 `cslht11 <heitieya@163.com>`，推送走 gh 活跃账号 cslht11。
 
 ---
 
 ## 📄 License
 
-本项目采用 [**MIT License**](LICENSE)（Copyright © 2026 cslht11）。
-
-即：允许任何人自由使用、复制、修改、合并、发布、分发、再许可和/或销售本软件副本；只需保留上述版权声明与许可声明。**本软件按"原样"提供，不附带任何明示或默示担保。**
-
-> 注意：本补丁集修改的是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的编译产物。DSH 本身的代码与许可以官方仓库 [LICENSE](https://github.com/deepseek-ai/deepseek-harness) 为准；本许可证仅覆盖本仓库中的补丁、脚本与文档等原创内容。
-
----
+MIT — 见 [LICENSE](LICENSE)。
 
 ## 📎 相关资源
 
-- DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
-- DeepSeek Harness npm：`@deepseek-ai/dsh`
-- 本仓库：<https://github.com/cslht11/dsh-custom-patches>
+- SSH 多机并行插件: [cslht11/dsh-ssh-remote](https://github.com/cslht11/dsh-ssh-remote)
+- 供应商配置模板: [cslht11/dsh-provider-config](https://github.com/cslht11/dsh-provider-config)
+- DeepSeek Harness 官方: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
