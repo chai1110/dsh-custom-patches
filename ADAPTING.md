@@ -112,6 +112,13 @@ git push
 | **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
 | **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
 
+### 输入历史（↑/↓）alpha 重打指引
+
+- alpha `ui-conversation` 的 `InputBar` 仍在（15094 行，`function InputBar`），但文件从 rc.2 的 10453 行扩到 16037 行——**结构大改**，rc.2 补丁的 18 个 hunk 无法直接套用，需按逻辑重写。
+- 我们的标记函数：`recallHistory` / `sendHistory` / `historyIndexRef` / `historyStack`。alpha 中 grep 这些标记为 0（未内置）。
+- 重打方式：在 alpha `InputBar` 组件内加 `onKeyDown`（↑/↓ 召回历史），复用 rc.2 补丁的逻辑思路（见 `patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc2.patch`），替换到 alpha 的新 InputBar 结构。
+- 因 alpha 未稳定且 InputBar 结构可能再变，**建议等稳定版再实施**。
+
 ### 预研产出的 alpha 补丁（可复用）
 
 | 补丁文件 | 状态 | 说明 |
