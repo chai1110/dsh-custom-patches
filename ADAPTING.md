@@ -121,6 +121,20 @@ git push
 
 > alpha 的 client-connection 里 `archiveSession` 是**直接实现**（非 callUnary RPC），`emitWorkspace({type:"archived"})` 广播——我们的 unarchiveSession 补丁按同款结构编写。
 
+### 归档面板 UI 适配指引（alpha）
+
+alpha 设置 UI 插槽从 `settings.section` 改为 **`settings.general.item`**（每项一个插槽，参考 ui-conversation 的 `composer-enter` 挂载方式）：
+```js
+ctx.slots.inject("settings.general.item", () => ctx.slots.register({
+    name: "settings.general.item",
+    id: "archived-sessions",   // 换成自己的 id
+    order: 45,
+    locale: NS,
+    // inject 提供恢复动作
+}, ArchivedSessionsPanel));
+```
+> 归档数据来源变化：alpha 里 `workspace.list.getSnapshot().archivedSessionIds` 仍在（client-connection 内联实现，`emitWorkspace` 广播），UI 通过订阅 workspace list 获取。
+
 ### 预研结论 / 建议
 
 1. **不要现在升级 alpha**：架构重构 + 预发布不稳定 + 会覆盖当前可用环境。
