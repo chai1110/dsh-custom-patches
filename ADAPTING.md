@@ -108,7 +108,8 @@ git push
 | 功能 | alpha 下状态 | 行动 |
 |---|---|---|
 | **归档恢复**（unarchiveSession） | workspace 官方**未内置** unarchiveSession；client-connection 协议改为 `workspace/archiveSession`（斜杠形式） | 需按新结构重打补丁（workspace + client-connection + ui-workspace） |
-| **编辑重发**（editLastPrompt） | alpha 全库**搜不到 editLastPrompt**；agent-loop 新增 `requestSurfaceGeneration`（官方可能改用新 surface 机制） | 先确认官方新机制是否覆盖该功能，若覆盖则删除补丁，否则重打 |
+| **编辑重发**（editLastPrompt） | alpha 全库**搜不到 editLastPrompt**；agent-loop 新增 `session.surface.replaceGeneration` + `startsRequestSeries`（step 里传 surfaceGeneration，官方原生 surface 替换） | **官方已内置**：新机制正是"重发/替换 surface"能力，覆盖我们的编辑重发 → 升级时**删除**该功能补丁（editLastPrompt 相关），改用官方机制 |
+| **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
 | **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
 
 ### 预研产出的 alpha 补丁（可复用）
