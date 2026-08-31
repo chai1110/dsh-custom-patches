@@ -115,8 +115,8 @@ git push
 
 | 补丁文件 | 状态 | 说明 |
 |---|---|---|
-| `patches/workspace/dsh-workspace-lib-index.js.alpha.patch` | ✅ 已生成，上下文匹配验证通过 | workspace 端 `unarchiveSession` |
-| `patches/client-connection/dsh-client-connection-lib-client.js.alpha.patch` | ✅ 已生成，上下文匹配验证通过 | client-connection 端 `unarchiveSession` 实现 + dispatch（alpha 把 workspace 操作内联到此包，非 RPC） |
+| `patches/workspace/dsh-workspace-lib-index.js.alpha.patch` | ✅ 已生成 + **实际应用验证通过** | workspace 端 `unarchiveSession`（应用后 grep=1，语法 OK） |
+| `patches/client-connection/dsh-client-connection-lib-client.js.alpha.patch` | ✅ 已生成 + **实际应用验证通过** | client-connection 端 `unarchiveSession` 实现 + dispatch（应用后 grep=2，语法 OK；alpha 把 workspace 操作内联到此包，非 RPC） |
 | UI 面板（归档恢复设置项） | ⏳ 待适配 | alpha 设置插槽 `settings.section` → `settings.general.item`（与 composer-enter 同款挂载），需按新插槽重写 |
 
 > alpha 的 client-connection 里 `archiveSession` 是**直接实现**（非 callUnary RPC），`emitWorkspace({type:"archived"})` 广播——我们的 unarchiveSession 补丁按同款结构编写。
