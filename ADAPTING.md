@@ -158,6 +158,32 @@ ctx.slots.inject("settings.general.item", () => ctx.slots.register({
 3. 届时按本表：先查官方是否已内置（grep 标记），再决定重打 or 删除补丁。
 4. `dsh-ssh-remote` 插件的 vendored 组件（easyssh / dsh-ssh / aionui-panel）依赖 host 的 `ctx.provide("easysshCore")` 等接口，升级前需先验证这些接口在 alpha 下是否保留。
 
+---
+
+### 隔离验证实录（2026-08-31，用户选择「隔离验证，不碰当前环境」）
+
+> 把 alpha 0.1.2-alpha.2 装进 `/tmp/dsh-alpha-verify`（临时目录），套上 3 个 alpha 补丁做冒烟，全程未动全局 rc.2 环境。
+
+**重要发现：alpha.2 官方发布不完整** —— `npm install @deepseek-ai/dsh@0.1.2-alpha.2` 会失败：
+
+- 主包依赖 `@deepseek-ai/dsh-session-turn-outline@^0.1.2-alpha.3`，但该包**整个不在 npm registry**（E404）。
+- 因此即便想升级 alpha，**npm 也无法正常安装完整依赖树**——这是官方打包遗漏，非我们环境问题。
+- 绕行：我们的 3 个目标包（workspace / client-connection / agent-loop）**不依赖**该坏包，可单独拉取它们的 @deepseek-ai 闭包构建最小加载树。
+
+**验证结果（全部通过）**
+
+| 验证项 | 结果 |
+|---|---|
+| 3 个补丁在 alpha 真实文件上干净套用 | ✅（从 tgz 重建后一次 apply 成功） |
+| 3 个文件语法检查 | ✅ |
+| 功能标记存在 | ✅ workspace unarchive=1、client-connection=2、agent-loop tailEvent=2 |
+| workspace / agent-loop ESM 模块加载 | ✅（在补齐的真实 alpha 依赖树上 import 成功） |
+| `unarchiveSession` 为真实 API | ✅ `WorkspaceRegistry.prototype.unarchiveSession` 是函数（enqueueOperation 过滤归档集，同 rc.2 行为） |
+| client-connection | ⚠️ 是浏览器 bundle（`window.__ModuleLoader__.load`），Node 无法加载属正常，以语法+标记验证 |
+| agent-loop 去重逻辑行为测试 | ✅ 3 场景全过：尾=同 id user 跳过 / 尾=assistant 追加 / 尾=不同 user 追加 |
+
+**结论**：3 个 alpha 补丁（workspace / client-connection / agent-loop）在真实 alpha 上**可套用、可加载、逻辑正确**，可直接用于后续稳定版或修复后的 alpha 发布；唯一阻断升级的是**官方 alpha.2 漏发 `dsh-session-turn-outline`**。
+
 ### 补：dsh-ssh-remote 在 alpha 下的接口兼容性（2026-08-31 实测）
 
 | vendored 组件依赖 | alpha 0.1.2-alpha.2 | 结论 |
