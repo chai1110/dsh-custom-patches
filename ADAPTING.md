@@ -84,3 +84,36 @@ git push
 - 每次只改**必要几处**，避免为了"更像官方"而无关改动。
 - 补丁尽量小 ⇒ 与新版的冲突点少，适配容易。
 - 每个功能标记清晰（`editLastPrompt` 等），便于 grep 定位和排查。
+
+---
+
+## 预研记录：官方 `0.1.2-alpha.2`（2026-08-30 发布，alpha 预发布）
+
+> ⚠️ 这是**预研**，不是已完成适配。`0.1.2-alpha.2` 是 alpha 预发布（npm `latest` 仍是 `0.1.1-rc.2`），且为**架构级重构**，建议等官方稳定版（`latest` 升到 0.1.2+）再实际升级适配。
+
+### 官方变化要点
+
+| 项 | rc.2 | 0.1.2-alpha.2 | 对我们补丁的影响 |
+|---|---|---|---|
+| `dsh-host-apiproxy` | 存在（我们打了 editLastPrompt 补丁） | **包消失** | 补丁失效，功能拆分到新包 |
+| `dsh-client-runtime` | 存在（我们打了 unarchive 客户端补丁） | **包消失** | 补丁失效 |
+| `dsh-client-connection` | 10340 行 | 4809 行 | 大幅拆分，RPC 面结构变化 |
+| `dsh-client-ui-conversation` | 10453 行 | 16037 行 | 大幅扩编，需重定位补丁点 |
+| `dsh-client-ui-workspace` | 2510 行 | 2739 行 | 中幅，归档设置面板补丁需重定位 |
+| `dsh-agent-loop` | 1323 行 | 1387 行 | 新增 `requestSurfaceGeneration` / `startsRequestSeries` 机制 |
+| `dsh-workspace` | 772 行 | 757 行 | 有 `archiveSession`+`archivedSessionIds`，**无 `unarchiveSession`** |
+
+### 各功能适配结论（预研）
+
+| 功能 | alpha 下状态 | 行动 |
+|---|---|---|
+| **归档恢复**（unarchiveSession） | workspace 官方**未内置** unarchiveSession；client-connection 协议改为 `workspace/archiveSession`（斜杠形式） | 需按新结构重打补丁（workspace + client-connection + ui-workspace） |
+| **编辑重发**（editLastPrompt） | alpha 全库**搜不到 editLastPrompt**；agent-loop 新增 `requestSurfaceGeneration`（官方可能改用新 surface 机制） | 先确认官方新机制是否覆盖该功能，若覆盖则删除补丁，否则重打 |
+| **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
+
+### 预研结论 / 建议
+
+1. **不要现在升级 alpha**：架构重构 + 预发布不稳定 + 会覆盖当前可用环境。
+2. 等官方 `latest` 升到 0.1.2 稳定版后再适配。
+3. 届时按本表：先查官方是否已内置（grep 标记），再决定重打 or 删除补丁。
+4. `dsh-ssh-remote` 插件的 vendored 组件（easyssh / dsh-ssh / aionui-panel）依赖 host 的 `ctx.provide("easysshCore")` 等接口，升级前需先验证这些接口在 alpha 下是否保留。
