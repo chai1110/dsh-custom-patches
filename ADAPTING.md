@@ -103,14 +103,19 @@ git push
 | `dsh-agent-loop` | 1323 行 | 1387 行 | 新增 `requestSurfaceGeneration` / `startsRequestSeries` 机制 |
 | `dsh-workspace` | 772 行 | 757 行 | 有 `archiveSession`+`archivedSessionIds`，**无 `unarchiveSession`** |
 
-### 各功能适配结论（预研）
+### 各功能适配结论（预研 + 全集 dry-run 验证）
 
-| 功能 | alpha 下状态 | 行动 |
+> 以下为**补丁全集**在 alpha 上逐一 `patch --dry-run` 的实测结果（2026-08-31 复核）。
+
+| 功能 / 补丁文件 | alpha 实测 | 行动 |
 |---|---|---|
-| **归档恢复**（unarchiveSession） | workspace 官方**未内置** unarchiveSession；client-connection 协议改为 `workspace/archiveSession`（斜杠形式） | 需按新结构重打补丁（workspace + client-connection + ui-workspace） |
-| **编辑重发**（editLastPrompt） | alpha 全库**搜不到 editLastPrompt**；agent-loop 新增 `session.surface.replaceGeneration` + `startsRequestSeries`（step 里传 surfaceGeneration，官方原生 surface 替换） | **官方已内置**：新机制正是"重发/替换 surface"能力，覆盖我们的编辑重发 → 升级时**删除**该功能补丁（editLastPrompt 相关），改用官方机制 |
-| **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
-| **输入历史**（↑/↓） | ui-conversation 无我们的标记（`recallHistory`/`sendHistory`） | 需重打补丁 |
+| **归档恢复·host 侧**（workspace） | ✅ `dsh-workspace-lib-index.js.alpha.patch` 已应用验证通过；workspace 官方**无 unarchiveSession**（README 明确 "no unarchive action exists yet"） | 用 alpha 补丁 |
+| **归档恢复·协议侧**（client-connection） | ✅ `dsh-client-connection-lib-client.js.alpha.patch` 已应用验证通过；alpha 把 workspace 操作内联实现（非 callUnary RPC），`emitWorkspace({type:"archived"})` 广播 | 用 alpha 补丁 |
+| **归档恢复·UI**（client-ui-workspace） | ❌ archive 补丁 3 hunk 中 2 失败；alpha 仍无恢复 UI，设置插槽改为 `settings.general.item` | 需按新插槽重打（指引见下） |
+| **decision 消息去重**（agent-loop） | ❌ rc.2 补丁 1 hunk 全失败；alpha **未内置**该修复（`decision.messages` 循环仍是单行 append） | ✅ 已生成 `dsh-agent-loop-lib-index.js.alpha.patch` 并**实际应用验证通过** |
+| **编辑重发·引擎层**（client-runtime / host-apiproxy） | ⚠️ 两包在 alpha **消失**；能力改为 alpha 原生 `session.surface.replaceGeneration`（client-connection 内联实现，`shadowedSeqs` 位置替换） | 引擎层 **官方已内置** → 删除 client-runtime 与 host-apiproxy 的 editLastPrompt 补丁，改用官方机制 |
+| **编辑重发·UI 层**（client-ui-conversation） | ❌ rc.8 补丁 18 hunk 中 **16 失败**；alpha 无用户消息编辑重发入口（仅有 composer 队列 queue.edit） | 引擎层虽内置，**UI 入口未内置** → 需按 alpha 新消息渲染结构重打 |
+| **输入历史**（↑/↓）（client-ui-conversation） | ❌ 同上；alpha grep `sendHistory`/`recallHistory` = 0 | 需重打补丁（指引见下） |
 
 ### 输入历史（↑/↓）alpha 重打指引
 
@@ -125,7 +130,10 @@ git push
 |---|---|---|
 | `patches/workspace/dsh-workspace-lib-index.js.alpha.patch` | ✅ 已生成 + **实际应用验证通过** | workspace 端 `unarchiveSession`（应用后 grep=1，语法 OK） |
 | `patches/client-connection/dsh-client-connection-lib-client.js.alpha.patch` | ✅ 已生成 + **实际应用验证通过** | client-connection 端 `unarchiveSession` 实现 + dispatch（应用后 grep=2，语法 OK；alpha 把 workspace 操作内联到此包，非 RPC） |
+| `patches/agent-loop/dsh-agent-loop-lib-index.js.alpha.patch` | ✅ 已生成 + **实际应用验证通过** | decision.messages 去重（rc.2 补丁上下文已变，alpha 版按新 `step(assembly, startsRequestSeries)` 行重打；应用后语法 OK） |
 | UI 面板（归档恢复设置项） | ⏳ 待适配 | alpha 设置插槽 `settings.section` → `settings.general.item`（与 composer-enter 同款挂载），需按新插槽重写 |
+| 编辑重发 UI 层（client-ui-conversation） | ⏳ 待适配 | 引擎层官方内置，但 alpha 无用户消息编辑入口，需按新渲染结构重打 |
+| 输入历史（↑/↓）（client-ui-conversation） | ⏳ 待适配 | alpha InputBar 大改，需按逻辑重打 |
 
 > alpha 的 client-connection 里 `archiveSession` 是**直接实现**（非 callUnary RPC），`emitWorkspace({type:"archived"})` 广播——我们的 unarchiveSession 补丁按同款结构编写。
 
