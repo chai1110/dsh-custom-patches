@@ -157,3 +157,13 @@ ctx.slots.inject("settings.general.item", () => ctx.slots.register({
 2. 等官方 `latest` 升到 0.1.2 稳定版后再适配。
 3. 届时按本表：先查官方是否已内置（grep 标记），再决定重打 or 删除补丁。
 4. `dsh-ssh-remote` 插件的 vendored 组件（easyssh / dsh-ssh / aionui-panel）依赖 host 的 `ctx.provide("easysshCore")` 等接口，升级前需先验证这些接口在 alpha 下是否保留。
+
+### 补：dsh-ssh-remote 在 alpha 下的接口兼容性（2026-08-31 实测）
+
+| vendored 组件依赖 | alpha 0.1.2-alpha.2 | 结论 |
+|---|---|---|
+| `ctx.provide("easysshCore")` / `ctx.get("easysshCore")` | ✅ client-connection 仍保留 `.provide` 服务 API | 兼容 |
+| `ctx.get("sshWorkspaceMode")` | ✅ 保留 | 兼容 |
+| `slots.inject("conversation.input.left")` | ✅ 保留（ui-conversation slots 契约） | 兼容（SSH 连接按钮挂载点） |
+| `slots.inject("conversation.session.header.actions")` / `.utilities` | ✅ 保留 | 兼容 |
+| `slots.inject("settings.section")` | ❌ 改名 `settings.general.item` | 仅影响 settings 相关挂载；easyssh 的「SSH 远程工作区」设置项本就已禁用（补丁），无实际影响 |
