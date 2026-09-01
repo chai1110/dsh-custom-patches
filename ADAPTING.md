@@ -193,3 +193,26 @@ ctx.slots.inject("settings.general.item", () => ctx.slots.register({
 | `slots.inject("conversation.input.left")` | ✅ 保留（ui-conversation slots 契约） | 兼容（SSH 连接按钮挂载点） |
 | `slots.inject("conversation.session.header.actions")` / `.utilities` | ✅ 保留 | 兼容 |
 | `slots.inject("settings.section")` | ❌ 改名 `settings.general.item` | 仅影响 settings 相关挂载；easyssh 的「SSH 远程工作区」设置项本就已禁用（补丁），无实际影响 |
+
+---
+
+## 压缩自动重试补丁（2026-09-01）
+
+**背景**：SenseNova 网关 TPM 限流（`429001 inference tpm exhausted`）导致大会话压缩失败。
+官方 `dsh-llm-retry` 的重试只监听 `agent/request-error`（正常对话请求），压缩
+（`dsh-compaction-basic` 直接 `ctx.llm.stream()`）不走该扩展点，429 直接失败且无重试。
+
+**补丁**：`patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch`
+
+- 在 `summarizeWithLlm` 内把单次 `ctx.llm.stream()` 调用改为重试循环。
+- 复用 provider 的 `retryPolicy`（经 `ctx.llm.providerRetryPolicy(provider)` 读取：
+  `maxRetries` / `retryableCodes` / `backoff{initialDelayMs,maxDelayMs,jitterRatio}`）。
+- 仅当 `error.code` ∈ `retryableCodes` 且未超 `maxRetries`、未取消时重试；
+  每次重试按指数退避 + jitter 等待，并在会话记录 `llm/retry` / `llm/retry-started` 事件。
+- 复用现有 `randomUUID` 导入；新增 `compactionBackoffDelay` / `cancellableDelay` 两个局部函数。
+- 配置无需新增：直接用 settings.yaml 里 `sensenova.retryPolicy`（本项目已配
+  `maxRetries: 15`、retryableCodes 含 `RATE_LIMIT`、backoff 至 30s）。
+
+**适配新版本时**：若官方重构压缩路径，检查 `summarizeWithLlm` 是否存在、是否已内置重试
+（grep `compactionBackoffDelay`）。内置则删除本补丁并更新 `install-dsh-custom.sh` /
+`apply-dsh-patches.sh` 的 FILES 与 `versions.md`。

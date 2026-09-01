@@ -7,7 +7,7 @@
 | 0.1.0-rc.6 | ✅ 全部可用 | ❌ | ❌ | 最初适配（历史基准） |
 | 0.1.0-rc.7 | ✅ 全部可用（ui 需用 `.rc7` 版） | ❌ | ❌ |  |
 | 0.1.0-rc.8 | ✅ 全部可用（ui 用 `.rc8` 版） | ❌ | ❌ |  |
-| 0.1.1-rc.2 | ✅ 全部可用（ui 用 `.rc2` 版） | ❌ | ❌ | **当前基准** |
+| 0.1.1-rc.2 | ✅ 全部可用（ui 用 `.rc2` 版） | ❌ | ❌ | **当前基准**；含压缩重试补丁（`compaction-basic`，见下） |
 | 0.1.2-alpha.2 | ❌ 需重打（架构重构） | ❌ | ❌ | **预发布**；host-apiproxy/client-runtime 包消失，见 `ADAPTING.md` 预研记录 |
 
 ---
@@ -58,3 +58,6 @@ patch --dry-run -N -p1 < 补丁文件.patch
 |---|---|---|
 | 编辑重发 | `editLastPrompt` | host-apiproxy / agent-loop / client-connection / client-runtime / ui-conversation |
 | 输入历史 | `recallHistory` `sendHistory` `historyIndexRef` | ui-conversation |
+| 压缩自动重试 | `compactionBackoffDelay` `providerRetryPolicy` | compaction-basic（`dsh-compaction-basic-lib-index.js.retry.patch`） |
+
+> **压缩自动重试**：官方 `dsh-llm-retry` 的重试只挂在 `agent/request-error`（正常对话请求），压缩（`dsh-compaction-basic` 直接调 `ctx.llm.stream()`）不走该扩展点，429/限流直接失败。本补丁在 `summarizeWithLlm` 内加重试循环，复用 provider 的 `retryPolicy`（maxRetries/retryableCodes/backoff，settings.yaml 已配），并记录 `llm/retry` 会话事件。详见 `ADAPTING.md`。

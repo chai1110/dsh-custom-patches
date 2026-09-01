@@ -84,6 +84,7 @@ FILES=(
   "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
   "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
   "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch|recallHistory|client/ui-conversation/lib/client.js"
+  "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
 )
 
 

@@ -45,6 +45,7 @@ FILES=(
   "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch"
   "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch"
   "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch"
+  "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch"
 )
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
