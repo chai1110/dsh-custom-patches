@@ -1,72 +1,28 @@
 #!/bin/bash
-# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh）
+# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.1-rc.2）
 # 用法:
-#   bash apply-dsh-patches.sh                # 默认适配最新版本 0.1.2-rc.1
-#   bash apply-dsh-patches.sh 0.1.0-rc.8     # 老版本用户：指定自己的 DSH 版本
-#   bash apply-dsh-patches.sh 0.1.0-rc.7
+#   bash apply-dsh-patches.sh                # 本 tag 固定适配 DSH 0.1.1-rc.2
 #
-# 支持版本见 versions.md：rc.1 / rc.7 / rc.8 / 0.1.1-rc.2 均有独立补丁文件；
+# 其他 DSH 版本用户：请 clone 后 checkout 对应版本 tag（见 README「多版本支持」）。
 # rc.6 及更早没有单独保存（本仓库自 rc.7 起发布），需升级官方后再用。
 
 set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-# 目标 DSH 版本：默认适配最新，也可通过第一个参数指定老版本
-DEFAULT_VERSION="0.1.2-rc.1"
-TARGET_VERSION="${1:-$DEFAULT_VERSION}"
-
-# ===== 版本 → ui-conversation 补丁后缀 映射 =====
-# 官方主要在 ui-conversation 包里调整界面布局，故该补丁按版本区分
-# （.rc1.patch / .rc7.patch / .rc8.patch / .rc2.patch，均保留在本仓库 patches/ 下）。
-case "$TARGET_VERSION" in
-  0.1.2-rc.1)  UI_SUFFIX="rc1" ;;
-  0.1.1-rc.2)  UI_SUFFIX="rc2" ;;
-  0.1.0-rc.8)  UI_SUFFIX="rc8" ;;
-  0.1.0-rc.7)  UI_SUFFIX="rc7" ;;
-  0.1.0-rc.6)
-    echo -e "${RED}❌ 0.1.0-rc.6 及更早没有单独保存补丁文件（本仓库自 rc.7 起发布）。${NC}"
-    echo -e "   建议升级官方：npm install -g @deepseek-ai/dsh@0.1.2-rc.1，再重新运行本脚本。"
-    exit 1
-    ;;
-  *)
-    echo -e "${RED}❌ 不支持的版本: ${YELLOW}$TARGET_VERSION${NC}"
-    echo -e "   支持的版本: 0.1.2-rc.1（默认）/ 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7"
-    exit 1
-    ;;
-esac
+# 本仓库（tag v0.1.1-rc.2）固定适配的 DSH 版本
+TARGET_VERSION="0.1.1-rc.2"
 
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
 # 格式: "相对插件路径|补丁在仓库中的相对路径"
-# rc.1 (0.1.2-rc.1) 是架构重构版：host-apiproxy/client-runtime 已移除，
-# 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载；
-# 0.1.2 新增 dsh-api-remotes（浏览器端 remote.session 方法表 = 其 lib/client.js
-# 内嵌的 typert 模型冻结副本），@Remote 增删方法必须同步补它。
-if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
-  FILES=(
-    "dsh-api-session-controller/lib/index.js|patches/api-session-controller/dsh-api-session-controller-lib-index.js.rc1.patch"
-    "dsh-api-session-controller/lib/client.js|patches/api-session-controller/dsh-api-session-controller-lib-client.js.rc1.patch"
-    "dsh-api-session-controller/lib/typert.host.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-host.js.rc1.patch"
-    "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.rc1.patch"
-    "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.rc1.patch"
-    "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.rc1.patch"
-    "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.rc1.patch"
-    "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.rc1.patch"
-    "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.rc1.patch"
-    "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc1.patch"
-    "dsh-client-ui-chat/lib/client.js|patches/client-ui-chat/dsh-client-ui-chat-lib-client.js.rc1.patch"
-    "dsh-client-ui-workspace/lib/client.js|patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.rc1.patch"
-  )
-else
-  FILES=(
-    "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch"
-    "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch"
-    "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch"
-    "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch"
-    "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch"
-    "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch"
-  )
-fi
+FILES=(
+  "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch"
+  "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch"
+  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch"
+  "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.patch"
+  "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.patch"
+)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -98,9 +54,9 @@ echo -e "${GREEN}✅ 找到 DSH: $DSH_DIR${NC}"
 VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
 echo -e "   当前版本: ${YELLOW}$VERSION${NC}（补丁目标: ${YELLOW}$TARGET_VERSION${NC}）"
 if [ "$VERSION" != "$TARGET_VERSION" ]; then
-  echo -e "${RED}❌ 版本不匹配：本补丁集按 $TARGET_VERSION 适配，当前是 $VERSION${NC}"
+  echo -e "${RED}❌ 版本不匹配：本 tag 按 $TARGET_VERSION 适配，当前是 $VERSION${NC}"
   echo -e "   两种处理方式（任选其一）："
-  echo -e "     a) 老版本用户：加上你的版本号重试，例如 ${YELLOW}bash apply-dsh-patches.sh $VERSION${NC}"
+  echo -e "     a) 老版本用户：先 checkout 匹配的 tag，例如 ${YELLOW}git checkout v$VERSION${NC} 后再运行"
   echo -e "     b) 想用最新版：升级 ${YELLOW}npm install -g @deepseek-ai/dsh@$TARGET_VERSION${NC} 后重试"
   exit 1
 fi
@@ -157,8 +113,4 @@ echo -e "  1. ${YELLOW}重启 DSH: kill $(pgrep -f 'dsh web') 2>/dev/null; dsh w
 echo -e "  2. 刷新浏览器页面使用新的功能"
 echo ""
 echo -e "如需恢复原版（仅当前设备）:"
-if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
-  echo -e "  ${YELLOW}for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
-else
-  echo -e "  ${YELLOW}for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
-fi
+echo -e "  ${YELLOW}for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
