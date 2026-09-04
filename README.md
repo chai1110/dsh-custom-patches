@@ -5,9 +5,9 @@
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用功能：
 **① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成（Codex 风格）** 与 **③ 归档会话恢复**。
 
-- 适配版本：**`@deepseek-ai/dsh@0.1.1-rc.2`**
+- 适配版本：**`@deepseek-ai/dsh@0.1.2-rc.1`（最新）**，同时完整支持 **0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7** 老版本（老版本用户无需升级，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
-- 维护：cslht11（<heitieya@163.com>）
+- 维护：chai1110（<heitieya@163.com>）
 
 > **这是什么 / 不是什么**：这是一套**编译产物补丁**，不是官方插件，也不是源码 fork。
 > 它通过 `diff`/`patch` 直接修补 DSH 已装好的 npm 包文件（`node_modules` 里的编译 JS），
@@ -53,9 +53,9 @@
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh`**（当前最新适配 `0.1.1-rc.2`；**老版本 rc.7 / rc.8 用户无需升级**，安装脚本带版本号参数即可，见「老版本 DSH 用户」）；或用源码构建（见「源码构建（monorepo）用户」）
+- 已用 npm **全局安装 `@deepseek-ai/dsh`**（当前最新适配 `0.1.2-rc.1`；**老版本 0.1.1-rc.2 / rc.8 / rc.7 用户无需升级**，安装脚本带版本号参数即可，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
 
-> **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/cslht11/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
+> **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/chai1110/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
 
 ---
 
@@ -69,7 +69,7 @@ npm install -g @deepseek-ai/dsh@0.1.1-rc.2
 dsh --version          # 应输出 0.1.1-rc.2
 
 # 2) 克隆本仓库（HTTPS，对所有人可用）
-git clone https://github.com/cslht11/dsh-custom-patches.git
+git clone https://github.com/chai1110/dsh-custom-patches.git
 cd dsh-custom-patches
 
 # 3) 一键安装（-y 跳过交互确认；脚本会自动定位 DSH、校验版本、检测官方是否已内置、备份并应用）
@@ -86,25 +86,28 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 - 输入框按 **↑** 即可翻历史
 - 最后一条用户消息 **hover（鼠标悬停）** 出现 **✏️ 编辑** 按钮
 
-> 也可以把本仓库链接 `https://github.com/cslht11/dsh-custom-patches` 直接发给你的 AI 助手，
+> 也可以把本仓库链接 `https://github.com/chai1110/dsh-custom-patches` 直接发给你的 AI 助手，
 > 让它按本文档的「快速开始」步骤在你的机器上完成配置；文档中的命令均可直接执行。
 
 ---
 
-## 🧩 老版本 DSH 用户（0.1.0-rc.7 / 0.1.0-rc.8）
+## 🧩 多版本支持（不同 DSH 版本的用户都能用）
 
-**还没升级官方、仍用老版本 DSH？不需要升级**，直接给安装脚本加上你的版本号即可。仓库同时保留了 rc.7 / rc.8 / 0.1.1-rc.2 三个版本的适配（版本追踪见 [versions.md](versions.md)）：
+**不同用户可能装在各自的 DSH 版本上——本项目为每个已适配的版本都保留了独立补丁文件，老版本用户无需升级官方即可使用同一套功能。**
 
-| 你的 DSH 版本 | 一键安装命令 |
-|---|---|
-| **0.1.1-rc.2**（最新） | `bash install-dsh-custom.sh -y`（默认） |
-| **0.1.0-rc.8** | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
-| **0.1.0-rc.7** | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
-| 0.1.0-rc.6 及更早 | ❌ 无独立补丁文件（仓库自 rc.7 起发布），建议升级官方后使用 |
+| 你的 DSH 版本 | 适配情况 | 一键安装命令 |
+|---|---|---|
+| **0.1.2-rc.1**（最新） | ✅ 全部功能（`.rc1` 版补丁） | `bash install-dsh-custom.sh -y`（默认） |
+| **0.1.1-rc.2** | ✅ 全部功能（`.rc2` 版补丁） | `bash install-dsh-custom.sh -y 0.1.1-rc.2` |
+| **0.1.0-rc.8** | ✅ 全部功能（`.rc8` 版补丁） | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
+| **0.1.0-rc.7** | ✅ 全部功能（`.rc7` 版补丁） | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
+| 0.1.0-rc.6 及更早 | ❌ 无独立补丁文件（仓库自 rc.7 起发布），建议升级官方后使用 | — |
 
-基础脚本同样支持：`bash apply-dsh-patches.sh 0.1.0-rc.8`。
+基础脚本同样支持：`bash apply-dsh-patches.sh 0.1.1-rc.2`。
 
-> **为什么能跨版本？** 官方主要在 `dsh-client-ui-conversation` 包里调整界面布局，所以只需按版本切换这一个补丁（`.rc7` / `.rc8` / `.rc2` 三份文件都保留在 `patches/` 下）；其余 4 个补丁（host-apiproxy / agent-loop / client-runtime / client-connection）在 rc.7 → rc.8 → rc.2 各版本间**内容不变，直接通用**。
+> **为什么能跨版本？** 官方主要在 `dsh-client-ui-conversation` / `dsh-client-ui-chat` 包调整界面，每个版本保留了对应适配文件：
+> - **0.1.2-rc.1 是架构重构版**（host-apiproxy / client-runtime 移除），其补丁全部独立（`.rc1` 文件，见 [versions.md](versions.md)）；
+> - **rc.7 / rc.8 / 0.1.1-rc.2** 版本间仅 ui-conversation 补丁按版本切换（`.rc7`/`.rc8`/`.rc2` 三份都保留），其余补丁内容一致通用。
 >
 > **不想记版本？** 直接跑 `bash install-dsh-custom.sh -y`，若本机版本与默认适配版本不符，脚本会明确报错并提示你用哪个参数重试——不会误打补丁。
 
@@ -114,19 +117,19 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 
 ### 第 1 步：确认 DSH 版本
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.1-rc.2   # 装到匹配版本
-dsh --version                                 # 确认是 0.1.1-rc.2
+npm install -g @deepseek-ai/dsh@0.1.2-rc.1   # 装到匹配版本（老版本用户装自己那版即可）
+dsh --version                                 # 确认是 0.1.2-rc.1
 ```
 
 ### 第 2 步：克隆仓库
 HTTPS（推荐，任何机器可用）：
 ```bash
-git clone https://github.com/cslht11/dsh-custom-patches.git
+git clone https://github.com/chai1110/dsh-custom-patches.git
 cd dsh-custom-patches
 ```
 SSH（可选，需你已在自己机器上配好 GitHub SSH key）：
 ```bash
-git clone git@github.com:cslht11/dsh-custom-patches.git
+git clone git@github.com:chai1110/dsh-custom-patches.git
 cd dsh-custom-patches
 ```
 
@@ -138,7 +141,7 @@ bash install-dsh-custom.sh -y
 脚本会自动：
 1. 定位 DSH 安装目录（同时探测系统级与用户级全局路径）
 2. 读取本地版本并查询 npm 官方最新版，给出版本诊断
-3. **校验版本**（默认期望 `0.1.1-rc.2`；老版本用户加版本号即可，如 `bash install-dsh-custom.sh -y 0.1.0-rc.8`；不匹配会拒绝并提示正确用法）
+3. **校验版本**（默认期望 `0.1.2-rc.1`；老版本用户加版本号即可，如 `bash install-dsh-custom.sh -y 0.1.1-rc.2`；不匹配会拒绝并提示正确用法）
 4. **检测官方是否已内置功能**——若目标文件已含功能标记（例如官方新版把这些功能收编了），自动跳过对应补丁
 5. 对需要应用的补丁**逐一备份（生成 `.bak`）并应用**
 6. 汇总报告 + 提示重启
@@ -175,7 +178,7 @@ bash install-dsh-custom.sh -y
 ```
 脚本检测到 `DSH_SOURCE` 后会自动切换到源码布局：
 - 在 `<DSH_SOURCE>/packages/**/lib/` 下定位目标文件、备份、应用
-- **跳过 npm 版本校验**（源码没有 `0.1.1-rc.2` 这种版本号），但请确认你的源码 checkout 对应 rc.2 时代的代码
+- **跳过 npm 版本校验**（源码没有 `0.1.2-rc.1` 这种版本号），但请确认你的源码 checkout 对应最新 rc.1 或对应版本时代的代码
 - 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
 
 ### 源码布局下的目标文件（对应关系）
@@ -266,6 +269,6 @@ MIT — 见 [LICENSE](LICENSE)。
 
 ## 📎 相关资源
 
-- SSH 多机并行插件: [cslht11/dsh-ssh-remote](https://github.com/cslht11/dsh-ssh-remote)
-- 供应商配置模板: [cslht11/dsh-provider-config](https://github.com/cslht11/dsh-provider-config)
+- SSH 多机并行插件: [chai1110/dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote)
+- 供应商配置模板: [chai1110/dsh-provider-config](https://github.com/chai1110/dsh-provider-config)
 - DeepSeek Harness 官方: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)

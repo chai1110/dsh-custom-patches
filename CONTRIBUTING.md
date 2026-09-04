@@ -21,14 +21,14 @@
 
 ## 🚦 开始之前
 
-1. **看是否已有类似 Issue**：先在 [Issues](https://github.com/cslht11/dsh-custom-patches/issues) 搜索，避免重复。
+1. **看是否已有类似 Issue**：先在 [Issues](https://github.com/chai1110/dsh-custom-patches/issues) 搜索，避免重复。
 2. **确认适用版本**：本项目只适配 `@deepseek-ai/dsh@0.1.1-rc.2`（见 [versions.md](versions.md)）。如果你想适配其他版本，是**另一类工作**（见下文「适配新版」）。
 
 ---
 
 ## 🐛 报告问题 / 💡 提建议
 
-在 [Issues](https://github.com/cslht11/dsh-custom-patches/issues) 新建 Issue，尽量包含：
+在 [Issues](https://github.com/chai1110/dsh-custom-patches/issues) 新建 Issue，尽量包含：
 
 - **现象**：发生了什么，完整报错信息（`patch` 的 `Hunk #N failed` 输出尤其有用）
 - **环境**：操作系统（macOS/Linux/Windows）、DSH 版本（`dsh --version`）、Node 版本
@@ -141,4 +141,4 @@ git push origin <你的分支名>
 - 项目说明见 [README.md](README.md)
 - 版本适配见 [ADAPTING.md](ADAPTING.md)
 - 版本追踪见 [versions.md](versions.md)
-- 仓库主页：<https://github.com/cslht11/dsh-custom-patches>
+- 仓库主页：<https://github.com/chai1110/dsh-custom-patches>

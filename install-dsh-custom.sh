@@ -64,7 +64,7 @@ case "$TARGET_VERSION" in
   0.1.0-rc.7) UI_SUFFIX="rc7" ;;
   0.1.0-rc.6)
     err "0.1.0-rc.6 及更早没有单独保存补丁文件（本仓库自 rc.7 起发布）。"
-    echo " 建议升级官方：npm install -g @deepseek-ai/dsh@0.1.1-rc.2 后重试。"
+    echo " 建议升级官方：npm install -g @deepseek-ai/dsh@0.1.2-rc.1 后重试。"
     exit 1
     ;;
   *)

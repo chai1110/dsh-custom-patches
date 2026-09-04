@@ -1,7 +1,7 @@
 #!/bin/bash
 # DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh）
 # 用法:
-#   bash apply-dsh-patches.sh                # 默认适配最新版本 0.1.1-rc.2
+#   bash apply-dsh-patches.sh                # 默认适配最新版本 0.1.2-rc.1
 #   bash apply-dsh-patches.sh 0.1.0-rc.8     # 老版本用户：指定自己的 DSH 版本
 #   bash apply-dsh-patches.sh 0.1.0-rc.7
 #
