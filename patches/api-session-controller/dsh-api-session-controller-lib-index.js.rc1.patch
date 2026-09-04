@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/index.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/index.js
-@@ -792,6 +792,59 @@
+@@ -792,6 +792,63 @@
  		}
  	}
  	/**
@@ -15,7 +15,11 @@
 +	*/
 +	async editLastPrompt(request) {
 +		const agent = await this.resolveAgent(request.sessionId);
-+		if (agent.status !== "idle") throw new RemoteError("session/agent-busy", "editing is unavailable while the agent is working", {});
++		if (agent.status !== "idle") {
++			// 编辑时 agent 正在工作：先取消当前回合（保留 inbox），随后 followup
++			// 会经 wakingAfterAbort 路径自动唤醒 driver 按 next-turn 重发。
++			agent.cancel({ kind: "user" }, { keepInbox: true });
++		}
 +		if (request.text.trim() === "") throw new RemoteError("session/invalid-content", "the edited prompt must contain text", {});
 +		const { session } = agent;
 +		const nodes = session.surface.nodes;
@@ -60,7 +64,7 @@
  	* Mutate one still-pending queue occurrence without resuming a cold Agent.
  	* @param request - Session, queue item, and requested mutation.
  	* @returns acknowledgement that the queue mutation was applied.
-@@ -2360,6 +2413,7 @@
+@@ -2360,6 +2417,7 @@
  	let _fork_decorators;
  	let _prompt_decorators;
  	let _attachment_decorators;
@@ -68,7 +72,7 @@
  	let _updateQueue_decorators;
  	let _cancel_decorators;
  	let _page_decorators;
-@@ -2379,6 +2433,7 @@
+@@ -2379,6 +2437,7 @@
  			_fork_decorators = [Remote("fork")];
  			_prompt_decorators = [Remote("prompt")];
  			_attachment_decorators = [Remote("attachment")];
@@ -76,7 +80,7 @@
  			_updateQueue_decorators = [Remote("updateQueue")];
  			_cancel_decorators = [Remote("cancel")];
  			_page_decorators = [Remote("page")];
-@@ -2505,6 +2560,17 @@
+@@ -2505,6 +2564,17 @@
  				},
  				metadata: _metadata
  			}, null, _instanceExtraInitializers);
@@ -94,7 +98,7 @@
  			__esDecorate(this, null, _updateQueue_decorators, {
  				kind: "method",
  				name: "updateQueue",
-@@ -2782,6 +2848,15 @@
+@@ -2782,6 +2852,15 @@
  			return this.commands.attachment(request);
  		}
  		/**
