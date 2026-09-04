@@ -202,6 +202,15 @@
  			"message.systemPrompt": "System prompt",
  			"message.contextInjection": "Context injection",
  			"message.contextRecall": "Session recall",
+@@ -5735,7 +5848,7 @@
+ 		const messageDefinition = {
+ 			kind: "input-message",
+ 			target: "chat",
+-			match: (event) => event.type === "user/message" && isAppendSurfaceEvent(event) && !isCompactionCheckpoint(event) ? {
++			match: (event) => event.type === "user/message" && (isAppendSurfaceEvent(event) || isReplacementSurfaceEvent(event) && event.data.source?.kind === "user") && !isCompactionCheckpoint(event) ? {
+ 				id: String(event.data.id),
+ 				role: "start"
+ 			} : null,
 @@ -8139,7 +8252,11 @@
  								}).then((childId) => {
  									ctx.sessions.open(childId);

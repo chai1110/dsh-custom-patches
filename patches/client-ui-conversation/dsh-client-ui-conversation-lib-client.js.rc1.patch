@@ -1,6 +1,100 @@
 --- @deepseek-ai/dsh-client-ui-conversation/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-conversation/lib/client.js
-@@ -2041,6 +2041,14 @@
+@@ -621,6 +621,30 @@
+ 		* Session-owned incremental engine that assembles business Contexts from a
+ 		* contiguous Event window and materializes registered view snapshots.
+ 		*/
++		const SURFACE_EVENT_TYPES = new Set([
++			"user/message",
++			"assistant/message",
++			"tool/result"
++		]);
++		/**
++		* Narrow an event to a surface-eligible event carrying its required marker.
++		* @param event - event to test.
++		* @returns true when both the type and marker identify a surface event.
++		*/
++		function isSurfaceEvent(event) {
++			if (!SURFACE_EVENT_TYPES.has(event.type)) return false;
++			return event.surfaceOp !== void 0;
++		}
++		/**
++		* Narrow an event to a surface replacement: a node that shadowed an existing
++		* surface range instead of appending to the tail. Used by the assembler to
++		* drop events replaced by an edit-last-prompt rewrite from the transcript.
++		* @param event - event to test.
++		* @returns true when the event replaced a surface range.
++		*/
++		function isReplacementSurfaceEvent(event) {
++			return isSurfaceEvent(event) && event.surfaceOp !== "append";
++		}
+ 		var ConversationNodeAssembler = class {
+ 			eventDefinitions;
+ 			viewDefinitions;
+@@ -629,6 +653,8 @@
+ 			contextsBySeq = /* @__PURE__ */ new Map();
+ 			contextsByTarget = /* @__PURE__ */ new Map();
+ 			inputs = /* @__PURE__ */ new Map();
++			/** Event seqs shadowed by surface replacements (folded from replace surfaceOps). */
++			shadowed = /* @__PURE__ */ new Set();
+ 			locationIndex = new ConversationLocationIndex();
+ 			dirty = /* @__PURE__ */ new Set();
+ 			dirtyByTarget = /* @__PURE__ */ new Map();
+@@ -667,6 +693,7 @@
+ 				this.hasMore = hasMore;
+ 				const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq);
+ 				for (const entry of sorted) this.inputs.set(entry.event.seq, entry);
++				this.scanShadowed(sorted);
+ 				this.locationIndex.rebuild(sorted);
+ 				this.timelineDirty = true;
+ 				for (const entry of sorted) this.matchInput(entry);
+@@ -676,6 +703,15 @@
+ 				this.replacePending = true;
+ 				return "immediate";
+ 			}
++			/** Fold every replace surfaceOp in a window into the shadowed-seq set. */
++			scanShadowed(sorted) {
++				this.shadowed.clear();
++				for (const entry of sorted) {
++					if (!isReplacementSurfaceEvent(entry.event)) continue;
++					const op = entry.event.surfaceOp;
++					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++				}
++			}
+ 			/**
+ 			* Add one contiguous live tail event without scanning existing Contexts.
+ 			* @param record - appended Session event entry.
+@@ -684,6 +720,13 @@
+ 			append(record) {
+ 				const event = record.event;
+ 				if (this.inputs.has(event.seq)) return "none";
++				if (isReplacementSurfaceEvent(event)) {
++					const op = event.surfaceOp;
++					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++					this.inputs.set(event.seq, record);
++					this.replaceWindow(this.sortedInputs(), this.hasMore);
++					return "immediate";
++				}
+ 				this.revised.clear();
+ 				this.inputs.set(event.seq, record);
+ 				let publication = "none";
+@@ -716,6 +759,7 @@
+ 				for (const entry of fresh) this.inputs.set(entry.event.seq, entry);
+ 				this.hasMore = hasMore;
+ 				const previousTimeline = this.locationIndex.snapshot();
++				this.scanShadowed(this.sortedInputs());
+ 				const changedLocations = this.locationIndex.rebuild(this.sortedInputs());
+ 				if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true;
+ 				const affected = this.refreshMatchLocations(changedLocations);
+@@ -828,6 +872,7 @@
+ 				return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq);
+ 			}
+ 			matchInput(input) {
++				if (this.shadowed.has(input.event.seq)) return "none";
+ 				return this.dispatchInput(input, (definition, id, role) => this.acceptMatch(definition, id, role, input));
+ 			}
+ 			collectInput(input, pending) {
+@@ -2041,6 +2086,14 @@
  			async cancel() {
  				const result = await this.scopedSession("cancel").cancel();
  				if (!result.ok) throw new Error(`conversation.cancel failed: ${result.error.code}: ${result.error.message}`);
@@ -15,7 +109,7 @@
  			}
  			/** Pull one older history page for the scoped Session. */
  			async loadOlder() {
-@@ -11523,6 +11531,8 @@
+@@ -11523,6 +11576,8 @@
  			unregister;
  			noticeSeq = 0;
  			lastMirroredDraft = "";
@@ -24,7 +118,7 @@
  			imageIds = [];
  			disposed = false;
  			/** Draft persistence mirror (Conversation store write; receives the clipboard projection). */
-@@ -11740,6 +11750,8 @@
+@@ -11740,6 +11795,8 @@
  					this.notify("error", this.deps.commandImages.unsupportedNotice(before.claim?.token ?? before.draft));
  					return;
  				}
@@ -33,7 +127,7 @@
  				this.dispatchRun({
  					type: "enter",
  					mode,
-@@ -15331,6 +15343,8 @@
+@@ -15331,6 +15388,8 @@
  			const editor = keyboard?.editor ?? null;
  			const attachments = (0, react.useMemo)(() => input === void 0 || draftImages === void 0 ? [] : draftImages(input.imageIds), [draftImages, input?.imageIds]);
  			const empty = draft.trim() === "" && attachments.length === 0;
@@ -42,11 +136,10 @@
  			const [toast, setToast] = (0, react.useState)(null);
  			const toastSeq = (0, react.useRef)(0);
  			const showToast = (0, react.useCallback)((text) => {
-@@ -15463,11 +15477,57 @@
- 				subagent,
+@@ -15464,10 +15523,56 @@
  				resolveSubmitMode,
  				intakeImages
-+			};
+ 			};
 +			/**
 +			* Recall sent messages with ArrowUp/ArrowDown, shell-history style.
 +			* @param direction - -1 recalls older messages, +1 newer ones.
@@ -78,7 +171,7 @@
 +					el.focus({ preventScroll: true });
 +				});
 +				return true;
- 			};
++			};
  			(0, react.useEffect)(() => {
  				if (editor === null || keyboard === void 0) return;
  				return registerComposerKeymap(editor, {
