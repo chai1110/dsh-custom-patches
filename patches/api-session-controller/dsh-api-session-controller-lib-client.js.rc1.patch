@@ -1,0 +1,20 @@
+--- @deepseek-ai/dsh-api-session-controller/lib/client.js
++++ @deepseek-ai/dsh-api-session-controller/lib/client.js
+@@ -978,6 +978,17 @@
+ 				});
+ 			}
+ 			/**
++			* Rewrite the last user message of this session and regenerate from it.
++			* @param text - replacement plain text for the most recent user message.
++			* @returns the rewrite admission outcome.
++			*/
++			async editLastPrompt(text) {
++				return this.remote.session.editLastPrompt({
++					sessionId: this.sessionId,
++					text
++				});
++			}
++			/**
+ 			* Stop the active turn while the Host preserves pending inbox work; failures
+ 			* land in promptError (same error-strip display slot). A subagent address
+ 			* routes through `subagents.interruptByParent`, whose durable parent-address

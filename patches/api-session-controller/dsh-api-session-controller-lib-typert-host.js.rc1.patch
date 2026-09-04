@@ -1,0 +1,16 @@
+--- @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
++++ @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
+@@ -1220,6 +1220,13 @@
+           },
+           {
+             "kind": "method",
++            "name": "editLastPrompt",
++            "signature": "@Remote('editLastPrompt') editLastPrompt(request: SessionEditLastPromptRequest, signal: AbortSignal): Promise<SessionEditLastPromptValue>",
++            "summary": "Rewrite the last user message and regenerate from it.",
++            "jsDoc": "/**\n * Rewrite the last user message and regenerate from it.\n * @param request - Session identity and replacement plain text.\n * @param signal - caller cancellation before rewrite admission begins.\n * @returns acknowledgement that the rewrite was admitted.\n */"
++          },
++          {
++            "kind": "method",
+             "name": "updateQueue",
+             "signature": "@Remote('updateQueue') updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue",
+             "summary": "Mutate one still-pending queue occurrence on a live Agent.",

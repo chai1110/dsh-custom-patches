@@ -1,0 +1,29 @@
+--- @deepseek-ai/dsh-agent-loop/lib/index.js
++++ @deepseek-ai/dsh-agent-loop/lib/index.js
+@@ -556,7 +556,12 @@
+ 				});
+ 				phase.step = step;
+ 				try {
+-					for (const message of decision.messages) this.session.append("user/message", message, { surfaceOp: "append" });
++					for (const message of decision.messages) {
++						const tail = this.session.surface.nodes.at(-1);
++						const tailEvent = tail === void 0 ? void 0 : this.session.eventAt(tail);
++						if (tailEvent?.type === "user/message" && tailEvent.data.id === message.id) continue;
++						this.session.append("user/message", message, { surfaceOp: "append" });
++					}
+ 					const stepEnd = await this.step(decision.assembly, decision.startsRequestSeries === true);
+ 					if (turnEnds === null || turnEnds.kind !== "max-tokens") turnEnds = stepEnd;
+ 				} finally {
+@@ -588,9 +593,11 @@
+ 				kind: "error",
+ 				error: error instanceof LlmError ? error.failure : {
+ 					message: errorChain(error),
+-					code: "UNKNOWN"
++					code: "UNKNOWN",
++					__stack: (error && error.stack) ? error.stack : String(error)
+ 				}
+ 			};
++
+ 			this.throwError(error);
+ 		} finally {
+ 			try {

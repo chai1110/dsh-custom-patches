@@ -1,0 +1,28 @@
+--- @deepseek-ai/dsh-client-connection/lib/client.js
++++ @deepseek-ai/dsh-client-connection/lib/client.js
+@@ -4347,6 +4347,17 @@
+ 					});
+ 					if (!archivedSessionIds.includes(request.sessionId)) {
+ 						archivedSessionIds.push(request.sessionId);
++						emitWorkspace({
++							type: "archived",
++							archivedSessionIds: [...archivedSessionIds]
++						});
++					}
++					return sessionOk({ archivedSessionIds: [...archivedSessionIds] });
++				},
++				unarchiveSession: (request) => {
++					const idx = archivedSessionIds.indexOf(request.sessionId);
++					if (idx >= 0) {
++						archivedSessionIds.splice(idx, 1);
+ 						emitWorkspace({
+ 							type: "archived",
+ 							archivedSessionIds: [...archivedSessionIds]
+@@ -4530,6 +4541,7 @@
+ 						case "workspace/insertBefore": return workspaceApi.insertBefore(request);
+ 						case "workspace/insertSessionBefore": return workspaceApi.insertSessionBefore(request);
+ 						case "workspace/archiveSession": return workspaceApi.archiveSession(request);
++						case "workspace/unarchiveSession": return workspaceApi.unarchiveSession(request);
+ 						default: return Promise.reject(/* @__PURE__ */ new Error(`fixture connection RPC endpoint ${JSON.stringify(endpoint)} is unavailable`));
+ 					}
+ 				},

@@ -9,7 +9,7 @@
 #      feature (greps a marker in the target file) -- if so, skips that patch
 #      to avoid duplication/conflict
 #   3. backup (first time) + dry-run + apply + verify, all with colored logs
-#  4. Usage: bash install-dsh-custom.sh [-y] [版本号]    (-y skips interactive confirm; 版本号可选，老版本用户指定用，缺省为最新 0.1.1-rc.2)
+#  4. Usage: bash install-dsh-custom.sh [-y] [版本号]    (-y skips interactive confirm; 版本号可选，老版本用户指定用，缺省为最新 0.1.2-rc.1)
 #
 # Supports BOTH installation layouts:
 #   A. global npm install  (default): finds DSH in global node_modules
@@ -19,7 +19,7 @@
 #        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
 #        export DSH_SOURCE=/path/to/deepseek-harness
 #
-# Adapted versions: 0.1.0-rc.7 / 0.1.0-rc.8 / 0.1.1-rc.2 (default; see versions.md)
+# Adapted versions: 0.1.2-rc.1 (default) / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7 (see versions.md)
 # =============================================================================
 set -u
 
@@ -29,8 +29,8 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-# 目标 DSH 版本：默认适配最新；第一个非 -y 参数可指定老版本（如 0.1.0-rc.8）
-DEFAULT_VERSION="0.1.1-rc.2"
+# 目标 DSH 版本：默认适配最新；第一个非 -y 参数可指定老版本（如 0.1.1-rc.2 或 0.1.0-rc.8）
+DEFAULT_VERSION="0.1.2-rc.1"
 TARGET_VERSION="$DEFAULT_VERSION"
 
 ASK=1
@@ -55,9 +55,10 @@ done
 
 # ===== 版本 → ui-conversation 补丁后缀 映射 =====
 # 官方主要在 ui-conversation 包调整界面布局，该补丁按版本区分
-# （.rc7 / .rc8 / .rc2 均保留在 patches/ 下）；其余 4 个补丁在
-# rc.7 → rc.8 → rc.2 间内容一致，跨版本通用。
+# （.rc7 / .rc8 / .rc2 / .rc1 均保留在 patches/ 下）；其余补丁在
+# 各版本间内容不同，按版本各自保存（.rc1 为 0.1.2-rc.1 专用）。
 case "$TARGET_VERSION" in
+  0.1.2-rc.1) UI_SUFFIX="rc1" ;;
   0.1.1-rc.2) UI_SUFFIX="rc2" ;;
   0.1.0-rc.8) UI_SUFFIX="rc8" ;;
   0.1.0-rc.7) UI_SUFFIX="rc7" ;;
@@ -68,7 +69,7 @@ case "$TARGET_VERSION" in
     ;;
   *)
     err "Unsupported version: $TARGET_VERSION"
-    echo " Supported: 0.1.1-rc.2 (default) / 0.1.0-rc.8 / 0.1.0-rc.7"
+    echo " Supported: 0.1.2-rc.1 (default) / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7"
     exit 1
     ;;
 esac
@@ -78,14 +79,32 @@ esac
 #   patch       = path to the .patch file inside this repo
 #   marker      = feature marker used for "official already built-in" detection (empty = skip)
 #   source_rel  = path relative to <source>/packages, used in source/monorepo layout
-FILES=(
-  "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch|editLastPrompt|host/apiproxy/lib/index.js"
-  "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
-  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
-  "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
-  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch|recallHistory|client/ui-conversation/lib/client.js"
-  "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
-)
+# rc.1 (0.1.2-rc.1) 是架构重构版：host-apiproxy/client-runtime 已移除，
+# 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载。
+if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
+  FILES=(
+    "dsh-api-session-controller/lib/index.js|patches/api-session-controller/dsh-api-session-controller-lib-index.js.rc1.patch|async editLastPrompt|api/session-controller/lib/index.js"
+    "dsh-api-session-controller/lib/client.js|patches/api-session-controller/dsh-api-session-controller-lib-client.js.rc1.patch|async editLastPrompt|api/session-controller/lib/client.js"
+    "dsh-api-session-controller/lib/typert.host.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-host.js.rc1.patch|editLastPrompt|api/session-controller/lib/typert.host.js"
+    "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.rc1.patch|editLastPrompt|api/session-controller/lib/typert.remote-client.js"
+    "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.rc1.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
+    "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.rc1.patch|unarchiveSession|client/connection/lib/client.js"
+    "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.rc1.patch|unarchiveSession|core/workspace/lib/index.js"
+    "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.rc1.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
+    "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc1.patch|recallHistory|client/ui-conversation/lib/client.js"
+    "dsh-client-ui-chat/lib/client.js|patches/client-ui-chat/dsh-client-ui-chat-lib-client.js.rc1.patch|message.editPrompt|client/ui-chat/lib/client.js"
+    "dsh-client-ui-workspace/lib/client.js|patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.rc1.patch|archived-sessions|client/ui-workspace/lib/client.js"
+  )
+else
+  FILES=(
+    "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch|editLastPrompt|host/apiproxy/lib/index.js"
+    "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
+    "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
+    "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
+    "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch|recallHistory|client/ui-conversation/lib/client.js"
+    "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
+  )
+fi
 
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -263,9 +282,16 @@ echo -e "  2. Hard-refresh the browser page (Cmd+Shift+R) to use the new feature
 if [ "$FAIL" -gt 0 ]; then
   echo ""
   echo -e "${RED}Some patches failed. Re-adapt per ADAPTING.md, or restore first:${NC}"
-  echo "    npm layout:"
-  echo "      for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
-  echo "    source layout (DSH_SOURCE set):"
-  echo "      for e in host/apiproxy/lib/index.js core/agent-loop/lib/index.js client/connection/lib/client.js client/runtime/lib/client.js client/ui-conversation/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
+  if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
+    echo "    npm layout:"
+    echo "      for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
+    echo "    source layout (DSH_SOURCE set):"
+    echo "      for e in api/session-controller/lib/index.js api/session-controller/lib/client.js api/session-controller/lib/typert.host.js api/session-controller/lib/typert.remote-client.js core/agent-loop/lib/index.js client/connection/lib/client.js core/workspace/lib/index.js core/compaction-basic/lib/index.js client/ui-conversation/lib/client.js client/ui-chat/lib/client.js client/ui-workspace/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
+  else
+    echo "    npm layout:"
+    echo "      for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
+    echo "    source layout (DSH_SOURCE set):"
+    echo "      for e in host/apiproxy/lib/index.js core/agent-loop/lib/index.js client/connection/lib/client.js client/runtime/lib/client.js client/ui-conversation/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
+  fi
 fi
 echo ""

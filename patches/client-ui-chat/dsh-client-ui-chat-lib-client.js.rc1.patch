@@ -1,0 +1,211 @@
+--- @deepseek-ai/dsh-client-ui-chat/lib/client.js
++++ @deepseek-ai/dsh-client-ui-chat/lib/client.js
+@@ -1266,20 +1266,105 @@
+ 			});
+ 		}
+ 		/** User and admitted-steering keyed Chat renderer. */
+-		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t }) {
++		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t, isLastUser = false, editLastPrompt }) {
+ 			const data = node.data;
++			const [editing, setEditing] = (0, react.useState)(false);
++			const [editText, setEditText] = (0, react.useState)("");
++			const [editBusy, setEditBusy] = (0, react.useState)(false);
++			const startEdit = () => {
++				setEditText(data.content.filter((block) => block.type === "text").map((block) => block.text).join("\n"));
++				setEditing(true);
++			};
++			const cancelEdit = () => {
++				setEditing(false);
++			};
++			const confirmEdit = async () => {
++				const next = editText.trim();
++				if (next === "" || editLastPrompt === void 0 || editBusy) return;
++				setEditBusy(true);
++				try {
++					await editLastPrompt(next);
++					setEditing(false);
++				} catch {
++					/* failure surfaces via the session snapshot's promptError; keep the editor open */
++				} finally {
++					setEditBusy(false);
++				}
++			};
++			const renderActions = (text) => (0, react_jsx_runtime.jsx)(MessageIconActions, {
++				text,
++				time: data.time,
++				clock: "start",
++				className: MessageItem_module_css_default.actions,
++				t,
++				extraActions: isLastUser && editLastPrompt !== void 0 ? (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
++					label: t("message.editPrompt"),
++					side: "bottom",
++					children: (0, react_jsx_runtime.jsx)("button", {
++						type: "button",
++						className: MessageIconActions_module_css_default.action,
++						"aria-label": t("message.editPrompt"),
++						onClick: startEdit,
++						children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconEditOutline16, {})
++					})
++				}) : void 0
++			});
++			if (editing) {
++				return (0, react_jsx_runtime.jsxs)("div", {
++					className: MessageItem_module_css_default.userRow,
++					style: {
++						width: "100%"
++					},
++					children: [(0, react_jsx_runtime.jsxs)("div", {
++						className: MessageItem_module_css_default.userStack,
++						style: {
++							maxWidth: "var(--dsh-composer-card-max-width)",
++							width: "100%"
++						},
++						children: [(0, react_jsx_runtime.jsxs)("div", {
++							className: MessageItem_module_css_default.bubble,
++							style: { boxSizing: "border-box", display: "flex", flexDirection: "column", width: "100%", padding: 0, overflow: "hidden" },
++							children: [(0, react_jsx_runtime.jsx)("textarea", {
++								value: editText,
++								onChange: (event) => setEditText(event.target.value),
++								onKeyDown: (event) => {
++									if (event.key === "Enter" && !event.shiftKey) {
++										event.preventDefault();
++										confirmEdit();
++									}
++								},
++								autoFocus: true,
++								"aria-label": t("message.editPrompt"),
++								style: { boxSizing: "border-box", width: "100%", minHeight: "3em", resize: "vertical", border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", lineHeight: "inherit", padding: "10px 16px" }
++							}), (0, react_jsx_runtime.jsxs)("div", {
++								style: {
++									display: "flex",
++									justifyContent: "flex-end",
++									gap: "8px",
++									padding: "4px 12px 10px"
++								},
++								children: [(0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++									variant: "outline",
++									disabled: editBusy,
++									onClick: cancelEdit,
++									children: t("message.cancelEdit")
++								}), (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++									variant: "primary",
++									disabled: editBusy || editText.trim() === "",
++									onClick: confirmEdit,
++									children: editBusy ? t("message.editing") : t("message.saveEdit")
++								})]
++							})]
++						})]
++					})]
++				});
++			}
+ 			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
+ 				content: data.content,
+ 				renderMessageImages,
+ 				...data.referenceLabels === void 0 ? {} : { referenceLabels: data.referenceLabels },
+ 				t,
+-				actions: (text) => (0, react_jsx_runtime.jsx)(MessageIconActions, {
+-					text,
+-					time: data.time,
+-					clock: "start",
+-					className: MessageItem_module_css_default.actions,
+-					t
+-				})
++				actions: renderActions
+ 			});
+ 		});
+ 		/** Injected-context keyed Chat renderer. */
+@@ -1470,7 +1555,7 @@
+ 			return location?.kind === "turn" || location?.kind === "step" ? location.turn.turn : void 0;
+ 		}
+ 		/** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
+-		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, useStore, actions, renderSlot, t }) {
++		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t }) {
+ 			const node = useChatNode(nodeKey);
+ 			const routedNode = node;
+ 			const turn = turnOf(routedNode);
+@@ -1511,6 +1596,8 @@
+ 				forkAt,
+ 				renderMessageImages,
+ 				fileMentions,
++				isLastUser: nodeKey === lastUserKey,
++				editLastPrompt,
+ 				turnProcess
+ 			}, [
+ 				node,
+@@ -1521,6 +1608,9 @@
+ 				forkAt,
+ 				renderMessageImages,
+ 				fileMentions,
++				nodeKey,
++				lastUserKey,
++				editLastPrompt,
+ 				turnProcess
+ 			]);
+ 			if (routedNode === void 0 || owner === null) return null;
+@@ -1998,7 +2088,7 @@
+ 		* The chat view slot entry: pure component over the composed props; each
+ 		* ordered business Node crosses the keyed renderer seat.
+ 		*/
+-		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot, sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions, useTranscriptView, useProjection, t }) {
++		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot, sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions, editLastPrompt, useTranscriptView, useProjection, t }) {
+ 			const order = useChat((s) => s.order);
+ 			const nodeStore = useChat((s) => s.nodes);
+ 			const turnNavigationItems = useChat((s) => s.navigation.items());
+@@ -2006,6 +2096,12 @@
+ 			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
+ 			const timeline = useChat((s) => s.timeline);
+ 			const inbox = useSession((s) => s.queue);
++			const lastUserKey = (0, react.useMemo)(() => {
++				for (let i = order.length - 1; i >= 0; i--) {
++					if (nodeStore.get(order[i])?.kind === "user") return order[i];
++				}
++				return null;
++			}, [order, nodeStore]);
+ 			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
+ 			const running = useSession((s) => s.running);
+ 			const openState = useSession((s) => s.openState);
+@@ -2470,6 +2566,8 @@
+ 									forkAt,
+ 									renderMessageImages,
+ 									fileMentions,
++									editLastPrompt,
++									lastUserKey,
+ 									renderSlot,
+ 									t
+ 								}),
+@@ -2582,6 +2680,10 @@
+ 			"fileOpen.folderTitle": "无法打开文件夹",
+ 			"fileOpen.folderUnknown": "无法打开此文件夹",
+ 			"message.extraBlock": "附加内容块",
++			"message.editPrompt": "编辑这条消息",
++			"message.saveEdit": "保存并重新生成",
++			"message.cancelEdit": "取消",
++			"message.editing": "重新生成中…",
+ 			"message.systemPrompt": "系统提示词",
+ 			"message.contextInjection": "上下文注入",
+ 			"message.contextRecall": "跨会话召回",
+@@ -2695,6 +2797,10 @@
+ 			"fileOpen.folderTitle": "Couldn’t open folder",
+ 			"fileOpen.folderUnknown": "Couldn’t open this folder",
+ 			"message.extraBlock": "Extra content block",
++			"message.editPrompt": "Edit this message",
++			"message.saveEdit": "Save and regenerate",
++			"message.cancelEdit": "Cancel",
++			"message.editing": "Regenerating…",
+ 			"message.systemPrompt": "System prompt",
+ 			"message.contextInjection": "Context injection",
+ 			"message.contextRecall": "Session recall",
+@@ -8139,6 +8245,13 @@
+ 								}).then((childId) => {
+ 									ctx.sessions.open(childId);
+ 								}).catch(() => {});
++							},
++							editLastPrompt: (text) => {
++								binding.session.editLastPrompt(text).then((result) => {
++									if (!result.ok) console.warn("editLastPrompt rejected:", result.error);
++								}).catch((error) => {
++									console.warn("editLastPrompt rejected:", error);
++								});
+ 							}
+ 						};
+ 					}
