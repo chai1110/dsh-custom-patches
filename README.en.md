@@ -5,7 +5,7 @@
 Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
 **① Composer ↑/↓ key send history**, **② Edit last message and regenerate (Codex-style)**, and **③ Archived session recovery**.
 
-- Target version: **`@deepseek-ai/dsh@0.1.2-rc.1` (latest)**, with full support for older **0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7** (old-version users do NOT need to upgrade — see "Multiple Version Support")
+- Target version: **`@deepseek-ai/dsh@0.1.2-rc.1`** (versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
 - Maintainer: chai1110 (<chai011379@gmail.com>)
 
@@ -53,7 +53,7 @@ The install script is written in **bash** and depends on **Unix command-line too
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed
-- **`@deepseek-ai/dsh`** installed globally via npm (currently targeting `0.1.2-rc.1`; **users on older 0.1.1-rc.2 / rc.8 / rc.7 do NOT need to upgrade** — pass your version to the install script, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
+- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.1.2-rc.1`; users on other versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
 
 > **No CLI tools needed**: The easiest path is to send this repo link (`https://github.com/chai1110/dsh-custom-patches`) to your AI assistant and let it follow the "Quick Start" section to install and configure on your machine — it will handle Windows `taskkill` differences automatically.
 
@@ -96,19 +96,15 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 | Your DSH Version | Support | One-click Command |
 |---|---|---|
-| **0.1.2-rc.1** (latest) | ✅ All features (`.rc1` patches) | `bash install-dsh-custom.sh -y` (default) |
-| **0.1.1-rc.2** | ✅ All features (`.rc2` patches) | `bash install-dsh-custom.sh -y 0.1.1-rc.2` |
-| **0.1.0-rc.8** | ✅ All features (`.rc8` patches) | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
-| **0.1.0-rc.7** | ✅ All features (`.rc7` patches) | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
-| 0.1.0-rc.6 and earlier | ❌ No standalone patches (repo started publishing at rc.7); please upgrade DSH first | — |
+| **0.1.2-rc.1** (latest) | `v0.1.2-rc.1` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
+| **0.1.1-rc.2** | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` then `bash install-dsh-custom.sh -y` |
+| **0.1.0-rc.8** | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` then `bash install-dsh-custom.sh -y` |
+| **0.1.0-rc.7** | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` then `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.6 and earlier | ❌ | No standalone patches (repo started publishing at rc.7); please upgrade DSH first |
 
-The base script also supports: `bash apply-dsh-patches.sh 0.1.1-rc.2`.
-
-> **Why cross-version works**: Each version keeps its own adaptation files under `patches/`:
-> - **0.1.2-rc.1 is an architecture rewrite** (host-apiproxy / client-runtime removed); its patches are fully standalone (`.rc1` files, see [versions.md](versions.md));
-> - **rc.7 / rc.8 / 0.1.1-rc.2** differ mainly in the ui-conversation layout, so only that patch switches by version (`.rc7` / `.rc8` / `.rc2` all kept); the others apply universally.
->
-> **Don't want to remember versions?** Just run `bash install-dsh-custom.sh -y`; if your local version doesn't match the default target, the script will explicitly error and tell you which parameter to retry with — it won't mis-patch.
+> **Why tags instead of arguments?** Each DSH version needs different patches (0.1.2-rc.1 is an architecture rewrite).
+> Tags bundle patches + install script into one version-specific snapshot — clean and hard to get wrong.
+> After checkout, the script validates your local DSH version against the tag and aborts with a clear hint if they differ.
 
 ---
 
@@ -140,7 +136,7 @@ bash install-dsh-custom.sh -y
 The script will automatically:
 1. Locate DSH install dir (probes both system-level and user-level global paths)
 2. Read local version and query npm for latest, giving a version diagnosis
-3. **Validate version** (default expects `0.1.2-rc.1`; older version users add version arg, e.g. `bash install-dsh-custom.sh -y 0.1.1-rc.2`; mismatch aborts with correct usage hint)
+3. **Validate version** (main expects `0.1.2-rc.1`; mismatch aborts and tells you to checkout the correct tag)
 4. **Detect if official already has the feature** — if the target file already contains feature markers (e.g. official bundled them), automatically skip that patch
 5. For patches that need applying: **backup each file (`.bak`) and apply**
 6. Summary report + restart hint

@@ -29,50 +29,22 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-# 目标 DSH 版本：默认适配最新；第一个非 -y 参数可指定老版本（如 0.1.1-rc.2 或 0.1.0-rc.8）
-DEFAULT_VERSION="0.1.2-rc.1"
-TARGET_VERSION="$DEFAULT_VERSION"
+# 本仓库（main / tag v0.1.2-rc.1）固定适配的 DSH 版本：0.1.2-rc.1。
+# 其他 DSH 版本用户：请 checkout 对应版本 tag（见 README「多版本支持」）。
+TARGET_VERSION="0.1.2-rc.1"
 
 ASK=1
 for arg in "$@"; do
   case "$arg" in
     -y) ASK=0 ;;
-    -*)
-      err "Unknown option: $arg"
-      echo "  Usage: bash install-dsh-custom.sh [-y] [版本号]"
-      exit 1
-      ;;
     *)
-      if [ "$TARGET_VERSION" = "$DEFAULT_VERSION" ]; then
-        TARGET_VERSION="$arg"
-      else
-        err "Multiple version arguments given: $TARGET_VERSION and $arg"
-        exit 1
-      fi
+      err "Unknown argument: $arg"
+      echo "  Usage: bash install-dsh-custom.sh [-y]"
+      echo "  （main 固定适配 DSH 0.1.2-rc.1；其他版本请 checkout 对应 tag）"
+      exit 1
       ;;
   esac
 done
-
-# ===== 版本 → ui-conversation 补丁后缀 映射 =====
-# 官方主要在 ui-conversation 包调整界面布局，该补丁按版本区分
-# （.rc7 / .rc8 / .rc2 / .rc1 均保留在 patches/ 下）；其余补丁在
-# 各版本间内容不同，按版本各自保存（.rc1 为 0.1.2-rc.1 专用）。
-case "$TARGET_VERSION" in
-  0.1.2-rc.1) UI_SUFFIX="rc1" ;;
-  0.1.1-rc.2) UI_SUFFIX="rc2" ;;
-  0.1.0-rc.8) UI_SUFFIX="rc8" ;;
-  0.1.0-rc.7) UI_SUFFIX="rc7" ;;
-  0.1.0-rc.6)
-    err "0.1.0-rc.6 及更早没有单独保存补丁文件（本仓库自 rc.7 起发布）。"
-    echo " 建议升级官方：npm install -g @deepseek-ai/dsh@0.1.2-rc.1 后重试。"
-    exit 1
-    ;;
-  *)
-    err "Unsupported version: $TARGET_VERSION"
-    echo " Supported: 0.1.2-rc.1 (default) / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7"
-    exit 1
-    ;;
-esac
 
 # Entries: rel | patch | marker | source_rel
 #   rel         = path relative to the npm install plugin root (node_modules/@deepseek-ai/<rel>)
@@ -84,31 +56,20 @@ esac
 # 注意 0.1.2 新增 dsh-api-remotes：浏览器端 remote.session 方法表 = 其
 # lib/client.js 内嵌的各包 typert 模型冻结副本（ModuleLoader bundle），
 # 给 @Remote 增删方法必须同步补它，否则浏览器端永远 not a function。
-if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
-  FILES=(
-    "dsh-api-session-controller/lib/index.js|patches/api-session-controller/dsh-api-session-controller-lib-index.js.rc1.patch|async editLastPrompt|api/session-controller/lib/index.js"
-    "dsh-api-session-controller/lib/client.js|patches/api-session-controller/dsh-api-session-controller-lib-client.js.rc1.patch|async editLastPrompt|api/session-controller/lib/client.js"
-    "dsh-api-session-controller/lib/typert.host.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-host.js.rc1.patch|editLastPrompt|api/session-controller/lib/typert.host.js"
-    "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.rc1.patch|editLastPrompt|api/session-controller/lib/typert.remote-client.js"
-    "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.rc1.patch|editLastPrompt|api/remotes/lib/client.js"
-    "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.rc1.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
-    "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.rc1.patch|unarchiveSession|client/connection/lib/client.js"
-    "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.rc1.patch|unarchiveSession|core/workspace/lib/index.js"
-    "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.rc1.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
-    "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc1.patch|recallHistory|client/ui-conversation/lib/client.js"
-    "dsh-client-ui-chat/lib/client.js|patches/client-ui-chat/dsh-client-ui-chat-lib-client.js.rc1.patch|message.editPrompt|client/ui-chat/lib/client.js"
-    "dsh-client-ui-workspace/lib/client.js|patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.rc1.patch|archived-sessions|client/ui-workspace/lib/client.js"
-  )
-else
-  FILES=(
-    "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch|editLastPrompt|host/apiproxy/lib/index.js"
-    "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
-    "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
-    "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
-    "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch|recallHistory|client/ui-conversation/lib/client.js"
-    "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.retry.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
-  )
-fi
+FILES=(
+  "dsh-api-session-controller/lib/index.js|patches/api-session-controller/dsh-api-session-controller-lib-index.js.patch|async editLastPrompt|api/session-controller/lib/index.js"
+  "dsh-api-session-controller/lib/client.js|patches/api-session-controller/dsh-api-session-controller-lib-client.js.patch|async editLastPrompt|api/session-controller/lib/client.js"
+  "dsh-api-session-controller/lib/typert.host.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-host.js.patch|editLastPrompt|api/session-controller/lib/typert.host.js"
+  "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.patch|editLastPrompt|api/session-controller/lib/typert.remote-client.js"
+  "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.patch|editLastPrompt|api/remotes/lib/client.js"
+  "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
+  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|unarchiveSession|client/connection/lib/client.js"
+  "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.patch|unarchiveSession|core/workspace/lib/index.js"
+  "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.patch|recallHistory|client/ui-conversation/lib/client.js"
+  "dsh-client-ui-chat/lib/client.js|patches/client-ui-chat/dsh-client-ui-chat-lib-client.js.patch|message.editPrompt|client/ui-chat/lib/client.js"
+  "dsh-client-ui-workspace/lib/client.js|patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.patch|archived-sessions|client/ui-workspace/lib/client.js"
+)
 
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

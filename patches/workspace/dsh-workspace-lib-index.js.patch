@@ -1,9 +1,9 @@
 --- @deepseek-ai/dsh-workspace/lib/index.js
 +++ @deepseek-ai/dsh-workspace/lib/index.js
-@@ -430,6 +430,21 @@
- 			});
- 		});
- 	}
+@@ -436,6 +436,21 @@
+ 	* `sessionPersistence.list()` propagates so storage faults never
+ 	* masquerade as an unknown session.
+ 	*/
 +	/** Restore a previously archived session: remove it from the archived set
 +	*  so it shows up in the session list again. No-op if not archived.
 +	*  @param sessionId - The session to restore.
@@ -19,6 +19,6 @@
 +			});
 +		});
 +	}
- 	/**
- 	* Whether a session is live, header-indexed, or present in a fresh
- 	* persistence listing. Only a definite miss returns false — a failing
+ 	async sessionKnown(id) {
+ 		if (this.ctx.get("sessions")?.get(id) !== void 0) return true;
+ 		if (this.headers.has(id)) return true;

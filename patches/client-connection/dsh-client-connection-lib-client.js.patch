@@ -1,60 +1,28 @@
 --- @deepseek-ai/dsh-client-connection/lib/client.js
 +++ @deepseek-ai/dsh-client-connection/lib/client.js
-@@ -5417,6 +5417,15 @@
- 				kind: literal("success"),
- 				text: string().optional()
- 			}).optional()
-+		});
-+		/** session.editLastPrompt request payload. */
-+		object({
-+			sessionId: sessionIdSchema,
-+			text: string()
-+		});
-+		/** session.editLastPrompt response value. */
-+		const sessionEditLastPromptValueSchema = object({
-+			accepted: literal(true)
- 		});
- 		/** Opaque attachment id after string-shape validation. */
- 		const attachmentIdSchema = string().min(1);
-@@ -6076,6 +6085,7 @@
- 			"session.rename": sessionRenameValueSchema,
- 			"session.fork": sessionForkValueSchema,
- 			"session.prompt": sessionPromptValueSchema,
-+			"session.editLastPrompt": sessionEditLastPromptValueSchema,
- 			"session.attachment": sessionAttachmentValueSchema,
- 			"session.updateQueue": sessionUpdateQueueValueSchema,
- 			"session.cancel": sessionCancelValueSchema,
-@@ -6288,6 +6298,7 @@
- 				rename: (payload, signal) => this.callUnary("session.rename", payload, signal),
- 				fork: (payload, signal) => this.callUnary("session.fork", payload, signal),
- 				prompt: (payload, signal) => this.callUnary("session.prompt", payload, signal),
-+				editLastPrompt: (payload, signal) => this.callUnary("session.editLastPrompt", payload, signal),
- 				attachment: (payload, signal) => this.callUnary("session.attachment", payload, signal),
- 				updateQueue: (payload, signal) => this.callUnary("session.updateQueue", payload, signal),
- 				cancel: (payload, signal) => this.callUnary("session.cancel", payload, signal)
-@@ -6312,7 +6323,8 @@
- 				delete: (payload, signal) => this.callUnary("workspace.delete", payload, signal),
- 				insertBefore: (payload, signal) => this.callUnary("workspace.insertBefore", payload, signal),
- 				insertSessionBefore: (payload, signal) => this.callUnary("workspace.insertSessionBefore", payload, signal),
--				archiveSession: (payload, signal) => this.callUnary("workspace.archiveSession", payload, signal)
-+				archiveSession: (payload, signal) => this.callUnary("workspace.archiveSession", payload, signal),
-+				unarchiveSession: (payload, signal) => this.callUnary("workspace.unarchiveSession", payload, signal)
- 			};
- 			skills = { list: (payload, signal) => this.callUnary("skill.list", payload, signal) };
- 			agentPresets = {
-@@ -10013,6 +10025,7 @@
- 					case "session.rename": return this.api.sessions.rename(request);
- 					case "session.fork": return this.api.sessions.fork(request);
- 					case "session.prompt": return this.api.sessions.prompt(request);
-+					case "session.editLastPrompt": return this.api.sessions.editLastPrompt(request);
- 					case "session.attachment": return this.api.sessions.attachment(request);
- 					case "session.updateQueue": return this.api.sessions.updateQueue(request);
- 					case "session.cancel": return this.api.sessions.cancel(request);
-@@ -10032,6 +10045,7 @@
- 					case "workspace.insertBefore": return this.api.workspace.insertBefore(request);
- 					case "workspace.insertSessionBefore": return this.api.workspace.insertSessionBefore(request);
- 					case "workspace.archiveSession": return this.api.workspace.archiveSession(request);
-+					case "workspace.unarchiveSession": return this.api.workspace.unarchiveSession(request);
- 					case "skill.list": return this.api.skills.list(request);
- 					case "agentPreset.list": return this.api.agentPresets.list(request);
- 					case "agentPreset.select": return this.api.agentPresets.select(request);
+@@ -4347,6 +4347,17 @@
+ 					});
+ 					if (!archivedSessionIds.includes(request.sessionId)) {
+ 						archivedSessionIds.push(request.sessionId);
++						emitWorkspace({
++							type: "archived",
++							archivedSessionIds: [...archivedSessionIds]
++						});
++					}
++					return sessionOk({ archivedSessionIds: [...archivedSessionIds] });
++				},
++				unarchiveSession: (request) => {
++					const idx = archivedSessionIds.indexOf(request.sessionId);
++					if (idx >= 0) {
++						archivedSessionIds.splice(idx, 1);
+ 						emitWorkspace({
+ 							type: "archived",
+ 							archivedSessionIds: [...archivedSessionIds]
+@@ -4530,6 +4541,7 @@
+ 						case "workspace/insertBefore": return workspaceApi.insertBefore(request);
+ 						case "workspace/insertSessionBefore": return workspaceApi.insertSessionBefore(request);
+ 						case "workspace/archiveSession": return workspaceApi.archiveSession(request);
++						case "workspace/unarchiveSession": return workspaceApi.unarchiveSession(request);
+ 						default: return Promise.reject(/* @__PURE__ */ new Error(`fixture connection RPC endpoint ${JSON.stringify(endpoint)} is unavailable`));
+ 					}
+ 				},
