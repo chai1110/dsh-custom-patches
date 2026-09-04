@@ -39,13 +39,16 @@ esac
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
 # 格式: "相对插件路径|补丁在仓库中的相对路径"
 # rc.1 (0.1.2-rc.1) 是架构重构版：host-apiproxy/client-runtime 已移除，
-# 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载。
+# 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载；
+# 0.1.2 新增 dsh-api-remotes（浏览器端 remote.session 方法表 = 其 lib/client.js
+# 内嵌的 typert 模型冻结副本），@Remote 增删方法必须同步补它。
 if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
   FILES=(
     "dsh-api-session-controller/lib/index.js|patches/api-session-controller/dsh-api-session-controller-lib-index.js.rc1.patch"
     "dsh-api-session-controller/lib/client.js|patches/api-session-controller/dsh-api-session-controller-lib-client.js.rc1.patch"
     "dsh-api-session-controller/lib/typert.host.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-host.js.rc1.patch"
     "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.rc1.patch"
+    "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.rc1.patch"
     "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.rc1.patch"
     "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.rc1.patch"
     "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.rc1.patch"
@@ -155,7 +158,7 @@ echo -e "  2. 刷新浏览器页面使用新的功能"
 echo ""
 echo -e "如需恢复原版（仅当前设备）:"
 if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
-  echo -e "  ${YELLOW}for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
+  echo -e "  ${YELLOW}for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
 else
   echo -e "  ${YELLOW}for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
 fi

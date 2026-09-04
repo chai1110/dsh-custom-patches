@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-client-ui-chat/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-chat/lib/client.js
-@@ -1266,20 +1266,105 @@
+@@ -1266,20 +1266,112 @@
  			});
  		}
  		/** User and admitted-steering keyed Chat renderer. */
@@ -10,22 +10,26 @@
 +			const [editing, setEditing] = (0, react.useState)(false);
 +			const [editText, setEditText] = (0, react.useState)("");
 +			const [editBusy, setEditBusy] = (0, react.useState)(false);
++			const [editError, setEditError] = (0, react.useState)(null);
 +			const startEdit = () => {
 +				setEditText(data.content.filter((block) => block.type === "text").map((block) => block.text).join("\n"));
++				setEditError(null);
 +				setEditing(true);
 +			};
 +			const cancelEdit = () => {
 +				setEditing(false);
++				setEditError(null);
 +			};
 +			const confirmEdit = async () => {
 +				const next = editText.trim();
 +				if (next === "" || editLastPrompt === void 0 || editBusy) return;
 +				setEditBusy(true);
++				setEditError(null);
 +				try {
 +					await editLastPrompt(next);
 +					setEditing(false);
-+				} catch {
-+					/* failure surfaces via the session snapshot's promptError; keep the editor open */
++				} catch (error) {
++					setEditError(String(error?.message ?? error));
 +				} finally {
 +					setEditBusy(false);
 +				}
@@ -75,6 +79,9 @@
 +								autoFocus: true,
 +								"aria-label": t("message.editPrompt"),
 +								style: { boxSizing: "border-box", width: "100%", minHeight: "3em", resize: "vertical", border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", lineHeight: "inherit", padding: "10px 16px" }
++							}), editError !== null && (0, react_jsx_runtime.jsx)("div", {
++								style: { color: "var(--dsw-static-red-400, #e06c75)", fontSize: 12, padding: "0 12px 6px", overflowWrap: "anywhere" },
++								children: editError
 +							}), (0, react_jsx_runtime.jsxs)("div", {
 +								style: {
 +									display: "flex",
@@ -114,7 +121,7 @@
  			});
  		});
  		/** Injected-context keyed Chat renderer. */
-@@ -1470,7 +1555,7 @@
+@@ -1470,7 +1562,7 @@
  			return location?.kind === "turn" || location?.kind === "step" ? location.turn.turn : void 0;
  		}
  		/** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
@@ -123,7 +130,7 @@
  			const node = useChatNode(nodeKey);
  			const routedNode = node;
  			const turn = turnOf(routedNode);
-@@ -1511,6 +1596,8 @@
+@@ -1511,6 +1603,8 @@
  				forkAt,
  				renderMessageImages,
  				fileMentions,
@@ -132,7 +139,7 @@
  				turnProcess
  			}, [
  				node,
-@@ -1521,6 +1608,9 @@
+@@ -1521,6 +1615,9 @@
  				forkAt,
  				renderMessageImages,
  				fileMentions,
@@ -142,7 +149,7 @@
  				turnProcess
  			]);
  			if (routedNode === void 0 || owner === null) return null;
-@@ -1998,7 +2088,7 @@
+@@ -1998,7 +2095,7 @@
  		* The chat view slot entry: pure component over the composed props; each
  		* ordered business Node crosses the keyed renderer seat.
  		*/
@@ -151,7 +158,7 @@
  			const order = useChat((s) => s.order);
  			const nodeStore = useChat((s) => s.nodes);
  			const turnNavigationItems = useChat((s) => s.navigation.items());
-@@ -2006,6 +2096,12 @@
+@@ -2006,6 +2103,12 @@
  			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
  			const timeline = useChat((s) => s.timeline);
  			const inbox = useSession((s) => s.queue);
@@ -164,7 +171,7 @@
  			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
  			const running = useSession((s) => s.running);
  			const openState = useSession((s) => s.openState);
-@@ -2470,6 +2566,8 @@
+@@ -2470,6 +2573,8 @@
  									forkAt,
  									renderMessageImages,
  									fileMentions,
@@ -173,7 +180,7 @@
  									renderSlot,
  									t
  								}),
-@@ -2582,6 +2680,10 @@
+@@ -2582,6 +2687,10 @@
  			"fileOpen.folderTitle": "无法打开文件夹",
  			"fileOpen.folderUnknown": "无法打开此文件夹",
  			"message.extraBlock": "附加内容块",
@@ -184,7 +191,7 @@
  			"message.systemPrompt": "系统提示词",
  			"message.contextInjection": "上下文注入",
  			"message.contextRecall": "跨会话召回",
-@@ -2695,6 +2797,10 @@
+@@ -2695,6 +2804,10 @@
  			"fileOpen.folderTitle": "Couldn’t open folder",
  			"fileOpen.folderUnknown": "Couldn’t open this folder",
  			"message.extraBlock": "Extra content block",
@@ -195,17 +202,16 @@
  			"message.systemPrompt": "System prompt",
  			"message.contextInjection": "Context injection",
  			"message.contextRecall": "Session recall",
-@@ -8139,6 +8245,13 @@
+@@ -8139,7 +8252,11 @@
  								}).then((childId) => {
  									ctx.sessions.open(childId);
  								}).catch(() => {});
+-							}
 +							},
-+							editLastPrompt: (text) => {
-+								binding.session.editLastPrompt(text).then((result) => {
-+									if (!result.ok) console.warn("editLastPrompt rejected:", result.error);
-+								}).catch((error) => {
-+									console.warn("editLastPrompt rejected:", error);
-+								});
- 							}
++							editLastPrompt: (text) => binding.session.editLastPrompt(text).then((result) => {
++									if (!result.ok) throw new Error(`editLastPrompt failed: ${result.error?.code ?? ""}: ${result.error?.message ?? ""}`);
++									return result;
++								})
  						};
  					}
+ 				}, ChatView);

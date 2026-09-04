@@ -9,7 +9,7 @@
 | 0.1.0-rc.8 | ✅ 全部可用（ui 用 `.rc8` 版） | ❌ | ❌ |  |
 | 0.1.1-rc.2 | ✅ 全部可用（ui 用 `.rc2` 版） | ❌ | ❌ | **旧基准**；含压缩重试补丁（`compaction-basic`，见下） |
 | 0.1.2-alpha.2 | ❌ 需重打（架构重构） | ❌ | ❌ | **预发布**；host-apiproxy/client-runtime 包消失，见 `ADAPTING.md` 预研记录 |
-| **0.1.2-rc.1** | ✅ **全部可用（`.rc1` 版）** | ❌ | ❌ | **当前基准**；架构重构版：编辑重发改由 `dsh-api-session-controller` + `dsh-client-ui-chat` 承载，补丁全新 `.rc1` 文件 |
+| **0.1.2-rc.1** | ✅ **全部可用（`.rc1` 版）** | ❌ | ❌ | **当前基准**；架构重构版：编辑重发改由 `dsh-api-session-controller` + `dsh-client-ui-chat` + `dsh-api-remotes`（浏览器端方法表冻结副本，必须同步）承载，补丁全新 `.rc1` 文件 |
 
 ---
 
@@ -43,6 +43,13 @@ grep -rl "recallHistory\|sendHistory\|historyIndexRef" node_modules/@deepseek-ai
 ```
 若无输出 ⇒ 官方未内置，需要保留/继续适配我们的补丁。
 
+> ⚠️ **0.1.2 起的重要提醒**：`editLastPrompt` 这类 @Remote 方法在宿主侧
+> （`api-session-controller/lib/index.js` / `typert.host.js`）命中**不代表浏览器端可用**。
+> 浏览器端 `remote.session` 方法表来自 `dsh-api-remotes/lib/client.js`（构建期内嵌的
+> 各包 typert 模型**冻结副本**，ModuleLoader bundle）。若宿主/协议补丁都命中、但浏览器
+> 仍报 `xxx is not a function`，请检查该包是否同步补了（grep `dsh-api-remotes/lib/client.js`）。
+> 各包自己的 `typert.remote-client.js` 是纯 ESM 工具产物，**浏览器不加载**，改它不影响运行。
+
 ### 2. 补丁是否仍适配新版
 用 dry-run 测试是否仍能套上：
 ```bash
@@ -58,7 +65,7 @@ patch --dry-run -N -p1 < 补丁文件.patch
 
 | 功能 | 核心标记（grep 用） | rc.1（0.1.2-rc.1）涉及插件 | 旧版（≤0.1.1-rc.2）涉及插件 |
 |---|---|---|---|
-| 编辑重发 | `editLastPrompt` | api-session-controller（host/client/typert 两端）+ ui-chat | host-apiproxy / agent-loop / client-connection / client-runtime / ui-conversation |
+| 编辑重发 | `editLastPrompt` | api-session-controller（host/client/typert 两端）+ **api-remotes（浏览器端冻结方法表，必须同步）** + ui-chat | host-apiproxy / agent-loop / client-connection / client-runtime / ui-conversation |
 | 输入历史 | `recallHistory` `sendHistory` `historyIndexRef` | ui-conversation | ui-conversation |
 | 归档恢复 | `unarchiveSession` / `archived-sessions` | workspace + client-connection + ui-workspace | workspace / client-connection / ui-workspace |
 | agent-loop 去重 | `tailEvent?.type === "user/message"` | agent-loop | agent-loop |
@@ -74,8 +81,11 @@ patch --dry-run -N -p1 < 补丁文件.patch
 
 - **被移除的包**：`dsh-host-apiproxy`、`dsh-client-runtime`（我们旧补丁的两个目标包）
 - **新架构**：远程网关统一为 `@Remote` 体系（`dsh-api-session-controller` 等），Session 数据 API 从 `events[]` 改为 `seq`/`eventAt()`/`snapshotEvents()`
-- **编辑重发迁移**：旧实现走 host-apiproxy/client-runtime，新版走 `dsh-api-session-controller`（host 命令 + client binding + typert 协议两端）+ `dsh-client-ui-chat`（UI 编辑按钮）
+- **编辑重发迁移**：旧实现走 host-apiproxy/client-runtime，新版走 `dsh-api-session-controller`（host 命令 + client binding + typert 协议两端）+ `dsh-client-ui-chat`（UI 编辑按钮）+ **`dsh-api-remotes`（浏览器端方法表：其 lib/client.js 内嵌各包 typert 模型冻结副本，只补各包的 typert.remote-client.js 无效，必须同步补它）**
 - **agent-loop 去重**：改用 `session.eventAt()` 新 API（官方已迁移到该 API，但**去重功能本身官方未内置**）
 - **官方已原生实现** `providerRetryPolicy`（dsh-llm 核心），可作对照但我们的压缩重试补丁仍需要（覆盖压缩路径）
 
 rc.1 的 `.rc1.patch` 补丁文件已全部生成并验证可反向卸载（精确匹配当前全局安装）。
+2026-09-04 复盘补丁：编辑重发此前"重装后仍失效"，根因是漏补 `dsh-api-remotes`
+（浏览器端唯一加载的方法表来源）；已新增 `patches/api-remotes/` 补丁并把
+`requestId` 同步进 api-session-controller 的 4 个 `.rc1` 补丁（与已装文件逐字节一致）。

@@ -1,0 +1,50 @@
+--- @deepseek-ai/dsh-api-remotes/lib/client.js
++++ @deepseek-ai/dsh-api-remotes/lib/client.js
+@@ -7927,6 +7927,12 @@
+ 			"clientTimeZone": string().readonly().optional()
+ 		});
+ 		const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = object({ "accepted": literal(true).readonly() });
++		const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = object({
++			"requestId": intersection(string(), unknown()).readonly(),
++			"sessionId": intersection(string(), unknown()).readonly(),
++			"text": string().readonly()
++		});
++		const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = object({ "accepted": literal(true).readonly() });
+ 		const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = object({
+ 			"sessionId": intersection(string(), unknown()).readonly(),
+ 			"title": string().readonly()
+@@ -8362,6 +8368,34 @@
+ 					sourceLocation: {
+ 						"file": "packages/api/session-controller/src/index.ts",
+ 						"line": 327,
++						"column": 3
++					}
++				},
++				{
++					id: "@deepseek-ai/dsh-api-session-controller#session/editLastPrompt",
++					service: "sessionController",
++					namespace: "session",
++					method: "editLastPrompt",
++					invocation: { kind: "direct" },
++					parameters: [{
++						name: "request",
++						wire: "request",
++						source: "json",
++						codec: {
++							mode: "strict",
++							typeSymbol: "@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptRequest",
++							schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema
++						},
++					}],
++					cancellation: { parameter: "signal" },
++					result: {
++						mode: "strict",
++						typeSymbol: "@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptValue",
++						schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema
++					},
++					sourceLocation: {
++						"file": "packages/api/session-controller/src/index.ts",
++						"line": 340,
+ 						"column": 3
+ 					}
+ 				},

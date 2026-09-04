@@ -1,6 +1,54 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
-@@ -1220,6 +1220,13 @@
+@@ -574,6 +574,14 @@
+   'clientTimeZone': z.string().readonly().optional(),
+ })
+ const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = z.object({
++  'accepted': z.literal(true).readonly(),
++})
++const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = z.object({
++  'requestId': z.intersection(z.string(), z.unknown()).readonly(),
++  'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
++  'text': z.string().readonly(),
++})
++const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = z.object({
+   'accepted': z.literal(true).readonly(),
+ })
+ const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = z.object({
+@@ -990,6 +998,32 @@
+       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":327,"column":3},
+     },
+     {
++      id: '@deepseek-ai/dsh-api-session-controller#session/editLastPrompt',
++      service: 'sessionController',
++      namespace: 'session',
++      method: 'editLastPrompt',
++      invocation: { kind: 'direct' },
++      parameters: [
++        {
++          name: 'request',
++          wire: 'request',
++          source: 'json',
++          codec: {
++            mode: 'strict',
++            typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptRequest',
++            schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema,
++          },
++        },
++      ],
++      cancellation: { parameter: 'signal' },
++      result: {
++        mode: 'strict',
++        typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptValue',
++        schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema,
++      },
++      sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":340,"column":3},
++    },
++    {
+       id: '@deepseek-ai/dsh-api-session-controller#session/rename',
+       service: 'sessionController',
+       namespace: 'session',
+@@ -1220,6 +1254,13 @@
            },
            {
              "kind": "method",

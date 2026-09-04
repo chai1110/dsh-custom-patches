@@ -216,3 +216,46 @@ ctx.slots.inject("settings.general.item", () => ctx.slots.register({
 **适配新版本时**：若官方重构压缩路径，检查 `summarizeWithLlm` 是否存在、是否已内置重试
 （grep `compactionBackoffDelay`）。内置则删除本补丁并更新 `install-dsh-custom.sh` /
 `apply-dsh-patches.sh` 的 FILES 与 `versions.md`。
+
+---
+
+## 0.1.2-rc.1 适配教训：浏览器端方法表 = dsh-api-remotes 冻结副本（2026-09-04）
+
+> 复盘"编辑重发"在 0.1.2-rc.1 上三轮修复仍报
+> `this.remote.session.editLastPrompt is not a function` 的根因与应对规则。
+
+### 现象
+补丁仓库适配 rc.1（commit 4f73c03）时，把 `editLastPrompt` 补进了
+api-session-controller（host index.js 实现 + `@Remote` 装饰器 + typert.host.js
+invocations + client.js binding + typert.remote-client.js schema/描述符）和
+ui-chat（UI 按钮），重装后宿主侧 grep 标记全命中、安装日志全绿，但浏览器编辑重发
+始终报 not a function。
+
+### 根因
+0.1.2 架构重构后，**浏览器端 `remote.session` 的方法表不再由各包自带的
+`typert.remote-client.js` 提供**，而是来自新增包 **`dsh-api-remotes`** 的
+`lib/client.js`：它是一份 tsdown 生成的 ModuleLoader bundle（`window.__ModuleLoader__.load`），
+**构建期内嵌**了所有包 typert.remote-client 模型的**冻结副本**
+（`//#region ../session-controller/lib/typert.remote-client.js` 等）。
+浏览器启动时读这份 bundle 构造 remote 服务表；宿主进程侧的 typert.host.js
+invocations 与各包自己的 typert.remote-client.js（纯 ESM 工具产物，"Generated… do not edit"）
+**都不是浏览器加载的路径**。因此宿主侧实现再完备，只要 dsh-api-remotes 内嵌副本
+缺该描述符，浏览器端就永远没有这个方法——而补丁仓库此前对该包的引用为 0。
+
+### 铁律：给 @Remote 增删一个方法，需同步 5 处（0.1.2 起）
+1. `dsh-api-session-controller/lib/index.js`（宿主实现 + 装饰器 + command 委托）
+2. `dsh-api-session-controller/lib/typert.host.js`（宿主 invocations 描述符 + zod schema）
+3. `dsh-api-session-controller/lib/client.js`（client 绑定方法）
+4. `dsh-api-remotes/lib/client.js`（**浏览器端冻结副本**：schema const + 描述符，缺它 = 浏览器 not a function）
+5. UI 层（如 `dsh-client-ui-chat/lib/client.js`）
+
+### 重新生成 dsh-api-remotes 补丁的注意点
+- npm 独立发布的 `@deepseek-ai/dsh-api-remotes` 包里的 `lib/client.js`（约 109KB）
+  与 `@deepseek-ai/dsh` 安装树嵌套的版本（约 305KB，含全部内嵌模型）**不是同一份文件**；
+  运行用的是嵌套版，补丁必须针对它生成（`diff <嵌套版原始备份> <已改嵌套版>`）。
+- 嵌套版由 dsh 随包分发、无 postinstall 脚本，改后跨重启持久，但 **npm 重装 @deepseek-ai/dsh
+  后需重新套补丁**（与其他补丁一致）。
+- 补丁上下文取内嵌 session 区的唯一锚点（`prompt_result$schema` const 之后、
+  `session/rename` 描述符之前），避免 hunk 错位。
+- requestId 同步：参数 schema、client 发送体、host 读取三处必须一致
+  （`SessionEditLastPromptRequest` 含 `requestId`，`source.rpcId` 用它回标）。
