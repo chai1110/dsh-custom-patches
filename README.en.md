@@ -173,7 +173,7 @@ bash install-dsh-custom.sh -y
 ```
 When the script detects `DSH_SOURCE`, it automatically switches to source layout:
 - Locates target files under `<DSH_SOURCE>/packages/**/lib/`, backs up, and applies
-- **Skips npm version validation** (source doesn't have `0.1.1-rc.2` version strings), but please ensure your source checkout matches rc.8-era code
+- **Skips npm version validation** (source doesn't have `0.1.0-rc.8` version strings), but please ensure your source checkout matches rc.8-era code
 - After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
 ### Source Layout Target File Mapping
