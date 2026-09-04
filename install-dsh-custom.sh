@@ -19,7 +19,7 @@
 #        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
 #        export DSH_SOURCE=/path/to/deepseek-harness
 #
-# Adapted versions: 0.1.2-rc.1 (default) / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7 (see versions.md)
+# 本 tag 固定适配 DSH 0.1.0-rc.8（其他版本见 README「多版本支持」的 tag 列表）
 # =============================================================================
 set -u
 
@@ -29,9 +29,9 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-# 本仓库（tag v0.1.1-rc.2）固定适配的 DSH 版本：0.1.1-rc.2。
+# 本仓库（tag v0.1.0-rc.8）固定适配的 DSH 版本：0.1.0-rc.8。
 # 老版本 / 其他版本用户：请 clone 后 checkout 对应版本 tag（见 README「多版本支持」）。
-TARGET_VERSION="0.1.1-rc.2"
+TARGET_VERSION="0.1.0-rc.8"
 
 ASK=1
 for arg in "$@"; do
@@ -40,7 +40,7 @@ for arg in "$@"; do
     *)
       err "Unknown argument: $arg"
       echo "  Usage: bash install-dsh-custom.sh [-y]"
-      echo "  （本 tag 固定适配 DSH 0.1.1-rc.2；其他版本请 checkout 对应 tag）"
+      echo "  （本 tag 固定适配 DSH 0.1.0-rc.8；其他版本请 checkout 对应 tag）"
       exit 1
       ;;
   esac
