@@ -7,7 +7,7 @@
 
 - 适配版本：**`@deepseek-ai/dsh@0.1.2-rc.1`（最新）**，同时完整支持 **0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7** 老版本（老版本用户无需升级，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
-- 维护：chai1110（<heitieya@163.com>）
+- 维护：chai1110（<chai011379@gmail.com>）
 
 > **这是什么 / 不是什么**：这是一套**编译产物补丁**，不是官方插件，也不是源码 fork。
 > 它通过 `diff`/`patch` 直接修补 DSH 已装好的 npm 包文件（`node_modules` 里的编译 JS），

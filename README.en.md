@@ -7,7 +7,7 @@ Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com
 
 - Target version: **`@deepseek-ai/dsh@0.1.2-rc.1` (latest)**, with full support for older **0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7** (old-version users do NOT need to upgrade — see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
-- Maintainer: chai1110 (<heitieya@163.com>)
+- Maintainer: chai1110 (<chai011379@gmail.com>)
 
 > **What this is / isn't**: This is a set of **compiled-artifact patches**, not an official plugin, not a source fork.
 > It uses `diff`/`patch` to directly modify DSH's installed npm package files (compiled JS in `node_modules`),
