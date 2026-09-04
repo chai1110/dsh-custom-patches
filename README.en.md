@@ -225,7 +225,7 @@ done
 Official upgrades overwrite these patches (because they modify `node_modules` compiled artifacts). Recommended workflow:
 
 ```bash
-# 1) Check for new official version (auto-compares local/latest/targeted; can specify version: bash check-update.sh 0.1.0-rc.8)
+# 1) Check for new official version (auto-compares local/latest/targeted)
 bash check-update.sh
 
 # 2) Upgrade official
