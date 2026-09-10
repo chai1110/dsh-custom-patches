@@ -5,7 +5,7 @@
 Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
 **① Composer ↑/↓ key send history**, **② Edit last message and regenerate (Codex-style)**, and **③ Archived session recovery**.
 
-- Target version: **`@deepseek-ai/dsh@0.1.5-rc.1`** (versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
+- Target version: **`@deepseek-ai/dsh@0.1.2-rc.1`** (versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
 - Maintainer: chai1110 (<chai011379@gmail.com>)
 
@@ -53,7 +53,7 @@ The install script is written in **bash** and depends on **Unix command-line too
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed
-- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.1.5-rc.1`; users on other versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
+- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.1.2-rc.1`; users on other versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
 
 > **No CLI tools needed**: The easiest path is to send this repo link (`https://github.com/chai1110/dsh-custom-patches`) to your AI assistant and let it follow the "Quick Start" section to install and configure on your machine — it will handle Windows `taskkill` differences automatically.
 
@@ -65,8 +65,8 @@ Four steps total, **HTTPS clone recommended** (no SSH key needed). You can paste
 
 ```bash
 # 1) Install matching DSH version (skip if already installed and correct version)
-npm install -g @deepseek-ai/dsh@0.1.5-rc.1
-dsh --version          # should output 0.1.5-rc.1
+npm install -g @deepseek-ai/dsh@0.1.2-rc.1
+dsh --version          # should output 0.1.2-rc.1
 
 # 2) Clone this repo (HTTPS, works for everyone)
 git clone https://github.com/chai1110/dsh-custom-patches.git
