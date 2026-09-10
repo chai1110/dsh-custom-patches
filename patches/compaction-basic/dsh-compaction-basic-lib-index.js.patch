@@ -11,7 +11,7 @@
  	const messages = [...input.messages, createUserMessage({
  		content: [{
  			type: "text",
-@@ -299,21 +301,76 @@
+@@ -299,21 +301,56 @@
  		purpose: "compaction",
  		...signal === void 0 ? {} : { signal }
  	};
@@ -51,30 +51,10 @@
 +		} catch (error) {
 +			const code = error?.code;
 +			if (code === void 0 || !retryableCodes.includes(code) || attempt >= maxRetries || signal?.aborted) throw error;
-+			const retryId = randomUUID();
++			// 只做退避重试，不写会话日志：压缩发生在 turn 之外，
++			// llm/retry* 的 turn/step 无合法取值，会被 v0->v1 迁移器拒绝。
 +			const delayMs = compactionBackoffDelay(policy, attempt + 1);
-+			agent.session.append("llm/retry", {
-+				retryId,
-+				turn: null,
-+				step: null,
-+				provider: target.provider,
-+				mode: policy?.mode ?? "normal",
-+				policyKey: "compaction-summary",
-+				retry: attempt + 1,
-+				maxRetries,
-+				delayMs,
-+				failure: {
-+					message: error.message,
-+					code
-+				}
-+			});
 +			if (!await cancellableDelay(delayMs, signal)) throw error;
-+			agent.session.append("llm/retry-started", {
-+				retryId,
-+				turn: null,
-+				step: null,
-+				retry: attempt + 1
-+			});
 +		}
 +	}
 +}
