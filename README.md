@@ -5,7 +5,7 @@
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用功能：
 **① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成（Codex 风格）** 与 **③ 归档会话恢复**。
 
-- 适配版本：**`@deepseek-ai/dsh@0.1.2-rc.1`**（本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
+- 适配版本：**`@deepseek-ai/dsh@0.1.5-rc.1`**（本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
 - 维护：chai1110（<chai011379@gmail.com>）
 
@@ -53,7 +53,7 @@
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh`**（本仓库 main 适配 `0.1.2-rc.1`；其他版本用户 checkout 对应 tag，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
+- 已用 npm **全局安装 `@deepseek-ai/dsh`**（本仓库 main 适配 `0.1.5-rc.1`；其他版本用户 checkout 对应 tag，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
 
 > **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/chai1110/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
 
@@ -65,8 +65,8 @@
 
 ```bash
 # 1) 安装匹配版本的 DSH（已装且版本正确可跳过）
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1
-dsh --version          # 应输出 0.1.2-rc.1
+npm install -g @deepseek-ai/dsh@0.1.5-rc.1
+dsh --version          # 应输出 0.1.5-rc.1
 
 # 2) 克隆本仓库（HTTPS，对所有人可用）
 git clone https://github.com/chai1110/dsh-custom-patches.git
@@ -97,7 +97,8 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 
 | 你的 DSH 版本 | 适配情况 | 一键安装命令 |
 |---|---|---|
-| **0.1.2-rc.1**（最新） | `v0.1.2-rc.1`（默认 main） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
+| **0.1.5-rc.1**（最新） | `v0.1.5-rc.1`（默认 main） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
+| **0.1.2-rc.1** | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` 后 `bash install-dsh-custom.sh -y` |
 | **0.1.1-rc.2** | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` 后 `bash install-dsh-custom.sh -y` |
 | **0.1.0-rc.8** | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` 后 `bash install-dsh-custom.sh -y` |
 | **0.1.0-rc.7** | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` 后 `bash install-dsh-custom.sh -y` |
@@ -113,7 +114,7 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 
 ### 第 1 步：确认 DSH 版本
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1   # 装到匹配版本（老版本用户装自己那版即可）
+npm install -g @deepseek-ai/dsh@0.1.5-rc.1   # 装到匹配版本（老版本用户装自己那版即可）
 dsh --version                                 # 确认是 0.1.2-rc.1
 ```
 

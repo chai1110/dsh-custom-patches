@@ -12,16 +12,17 @@
 | 0.1.1-rc.2 | ✅ 全部可用（ui 用 `.rc2` 版） | ❌ | ❌ | **旧基准**；含压缩重试补丁（`compaction-basic`，见下） |
 | 0.1.2-alpha.2 | ❌ 需重打（架构重构） | ❌ | ❌ | **预发布**；host-apiproxy/client-runtime 包消失，见 `ADAPTING.md` 预研记录 |
 | 0.1.2-rc.1 | ✅ 全部可用（`.rc1` 版） | ❌ | ❌ | 架构重构版：编辑重发改由 `dsh-api-session-controller` + `dsh-client-ui-chat` + `dsh-api-remotes`（浏览器端方法表冻结副本，必须同步）承载。补丁集在 `version/0.1.2-rc.1` 分支 / tag `v0.1.2-rc.1` |
-| **0.1.5-rc.1** | ✅ **全部可套用（已重打，12/12）** | ❌ | ❌ | **当前基准（`version/0.1.5-rc.1` 分支）**；官方 0.1.5 收编了 `SURFACE_EVENT_TYPES`/`isSurfaceEvent`（`core/session/src/surface.ts`），本补丁已删重复声明。⚠️ 仅静态校验通过（可套用 + `node --check`），**尚未在真实 0.1.5 运行时验证** |
+| **0.1.5-rc.1** | ✅ **核心功能 10/10 可套用（已重打）** | ❌ | ❌ | **当前基准（`version/0.1.5-rc.1` 分支）**；官方 0.1.5 收编了 `SURFACE_EVENT_TYPES`/`isSurfaceEvent`（`core/session/src/surface.ts`），本补丁已删重复声明。⚠️ 仅静态校验通过（可套用 + `node --check`），**尚未在真实 0.1.5 运行时验证**；SSH 远程 / 右侧 Sidebar（`api-remotes` / `ui-workspace`）**按维护者决定不在 0.1.5 更新** |
 
 > **0.1.5-rc.1 适配要点（详见 `ADAPTING.md` 末节）**：
-> - 6 个补丁的锚点需重打（agent-loop / api-remotes / api-session-controller typert.remote-client /
->   client-ui-chat / client-ui-conversation / client-ui-workspace），本质是官方行号漂移与
+> - 6 个补丁的锚点需重打（agent-loop / api-session-controller typert.remote-client /
+>   client-ui-chat / client-ui-conversation 等），本质是官方行号漂移与
 >   组件参数新增（`usePanelInfo`、`loadImage`、`skillNames`、`uploads`、`attachmentIds` 改名等）。
 > - `client-ui-conversation` 的 `SURFACE_EVENT_TYPES` / `isSurfaceEvent` **官方已内置**，
 >   已从补丁中删除重复声明，仅保留 `isReplacementSurfaceEvent` + `shadowed` 折叠逻辑。
 > - **不存在**「官方已内置」的功能：`editLastPrompt` / `recallHistory` / `sendHistory` /
 >   `unarchiveSession` / `message.editPrompt` / `archived-sessions` 在 0.1.5 全部缺失。
+> - 0.1.5 版补丁集 = 10 个（编辑重发/输入历史/归档/压缩/去重），**不含** `api-remotes` / `ui-workspace`（SSH/侧栏不更新）。
 
 ---
 

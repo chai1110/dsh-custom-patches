@@ -53,22 +53,19 @@ done
 #   source_rel  = path relative to <source>/packages, used in source/monorepo layout
 # rc.1 (0.1.2-rc.1) 是架构重构版：host-apiproxy/client-runtime 已移除，
 # 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载；
-# 注意 0.1.2 新增 dsh-api-remotes：浏览器端 remote.session 方法表 = 其
-# lib/client.js 内嵌的各包 typert 模型冻结副本（ModuleLoader bundle），
-# 给 @Remote 增删方法必须同步补它，否则浏览器端永远 not a function。
+# 注：dsh-api-remotes（浏览器端方法表）与 dsh-client-ui-workspace（右侧面板）
+# 按维护者决定不在 0.1.5 更新（SSH/侧栏功能不随本补丁集适配）。
 FILES=(
   "dsh-api-session-controller/lib/index.js|patches/api-session-controller/dsh-api-session-controller-lib-index.js.patch|async editLastPrompt|api/session-controller/lib/index.js"
   "dsh-api-session-controller/lib/client.js|patches/api-session-controller/dsh-api-session-controller-lib-client.js.patch|async editLastPrompt|api/session-controller/lib/client.js"
   "dsh-api-session-controller/lib/typert.host.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-host.js.patch|editLastPrompt|api/session-controller/lib/typert.host.js"
   "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.patch|editLastPrompt|api/session-controller/lib/typert.remote-client.js"
-  "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.patch|editLastPrompt|api/remotes/lib/client.js"
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
   "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|unarchiveSession|client/connection/lib/client.js"
   "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.patch|unarchiveSession|core/workspace/lib/index.js"
   "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
   "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.patch|recallHistory|client/ui-conversation/lib/client.js"
   "dsh-client-ui-chat/lib/client.js|patches/client-ui-chat/dsh-client-ui-chat-lib-client.js.patch|message.editPrompt|client/ui-chat/lib/client.js"
-  "dsh-client-ui-workspace/lib/client.js|patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.patch|archived-sessions|client/ui-workspace/lib/client.js"
 )
 
 
@@ -249,9 +246,9 @@ if [ "$FAIL" -gt 0 ]; then
   echo -e "${RED}Some patches failed. Re-adapt per ADAPTING.md, or restore first:${NC}"
   if [ "$TARGET_VERSION" = "0.1.2-rc.1" ] || [ "$TARGET_VERSION" = "0.1.5-rc.1" ]; then
     echo "    npm layout:"
-    echo "      for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
+    echo "      for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
     echo "    source layout (DSH_SOURCE set):"
-    echo "      for e in api/session-controller/lib/index.js api/session-controller/lib/client.js api/session-controller/lib/typert.host.js api/session-controller/lib/typert.remote-client.js api/remotes/lib/client.js core/agent-loop/lib/index.js client/connection/lib/client.js core/workspace/lib/index.js core/compaction-basic/lib/index.js client/ui-conversation/lib/client.js client/ui-chat/lib/client.js client/ui-workspace/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
+    echo "      for e in api/session-controller/lib/index.js api/session-controller/lib/client.js api/session-controller/lib/typert.host.js api/session-controller/lib/typert.remote-client.js core/agent-loop/lib/index.js client/connection/lib/client.js core/workspace/lib/index.js core/compaction-basic/lib/index.js client/ui-conversation/lib/client.js client/ui-chat/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
   else
     echo "    npm layout:"
     echo "      for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
