@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-client-ui-chat/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-chat/lib/client.js
-@@ -1266,20 +1266,112 @@
+@@ -1344,21 +1344,113 @@
  			});
  		}
  		/** User and admitted-steering keyed Chat renderer. */
@@ -109,6 +109,7 @@
  				content: data.content,
  				renderMessageImages,
  				...data.referenceLabels === void 0 ? {} : { referenceLabels: data.referenceLabels },
+ 				...data.skillNames === void 0 ? {} : { skillNames: data.skillNames },
  				t,
 -				actions: (text) => (0, react_jsx_runtime.jsx)(MessageIconActions, {
 -					text,
@@ -121,17 +122,17 @@
  			});
  		});
  		/** Injected-context keyed Chat renderer. */
-@@ -1470,7 +1562,7 @@
+@@ -1541,7 +1633,7 @@
  			return location?.kind === "turn" || location?.kind === "step" ? location.turn.turn : void 0;
  		}
  		/** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
--		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, useStore, actions, renderSlot, t }) {
-+		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t }) {
+-		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, cwd, openFile, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, useStore, actions, renderSlot, t }) {
++		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, cwd, openFile, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t }) {
  			const node = useChatNode(nodeKey);
  			const routedNode = node;
  			const turn = turnOf(routedNode);
-@@ -1511,6 +1603,8 @@
- 				forkAt,
+@@ -1582,6 +1674,8 @@
+ 				loadImage,
  				renderMessageImages,
  				fileMentions,
 +				isLastUser: nodeKey === lastUserKey,
@@ -139,8 +140,8 @@
  				turnProcess
  			}, [
  				node,
-@@ -1521,6 +1615,9 @@
- 				forkAt,
+@@ -1592,6 +1686,9 @@
+ 				loadImage,
  				renderMessageImages,
  				fileMentions,
 +				nodeKey,
@@ -149,7 +150,7 @@
  				turnProcess
  			]);
  			if (routedNode === void 0 || owner === null) return null;
-@@ -1998,7 +2095,7 @@
+@@ -2069,7 +2166,7 @@
  		* The chat view slot entry: pure component over the composed props; each
  		* ordered business Node crosses the keyed renderer seat.
  		*/
@@ -158,7 +159,7 @@
  			const order = useChat((s) => s.order);
  			const nodeStore = useChat((s) => s.nodes);
  			const turnNavigationItems = useChat((s) => s.navigation.items());
-@@ -2006,6 +2103,12 @@
+@@ -2077,6 +2174,12 @@
  			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
  			const timeline = useChat((s) => s.timeline);
  			const inbox = useSession((s) => s.queue);
@@ -171,8 +172,8 @@
  			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
  			const running = useSession((s) => s.running);
  			const openState = useSession((s) => s.openState);
-@@ -2470,6 +2573,8 @@
- 									forkAt,
+@@ -2547,6 +2650,8 @@
+ 									loadImage,
  									renderMessageImages,
  									fileMentions,
 +									editLastPrompt,
@@ -180,29 +181,29 @@
  									renderSlot,
  									t
  								}),
-@@ -2582,6 +2687,10 @@
- 			"fileOpen.folderTitle": "无法打开文件夹",
- 			"fileOpen.folderUnknown": "无法打开此文件夹",
+@@ -2650,6 +2755,10 @@
+ 			"fileOpen.title": "无法打开文件",
+ 			"fileOpen.unknown": "无法打开此文件",
  			"message.extraBlock": "附加内容块",
 +			"message.editPrompt": "编辑这条消息",
 +			"message.saveEdit": "保存并重新生成",
 +			"message.cancelEdit": "取消",
 +			"message.editing": "重新生成中…",
  			"message.systemPrompt": "系统提示词",
+ 			"message.systemPromptUpdate": "系统提示词更新",
  			"message.contextInjection": "上下文注入",
- 			"message.contextRecall": "跨会话召回",
-@@ -2695,6 +2804,10 @@
- 			"fileOpen.folderTitle": "Couldn’t open folder",
- 			"fileOpen.folderUnknown": "Couldn’t open this folder",
+@@ -2756,6 +2865,10 @@
+ 			"fileOpen.title": "Couldn’t open file",
+ 			"fileOpen.unknown": "Couldn’t open this file",
  			"message.extraBlock": "Extra content block",
 +			"message.editPrompt": "Edit this message",
 +			"message.saveEdit": "Save and regenerate",
 +			"message.cancelEdit": "Cancel",
 +			"message.editing": "Regenerating…",
  			"message.systemPrompt": "System prompt",
+ 			"message.systemPromptUpdate": "System prompt update",
  			"message.contextInjection": "Context injection",
- 			"message.contextRecall": "Session recall",
-@@ -5735,7 +5848,7 @@
+@@ -6048,7 +6161,7 @@
  		const messageDefinition = {
  			kind: "input-message",
  			target: "chat",
@@ -211,7 +212,7 @@
  				id: String(event.data.id),
  				role: "start"
  			} : null,
-@@ -8139,7 +8252,11 @@
+@@ -8343,7 +8456,11 @@
  								}).then((childId) => {
  									ctx.sessions.open(childId);
  								}).catch(() => {});

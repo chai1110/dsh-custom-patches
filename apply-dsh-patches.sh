@@ -1,7 +1,7 @@
 #!/bin/bash
-# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.2-rc.1）
+# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.5-rc.1）
 # 用法:
-#   bash apply-dsh-patches.sh                # main 固定适配 DSH 0.1.2-rc.1
+#   bash apply-dsh-patches.sh                # 本分支（version/0.1.5-rc.1）固定适配 DSH 0.1.5-rc.1
 #
 # 其他 DSH 版本用户：请 checkout 对应版本 tag（见 README「多版本支持」）。
 # rc.6 及更早没有单独保存（本仓库自 rc.7 起发布），需升级官方后再用。
@@ -10,8 +10,8 @@ set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-# 本仓库（main / tag v0.1.2-rc.1）固定适配的 DSH 版本
-TARGET_VERSION="0.1.2-rc.1"
+# 本仓库（version/0.1.5-rc.1 分支）固定适配的 DSH 版本
+TARGET_VERSION="0.1.5-rc.1"
 
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
 # 格式: "相对插件路径|补丁在仓库中的相对路径"

@@ -259,3 +259,92 @@ invocations 与各包自己的 typert.remote-client.js（纯 ESM 工具产物，
   `session/rename` 描述符之前），避免 hunk 错位。
 - requestId 同步：参数 schema、client 发送体、host 读取三处必须一致
   （`SessionEditLastPromptRequest` 含 `requestId`，`source.rpcId` 用它回标）。
+
+---
+
+## 0.1.5-rc.1 适配实录（2026-09-10，分支 `version/0.1.5-rc.1`）
+
+官方 `dsh-v0.1.5-rc.1`（首个 0.1.5 候选版，汇总 `0.1.2-rc.1` 以来变更）。
+
+### 结论速览
+
+| 项 | 结果 |
+|---|---|
+| 补丁可套用 | **12/12**（重打 6 个后） |
+| `node --check` 语法 | 12/12 通过（本轮新增的校验关卡，**抓出 1 个真 bug**） |
+| 官方已内置的我们的功能 | **无**（`editLastPrompt`/`recallHistory`/`sendHistory`/`unarchiveSession`/`message.editPrompt`/`archived-sessions` 全缺） |
+| 官方**部分**收编的共享代码 | `SURFACE_EVENT_TYPES` + `isSurfaceEvent`（见下） |
+| 运行时验证 | ❌ 未做（本机 DSH 仍是 0.1.2-rc.1，未升级） |
+
+### 官方 0.1.5 与本补丁集相关的破坏性变更
+
+- **Session 数据格式 V3**：升级后的会话日志不支持降级读取。
+- **Session 生命周期**：持久化改由 `SessionHandle` 持有；`agentLoop.create()` 变异步；
+  **新增 session 锁（同一 session 至多被一个进程持有）**。
+- **默认工具调整**：Web `minimal` 默认只给持久 shell，`str_replace_editor` 需显式启用。
+- **移除 `ctx.agent`**；**`Inbox` 改为 type-only**（`agent.inbox`，`hasPending`/`claim` 不再公开）。
+- **Web 插件面板 API**：新增 `sidebar.panellist` 与 `main`；原 `conversation` Slot 迁到 `main.conversation`。
+- **persona 拆分为前缀 + 后缀**；pi-ai 升至 0.85.1。
+
+### 6 个补丁的失败原因（逐 hunk 实证）
+
+| 补丁 | 失败 hunk | 根因 | 修法 |
+|---|---|---|---|
+| `agent-loop/lib/index.js` | #1（1/2） | 官方把 `user/message` append 挪进 `while(true)` 重试循环，并加 `firstAttempt` 守卫 | 换锚点：`if (firstAttempt) for (...) {...}` 外包我们的尾节点同 id 去重 |
+| `api-remotes/lib/client.js` | #2（1/2） | `session/prompt` 描述符的 `sourceLocation.line` **327 → 346** | 补丁上下文行号改 346（纯元数据漂移） |
+| `api-session-controller/lib/typert.remote-client.js` | #2（1/2） | 同上（327 → 346） | 同上 |
+| `api-session-controller/lib/typert.host.js` | #2 | 同上；**原先靠 BSD patch 默认 fuzz=2 吃掉首行失配才侥幸通过** | 重生成后上下文自动为 346 |
+| `client-ui-chat/lib/client.js` | #1、#2（2/11） | #1 官方在 `UserStyleBubble` 参数中新增 `...data.skillNames` 展开行；#2 `ChatNodeSeat` 参数 `selectedCallId` 换成 `loadImage` | 更新上下文签名 |
+| `client-ui-conversation/lib/client.js` | #9、#11（2/12） | #9 字段 `imageIds` → `attachmentIds`；#11 `attachments` 的 `draftImages` → `resolveDraftAttachments`，并新增 `uploads`/`uploadsPending` 两行 | 换锚点 + 跟随改名 |
+| `client-ui-workspace/lib/client.js` | #2（1/4） | `WorkspaceBrowser` 参数新增 `usePanelInfo` | 更新签名（保留官方新参数） |
+| `client-ui-conversation/lib/client.js` | 语法校验发现 | **官方已在 `core/session/src/surface.ts` 原生导出 `SURFACE_EVENT_TYPES` + `isSurfaceEvent`**，与补丁插入的同名声明冲突（`SyntaxError: Identifier 'SURFACE_EVENT_TYPES' has already been declared`） | **删除补丁中的重复声明**，`isReplacementSurfaceEvent` 直接复用官方原生 `isSurfaceEvent` |
+
+### 新增铁律 1：上下文漂移 ≠ 语义安全，必须过 `node --check`
+
+BSD `patch` 默认 **fuzz=2**：hunk **首/尾最多 2 行**上下文失配时仍会「成功」，只提示 `offset`。
+所以 `dry-run 全绿` 只能证明「能贴上」，不能证明「贴对了」。重复声明、错位插入这类问题
+**只有真实套用 + 语法检查才能发现**（本轮就是靠它抓到 `SURFACE_EVENT_TYPES` 冲突）。
+
+```bash
+# 套用后必须过语法关（bundle 是 window.__ModuleLoader__.load 工厂，CJS 即可解析）
+node --check <套用后的文件>
+# ESM 包（api-session-controller/lib/index.js 等）改用 .mjs 副本再 --check
+```
+
+### 新增铁律 2：官方「部分收编」不会命中功能标记
+
+`grep editLastPrompt` 这类**功能标记**检测只能发现「整个功能被官方收编」。
+但官方可能只收编**共享的底层工具函数**（本轮：`SURFACE_EVENT_TYPES`/`isSurfaceEvent`），
+此时功能标记仍然 miss，而插入会造成重复声明。→ 必须叠加上一条的语法校验。
+
+### 重生成补丁的推荐姿势（本轮采用）
+
+1. `npm pack` 目标包 → 解包到隔离目录（`npm install` 到 /tmp 会被 broker 拦，`pack` 可以）。
+2. `patch -N -p2` 把**旧补丁**贴到新版文件：能贴的自动贴，贴不上的落 `.rej`。
+3. 对着 `.rej` 手工重锚（按新版真实上下文），顺手删掉官方已收编的重复声明。
+4. `diff -u <pristine> <已改>` 重生成补丁，头部路径写成 `@deepseek-ai/<pkg>/lib/<file>`（保持 `-p2` 语义）。
+5. 三道校验：`patch --dry-run -N -p2` 零失败 → 真实套用 → `node --check`。
+
+> 本轮工具脚本留在 `~/Documents/dsh_data/.probe015/`（`dryrun.py` / `hunkstat.py` / `regen.py`），
+> 下个版本可直接复用。
+
+### 0.1.5 下 dsh-vscode-lite / fork 的兼容性结论（实证）
+
+- **dsh-lite（自研 VS Code 插件）RPC 契约完全兼容**：0.1.5 的 @Remote 方法表**没有删除任何**
+  其依赖的方法（`session/list`、`session/follow`、`session/rename`、`session/prompt`、
+  `workspace/follow`、`workspace/archiveSession`、`commands/*`、`goals/*`、`$events` 全在），
+  仅新增 `workspaceFiles/*`、`fileUploads/upload`、`sessionFeedback/record`、`goals/get`。
+  `dsh-api-workspace-controller` 在 0.1.2-rc.1 与 0.1.5-rc.1 之间**逐字节相同**。
+  `session/list` 的 projections 为**兼容扩展**（新增 `inbox`/`subagentCatalog`，`title` 仍在）。
+  ⚠️ 行为级风险两条：**session 锁**（同库多实例并存）与 **Session V3 单向迁移**（不要混跑 0.1.2/0.1.5）。
+- **dsh-vscode（fork）的宿主层未受影响**：启动就绪行格式 `dsh web: <url>[ (LAN: <url>)]`
+  与 `connection.authenticatedUrl()`、`BrowserAuth` 401/换 cookie 机制在 0.1.5 **未变**；
+  fork 的解析正则 `/dsh web: (https?:\/\/[^\s)]+)/` 天然忽略 ` (LAN: …)` 后缀。
+  但 `dsh-client-connection` 内部改动较大（index.js 221 行 / client.js 3121 行差异，
+  新增流式请求体路由），本地鉴权代理的**大文件上传**路径需回归。
+- **dsh-ssh-remote 的挂载点全部保留**：`sidebar.workspaces.directoryFlow`、
+  `conversation.session.header.utilities`、`conversation.input.left/right`、
+  `conversation.composer.bar`、`settings.general.item` 在 0.1.5 均存在
+  （`settings.*` slot 全集逐项一致）。仍需人工确认 host 侧 `systemPrompt.section` 与
+  persona 前缀/后缀拆分、以及 `ctx.agent` 移除对其 vendored 子包的影响。
+

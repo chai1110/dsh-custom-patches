@@ -11,7 +11,7 @@
  	const messages = [...input.messages, createUserMessage({
  		content: [{
  			type: "text",
-@@ -300,22 +302,77 @@
+@@ -299,21 +301,76 @@
  		purpose: "compaction",
  		...signal === void 0 ? {} : { signal }
  	};
@@ -84,7 +84,7 @@
 +	const exponential = Math.min(policy.initialDelayMs * 2 ** exponent, policy.maxDelayMs);
 +	const jitter = 1 - policy.jitterRatio + 2 * policy.jitterRatio * Math.random();
 +	return Math.min(exponential * jitter, policy.maxDelayMs);
- }
++}
 +/** Await `delayMs` unless the live signal aborts first; `true` when the full wait elapsed. */
 +function cancellableDelay(delayMs, signal) {
 +	if (signal === void 0) return new Promise((resolve) => setTimeout(() => resolve(true), delayMs));
@@ -100,7 +100,6 @@
 +		}
 +		signal.addEventListener("abort", onAbort, { once: true });
 +	});
-+}
+ }
  /**
  * Wrap raw summary blocks in the durable checkpoint framing.
- * @param summary - safe text-only model output.

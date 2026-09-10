@@ -1,7 +1,7 @@
 #!/bin/bash
 # check-update.sh — 检查 DSH 官方是否有新版本，并评估本补丁集是否需要重新适配
 #
-# 用法: bash check-update.sh   （main 固定适配 DSH 0.1.2-rc.1）
+# 用法: bash check-update.sh   （本分支固定适配 DSH 0.1.5-rc.1）
 # 说明:
 #   1. 读取本地已装 DSH 版本
 #   2. 查询 npm 官方最新版
@@ -11,8 +11,8 @@ set -e
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
-# 本仓库（main / tag v0.1.2-rc.1）固定适配的 DSH 版本
-TARGET="0.1.2-rc.1"
+# 本仓库（version/0.1.5-rc.1 分支）固定适配的 DSH 版本
+TARGET="0.1.5-rc.1"
 
 # 1. 本地已装版本（通过全局 npm root 找到 DSH）
 LOCAL=""

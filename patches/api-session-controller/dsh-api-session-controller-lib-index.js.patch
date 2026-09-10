@@ -1,9 +1,11 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/index.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/index.js
-@@ -792,6 +792,63 @@
+@@ -813,6 +813,63 @@
+ 			if (error instanceof AttachmentError) throw new RemoteError("session/attachment-invalid", error.message, { reason: error.code });
+ 			throw new RemoteError("gateway/internal", "Unable to read image attachment.", {});
  		}
- 	}
- 	/**
++	}
++	/**
 +	* Rewrite the LAST user message of a session and regenerate from it,
 +	* Codex-style: the new text replaces the previous user message AND all
 +	* assistant/tool surface nodes that followed it (they are shadowed by a
@@ -59,12 +61,10 @@
 +		}
 +		agent.followup(message);
 +		return { accepted: true };
-+	}
-+	/**
+ 	}
+ 	/**
  	* Mutate one still-pending queue occurrence without resuming a cold Agent.
- 	* @param request - Session, queue item, and requested mutation.
- 	* @returns acknowledgement that the queue mutation was applied.
-@@ -2360,6 +2417,7 @@
+@@ -2488,6 +2545,7 @@
  	let _fork_decorators;
  	let _prompt_decorators;
  	let _attachment_decorators;
@@ -72,7 +72,7 @@
  	let _updateQueue_decorators;
  	let _cancel_decorators;
  	let _page_decorators;
-@@ -2379,6 +2437,7 @@
+@@ -2507,6 +2565,7 @@
  			_fork_decorators = [Remote("fork")];
  			_prompt_decorators = [Remote("prompt")];
  			_attachment_decorators = [Remote("attachment")];
@@ -80,7 +80,7 @@
  			_updateQueue_decorators = [Remote("updateQueue")];
  			_cancel_decorators = [Remote("cancel")];
  			_page_decorators = [Remote("page")];
-@@ -2505,6 +2564,17 @@
+@@ -2633,6 +2692,17 @@
  				},
  				metadata: _metadata
  			}, null, _instanceExtraInitializers);
@@ -98,7 +98,7 @@
  			__esDecorate(this, null, _updateQueue_decorators, {
  				kind: "method",
  				name: "updateQueue",
-@@ -2782,6 +2852,15 @@
+@@ -2930,6 +3000,15 @@
  			return this.commands.attachment(request);
  		}
  		/**

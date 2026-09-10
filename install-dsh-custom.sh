@@ -9,7 +9,7 @@
 #      feature (greps a marker in the target file) -- if so, skips that patch
 #      to avoid duplication/conflict
 #   3. backup (first time) + dry-run + apply + verify, all with colored logs
-#  4. Usage: bash install-dsh-custom.sh [-y] [版本号]    (-y skips interactive confirm; 版本号可选，老版本用户指定用，缺省为最新 0.1.2-rc.1)
+#  4. Usage: bash install-dsh-custom.sh [-y] [版本号]    (-y skips interactive confirm; 版本号可选，老版本用户指定用，缺省为 0.1.5-rc.1)
 #
 # Supports BOTH installation layouts:
 #   A. global npm install  (default): finds DSH in global node_modules
@@ -19,7 +19,7 @@
 #        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
 #        export DSH_SOURCE=/path/to/deepseek-harness
 #
-# Adapted versions: 0.1.2-rc.1 (default) / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7 (see versions.md)
+# Adapted versions: 0.1.5-rc.1 (default on this branch) / 0.1.2-rc.1 / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7 (see versions.md)
 # =============================================================================
 set -u
 
@@ -29,9 +29,9 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-# 本仓库（main / tag v0.1.2-rc.1）固定适配的 DSH 版本：0.1.2-rc.1。
-# 其他 DSH 版本用户：请 checkout 对应版本 tag（见 README「多版本支持」）。
-TARGET_VERSION="0.1.2-rc.1"
+# 本仓库（version/0.1.5-rc.1 分支）固定适配的 DSH 版本：0.1.5-rc.1。
+# 其他 DSH 版本用户：请 checkout 对应版本分支/tag（见 README「多版本支持」）。
+TARGET_VERSION="0.1.5-rc.1"
 
 ASK=1
 for arg in "$@"; do
@@ -40,7 +40,7 @@ for arg in "$@"; do
     *)
       err "Unknown argument: $arg"
       echo "  Usage: bash install-dsh-custom.sh [-y]"
-      echo "  （main 固定适配 DSH 0.1.2-rc.1；其他版本请 checkout 对应 tag）"
+      echo "  （本分支固定适配 DSH 0.1.5-rc.1；其他版本请 checkout 对应分支/tag）"
       exit 1
       ;;
   esac
@@ -247,7 +247,7 @@ echo -e "  2. Hard-refresh the browser page (Cmd+Shift+R) to use the new feature
 if [ "$FAIL" -gt 0 ]; then
   echo ""
   echo -e "${RED}Some patches failed. Re-adapt per ADAPTING.md, or restore first:${NC}"
-  if [ "$TARGET_VERSION" = "0.1.2-rc.1" ]; then
+  if [ "$TARGET_VERSION" = "0.1.2-rc.1" ] || [ "$TARGET_VERSION" = "0.1.5-rc.1" ]; then
     echo "    npm layout:"
     echo "      for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
     echo "    source layout (DSH_SOURCE set):"

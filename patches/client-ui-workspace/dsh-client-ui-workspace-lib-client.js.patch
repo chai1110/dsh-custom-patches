@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-client-ui-workspace/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-workspace/lib/client.js
-@@ -76,6 +76,9 @@
+@@ -96,6 +96,9 @@
  			}
  			async archiveSession(sessionId) {
  				await this.workspaces.archiveSession(sessionId);
@@ -10,16 +10,16 @@
  			}
  			async pickDirectory() {
  				const result = await this.directoryPicker.pick();
-@@ -1911,7 +1914,7 @@
+@@ -1973,7 +1976,7 @@
  		* @param props - composed slot props (shell owner share + store + injected actions).
  		* @returns the region element tree.
  		*/
--		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useSessionPendingInteraction, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostInfo, renderSlot, t }) {
-+		function WorkspaceBrowser({ wide, expandSidebar, useSessions, useSessionPendingInteraction, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, unarchiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostInfo, renderSlot, t }) {
+-		function WorkspaceBrowser({ wide, usePanelInfo, expandSidebar, useSessions, useSessionPendingInteraction, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostInfo, renderSlot, t }) {
++		function WorkspaceBrowser({ wide, usePanelInfo, expandSidebar, useSessions, useSessionPendingInteraction, useWorkspaces, useStore, actions, startSession, open, renameSession, forkSession, renameWorkspace, deleteWorkspace, insertWorkspaceBefore, archiveSession, unarchiveSession, insertSessionBefore, createWorkspace, searchSessions, searchResultLimit, useDirectoryFlow, useHostInfo, renderSlot, t }) {
  			const home = useHostInfo((info) => info.home);
  			const workspaces = useWorkspaces((state) => state.items);
  			const workspacePhase = useWorkspaces((state) => state.phase);
-@@ -2697,6 +2700,9 @@
+@@ -2778,6 +2781,9 @@
  				archiveSession: async (sessionId) => {
  					await uiWorkspace.archiveSession(sessionId);
  				},
@@ -29,7 +29,7 @@
  				insertSessionBefore: async (workspaceId, sessionId, beforeSessionId) => {
  					await workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId);
  				},
-@@ -2729,6 +2735,53 @@
+@@ -2810,6 +2816,53 @@
  				inject: pickerInjected,
  				locale: NS
  			}, WorkspacePicker));

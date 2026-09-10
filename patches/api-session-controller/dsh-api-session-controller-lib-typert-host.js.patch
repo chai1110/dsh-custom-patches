@@ -1,22 +1,22 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
-@@ -574,6 +574,14 @@
-   'clientTimeZone': z.string().readonly().optional(),
- })
+@@ -591,6 +591,14 @@
  const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = z.object({
-+  'accepted': z.literal(true).readonly(),
-+})
+   'accepted': z.literal(true).readonly(),
+ })
 +const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = z.object({
 +  'requestId': z.intersection(z.string(), z.unknown()).readonly(),
 +  'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
 +  'text': z.string().readonly(),
 +})
 +const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = z.object({
-   'accepted': z.literal(true).readonly(),
- })
++  'accepted': z.literal(true).readonly(),
++})
  const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = z.object({
-@@ -990,6 +998,32 @@
-       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":327,"column":3},
+   'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
+   'title': z.string().readonly(),
+@@ -1012,6 +1020,32 @@
+       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":346,"column":3},
      },
      {
 +      id: '@deepseek-ai/dsh-api-session-controller#session/editLastPrompt',
@@ -48,7 +48,7 @@
        id: '@deepseek-ai/dsh-api-session-controller#session/rename',
        service: 'sessionController',
        namespace: 'session',
-@@ -1220,6 +1254,13 @@
+@@ -1249,6 +1283,13 @@
            },
            {
              "kind": "method",

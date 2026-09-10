@@ -1,24 +1,24 @@
 --- @deepseek-ai/dsh-client-connection/lib/client.js
 +++ @deepseek-ai/dsh-client-connection/lib/client.js
-@@ -4347,6 +4347,17 @@
- 					});
- 					if (!archivedSessionIds.includes(request.sessionId)) {
- 						archivedSessionIds.push(request.sessionId);
+@@ -5935,6 +5935,17 @@
+ 						});
+ 					}
+ 					return sessionOk({ archivedSessionIds: [...archivedSessionIds] });
++				},
++				unarchiveSession: (request) => {
++					const idx = archivedSessionIds.indexOf(request.sessionId);
++					if (idx >= 0) {
++						archivedSessionIds.splice(idx, 1);
 +						emitWorkspace({
 +							type: "archived",
 +							archivedSessionIds: [...archivedSessionIds]
 +						});
 +					}
 +					return sessionOk({ archivedSessionIds: [...archivedSessionIds] });
-+				},
-+				unarchiveSession: (request) => {
-+					const idx = archivedSessionIds.indexOf(request.sessionId);
-+					if (idx >= 0) {
-+						archivedSessionIds.splice(idx, 1);
- 						emitWorkspace({
- 							type: "archived",
- 							archivedSessionIds: [...archivedSessionIds]
-@@ -4530,6 +4541,7 @@
+ 				}
+ 			};
+ 			return { rpc: {
+@@ -6116,6 +6127,7 @@
  						case "workspace/insertBefore": return workspaceApi.insertBefore(request);
  						case "workspace/insertSessionBefore": return workspaceApi.insertSessionBefore(request);
  						case "workspace/archiveSession": return workspaceApi.archiveSession(request);
