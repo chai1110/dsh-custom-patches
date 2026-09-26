@@ -1,22 +1,28 @@
 --- @deepseek-ai/dsh-api-remotes/lib/client.js
 +++ @deepseek-ai/dsh-api-remotes/lib/client.js
-@@ -8277,6 +8277,12 @@
- 			"clientTimeZone": string().readonly().optional()
+@@ -10623,6 +10623,14 @@
  		});
- 		const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = object({ "accepted": literal(true).readonly() });
-+		const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = object({
+ 		let _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value;
+ 		const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = () => _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value ??= object({ "accepted": literal(true).readonly() });
++		let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema$value;
++		const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = () => _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema$value ??= object({
 +			"requestId": intersection(string(), unknown()).readonly(),
 +			"sessionId": intersection(string(), unknown()).readonly(),
 +			"text": string().readonly()
 +		});
-+		const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = object({ "accepted": literal(true).readonly() });
- 		const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = object({
++		let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema$value;
++		const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = () => _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema$value ??= object({ "accepted": literal(true).readonly() });
+ 		let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value;
+ 		const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = () => _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value ??= object({
  			"sessionId": intersection(string(), unknown()).readonly(),
- 			"title": string().readonly()
-@@ -8724,6 +8730,34 @@
- 					}
- 				},
- 				{
+@@ -11086,6 +11094,34 @@
+ 					sourceLocation: {
+ 						"file": "packages/api/session-controller/src/index.ts",
+ 						"line": 426,
++						"column": 3
++					}
++				},
++				{
 +					id: "@deepseek-ai/dsh-api-session-controller#session/editLastPrompt",
 +					service: "sessionController",
 +					namespace: "session",
@@ -29,22 +35,18 @@
 +						codec: {
 +							mode: "strict",
 +							typeSymbol: "@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptRequest",
-+							schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema
-+						},
++							create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema
++						}
 +					}],
 +					cancellation: { parameter: "signal" },
 +					result: {
 +						mode: "strict",
 +						typeSymbol: "@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptValue",
-+						schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema
++						create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema
 +					},
 +					sourceLocation: {
 +						"file": "packages/api/session-controller/src/index.ts",
 +						"line": 340,
-+						"column": 3
-+					}
-+				},
-+				{
- 					id: "@deepseek-ai/dsh-api-session-controller#session/rename",
- 					service: "sessionController",
- 					namespace: "session",
+ 						"column": 3
+ 					}
+ 				},

@@ -1,11 +1,11 @@
 --- @deepseek-ai/dsh-client-ui-chat/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-chat/lib/client.js
-@@ -1344,21 +1344,113 @@
+@@ -1450,8 +1450,106 @@
  			});
  		}
  		/** User and admitted-steering keyed Chat renderer. */
--		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t }) {
-+		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t, isLastUser = false, editLastPrompt }) {
+-		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, openFile, openSkill, t }) {
++		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, openFile, openSkill, t, isLastUser = false, editLastPrompt }) {
  			const data = node.data;
 +			const [editing, setEditing] = (0, react.useState)(false);
 +			const [editText, setEditText] = (0, react.useState)("");
@@ -107,7 +107,8 @@
 +			}
  			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
  				content: data.content,
- 				renderMessageImages,
+ 				references: {
+@@ -1462,13 +1560,7 @@
  				...data.referenceLabels === void 0 ? {} : { referenceLabels: data.referenceLabels },
  				...data.skillNames === void 0 ? {} : { skillNames: data.skillNames },
  				t,
@@ -122,16 +123,16 @@
  			});
  		});
  		/** Injected-context keyed Chat renderer. */
-@@ -1541,7 +1633,7 @@
- 			return location?.kind === "turn" || location?.kind === "step" ? location.turn.turn : void 0;
- 		}
- 		/** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
--		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, cwd, openFile, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, useStore, actions, renderSlot, t }) {
-+		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, useChatNode, useChatNodeProcess, historyIncomplete, compactTranscript, cwd, openFile, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t }) {
+@@ -1665,7 +1757,7 @@
+ 		* Policy reads select this seat's own conclusion, so a mode change re-renders
+ 		* only seats whose visibility actually changes.
+ 		*/
+-		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, groupPart, useChatNode, useChatNodeProcess, usePresentation, cwd, openFile, openSkill, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, useStore, actions, renderSlot, t }) {
++		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, groupPart, useChatNode, useChatNodeProcess, usePresentation, cwd, openFile, openSkill, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t }) {
  			const node = useChatNode(nodeKey);
  			const routedNode = node;
- 			const turn = turnOf(routedNode);
-@@ -1582,6 +1674,8 @@
+ 			const turn = turnOf$1(routedNode);
+@@ -1734,6 +1826,8 @@
  				loadImage,
  				renderMessageImages,
  				fileMentions,
@@ -140,7 +141,7 @@
  				turnProcess
  			}, [
  				node,
-@@ -1592,6 +1686,9 @@
+@@ -1746,6 +1840,9 @@
  				loadImage,
  				renderMessageImages,
  				fileMentions,
@@ -150,19 +151,19 @@
  				turnProcess
  			]);
  			if (routedNode === void 0 || owner === null) return null;
-@@ -2069,7 +2166,7 @@
+@@ -5040,7 +5137,7 @@
  		* The chat view slot entry: pure component over the composed props; each
  		* ordered business Node crosses the keyed renderer seat.
  		*/
--		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot, sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions, useTranscriptView, useProjection, t }) {
-+		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot, sessionId, openFile, loadOlder, loadThrough, loadImage, openView, chatScroll, forkAt, fileMentions, editLastPrompt, useTranscriptView, useProjection, t }) {
+-		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useChatGroup, useConversation, useSessions, useStore, actions, renderSlot, sessionId, openFile, openSkill, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions, usePresentation, useProjection, t }) {
++		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useChatGroup, useConversation, useSessions, useStore, actions, renderSlot, sessionId, openFile, openSkill, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions, editLastPrompt, usePresentation, useProjection, t }) {
  			const order = useChat((s) => s.order);
- 			const nodeStore = useChat((s) => s.nodes);
- 			const turnNavigationItems = useChat((s) => s.navigation.items());
-@@ -2077,6 +2174,12 @@
+ 			const groupedEntries = useConversation((snapshot) => snapshot.views.grouped("chat")?.entries);
+ 			const entries = (0, react.useMemo)(() => groupedEntries ?? order.map((key) => ({
+@@ -5052,6 +5149,12 @@
+ 			const turnOutline = useProjection("turnOutline");
  			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
- 			const timeline = useChat((s) => s.timeline);
- 			const inbox = useSession((s) => s.queue);
+ 			const inbox = useProjection("inbox");
 +			const lastUserKey = (0, react.useMemo)(() => {
 +				for (let i = order.length - 1; i >= 0; i--) {
 +					if (nodeStore.get(order[i])?.kind === "user") return order[i];
@@ -170,18 +171,18 @@
 +				return null;
 +			}, [order, nodeStore]);
  			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
- 			const running = useSession((s) => s.running);
- 			const openState = useSession((s) => s.openState);
-@@ -2547,6 +2650,8 @@
- 									loadImage,
- 									renderMessageImages,
- 									fileMentions,
-+									editLastPrompt,
-+									lastUserKey,
- 									renderSlot,
- 									t
- 								}),
-@@ -2650,6 +2755,10 @@
+ 			const fileImages = (0, react.useMemo)(() => ({
+ 				resolve: (path) => fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, path)),
+@@ -5208,6 +5311,8 @@
+ 											loadImage,
+ 											renderMessageImages,
+ 											fileMentions,
++											editLastPrompt,
++											lastUserKey,
+ 											renderSlot,
+ 											t
+ 										})
+@@ -5371,6 +5476,10 @@
  			"fileOpen.title": "无法打开文件",
  			"fileOpen.unknown": "无法打开此文件",
  			"message.extraBlock": "附加内容块",
@@ -191,8 +192,8 @@
 +			"message.editing": "重新生成中…",
  			"message.systemPrompt": "系统提示词",
  			"message.systemPromptUpdate": "系统提示词更新",
- 			"message.contextInjection": "上下文注入",
-@@ -2756,6 +2865,10 @@
+ 			"message.toolAdded": "已添加工具：{name}",
+@@ -5560,6 +5669,10 @@
  			"fileOpen.title": "Couldn’t open file",
  			"fileOpen.unknown": "Couldn’t open this file",
  			"message.extraBlock": "Extra content block",
@@ -202,19 +203,28 @@
 +			"message.editing": "Regenerating…",
  			"message.systemPrompt": "System prompt",
  			"message.systemPromptUpdate": "System prompt update",
- 			"message.contextInjection": "Context injection",
-@@ -6048,7 +6161,7 @@
+ 			"message.toolAdded": "Tool added: {name}",
+@@ -9195,13 +9308,10 @@
  		const messageDefinition = {
  			kind: "input-message",
  			target: "chat",
--			match: (event) => event.type === "user/message" && isAppendSurfaceEvent(event) && !isCompactionCheckpoint(event) ? {
+-			match: (event) => {
+-				if (event.type === "user/message") return isAppendSurfaceEvent(event) && !isCompactionCheckpoint(event) ? {
+-					id: String(event.data.id),
+-					role: "start"
+-				} : null;
+-				return null;
+-			},
 +			match: (event) => event.type === "user/message" && (isAppendSurfaceEvent(event) || isReplacementSurfaceEvent(event) && event.data.source?.kind === "user") && !isCompactionCheckpoint(event) ? {
- 				id: String(event.data.id),
- 				role: "start"
- 			} : null,
-@@ -8343,7 +8456,11 @@
++				id: String(event.data.id),
++				role: "start"
++			} : null,
+ 			start: (_context, match, reader) => {
+ 				const event = match.event;
+ 				if (event.type !== "user/message") throw new Error("input-message start requires user/message");
+@@ -12369,7 +12479,11 @@
  								}).then((childId) => {
- 									ctx.sessions.open(childId);
+ 									ctx.uiWorkspace.openSession(childId);
  								}).catch(() => {});
 -							}
 +							},

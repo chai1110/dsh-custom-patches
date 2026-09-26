@@ -1,9 +1,12 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/client.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/client.js
-@@ -1729,6 +1729,18 @@
- 				});
- 			}
- 			/**
+@@ -1792,6 +1792,18 @@
+ 					sessionId: this.sessionId,
+ 					itemId,
+ 					action
++				});
++			}
++			/**
 +			* Rewrite the last user message of this session and regenerate from it.
 +			* @param text - replacement plain text for the most recent user message.
 +			* @returns the rewrite admission outcome.
@@ -13,9 +16,6 @@
 +					requestId: randomUUID(),
 +					sessionId: this.sessionId,
 +					text
-+				});
-+			}
-+			/**
- 			* Stop the active turn while the Host preserves pending inbox work; failures
- 			* land in promptError (same error-strip display slot). A subagent address
- 			* routes through `subagents.interruptByParent`, whose durable parent-address
+ 				});
+ 			}
+ 			/**

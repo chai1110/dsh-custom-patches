@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-client-ui-conversation/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-conversation/lib/client.js
-@@ -1527,6 +1527,18 @@
+@@ -1875,6 +1875,18 @@
  		* Session-owned incremental engine that assembles business Contexts from a
  		* contiguous Event window and materializes registered view snapshots.
  		*/
@@ -19,7 +19,7 @@
  		var ConversationNodeAssembler = class {
  			eventDefinitions;
  			viewDefinitions;
-@@ -1535,6 +1547,8 @@
+@@ -1884,6 +1896,8 @@
  			contextsBySeq = /* @__PURE__ */ new Map();
  			contextsByTarget = /* @__PURE__ */ new Map();
  			inputs = /* @__PURE__ */ new Map();
@@ -28,7 +28,7 @@
  			locationIndex = new ConversationLocationIndex();
  			dirty = /* @__PURE__ */ new Set();
  			dirtyByTarget = /* @__PURE__ */ new Map();
-@@ -1573,6 +1587,7 @@
+@@ -1936,6 +1950,7 @@
  				this.hasMore = hasMore;
  				const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq);
  				for (const entry of sorted) this.inputs.set(entry.event.seq, entry);
@@ -36,7 +36,7 @@
  				this.locationIndex.rebuild(sorted);
  				this.timelineDirty = true;
  				for (const entry of sorted) this.matchInput(entry);
-@@ -1582,6 +1597,15 @@
+@@ -1945,6 +1960,15 @@
  				this.replacePending = true;
  				return "immediate";
  			}
@@ -52,7 +52,7 @@
  			/**
  			* Add one contiguous live tail event without scanning existing Contexts.
  			* @param record - appended Session event entry.
-@@ -1590,6 +1614,13 @@
+@@ -1953,6 +1977,13 @@
  			append(record) {
  				const event = record.event;
  				if (this.inputs.has(event.seq)) return "none";
@@ -66,7 +66,7 @@
  				this.revised.clear();
  				this.inputs.set(event.seq, record);
  				let publication = "none";
-@@ -1653,6 +1684,7 @@
+@@ -2018,6 +2049,7 @@
  				for (const entry of fresh) this.inputs.set(entry.event.seq, entry);
  				this.hasMore = hasMore;
  				const previousTimeline = this.locationIndex.snapshot();
@@ -74,7 +74,7 @@
  				const changedLocations = this.locationIndex.rebuild(this.sortedInputs());
  				if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true;
  				const affected = this.refreshMatchLocations(changedLocations);
-@@ -1765,6 +1797,7 @@
+@@ -2125,6 +2157,7 @@
  				return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq);
  			}
  			matchInput(input) {
@@ -82,7 +82,7 @@
  				return this.dispatchInput(input, (definition, id, role) => this.acceptMatch(definition, id, role, input));
  			}
  			collectInput(input, pending) {
-@@ -3161,6 +3194,14 @@
+@@ -3666,6 +3699,14 @@
  			async cancel() {
  				const result = await this.scopedSession("cancel").cancel();
  				if (!result.ok) throw new Error(`conversation.cancel failed: ${result.error.code}: ${result.error.message}`);
@@ -97,7 +97,7 @@
  			}
  			/** Pull one older history page for the scoped Session. */
  			async loadOlder() {
-@@ -12654,6 +12695,8 @@
+@@ -13491,6 +13532,8 @@
  			unregister;
  			noticeSeq = 0;
  			lastMirroredDraft = "";
@@ -106,7 +106,7 @@
  			attachmentIds = [];
  			disposed = false;
  			/** Draft persistence mirror (Conversation store write; receives the clipboard projection). */
-@@ -12872,6 +12915,8 @@
+@@ -13652,6 +13695,8 @@
  					this.notify("error", this.deps.commandAttachments.unsupportedNotice(before.claim?.token ?? before.draft));
  					return;
  				}
@@ -115,7 +115,7 @@
  				this.dispatchRun({
  					type: "enter",
  					mode,
-@@ -15819,6 +15864,8 @@
+@@ -17167,6 +17212,8 @@
  			const editor = keyboard?.editor ?? null;
  			const attachments = (0, react.useMemo)(() => input === void 0 || resolveDraftAttachments === void 0 ? [] : resolveDraftAttachments(input.attachmentIds), [resolveDraftAttachments, input?.attachmentIds]);
  			const empty = draft.trim() === "" && attachments.length === 0;
@@ -124,10 +124,11 @@
  			const uploads = useFileUploads((snapshot) => snapshot);
  			const uploadsPending = attachments.some((attachment) => attachment.kind === "file" && uploads[attachment.id]?.status !== "ready");
  			const [toast, setToast] = (0, react.useState)(null);
-@@ -15970,10 +16017,56 @@
+@@ -17298,6 +17345,38 @@
  				showToast,
- 				t
- 			};
+ 				t,
+ 				canAcceptDrop
++			};
 +			/**
 +			* Recall sent messages with ArrowUp/ArrowDown, shell-history style.
 +			* @param direction - -1 recalls older messages, +1 newer ones.
@@ -159,11 +160,15 @@
 +					el.focus({ preventScroll: true });
 +				});
 +				return true;
-+			};
+ 			};
+ 			(0, react.useEffect)(() => {
+ 				if (keyboard === void 0) return;
+@@ -17305,7 +17384,50 @@
+ 			}, [keyboard]);
  			(0, react.useEffect)(() => {
  				if (editor === null || keyboard === void 0) return;
- 				return registerComposerKeymap(editor, {
--					arbitrate: (key, composing) => keyboard.arbitrate(key, composing),
+-				return installDraftKeymap(editor, keyboard, gate);
++				return registerComposerKeymap(editor, {
 +					arbitrate: (key, composing) => {
 +						const verdict = keyboard.arbitrate(key, composing);
 +						if (verdict === "pass" && (key === "up" || key === "down") && !composing && input !== void 0) {
@@ -179,6 +184,34 @@
 +						}
 +						return verdict;
 +					},
- 					space: () => {
- 						if (gate.current.machineBusy || gate.current.locked) return false;
- 						return keyboard.space();
++					space: () => {
++						if (gate.current.machineBusy || gate.current.locked) return false;
++						return keyboard.space();
++					},
++					dismissPopup: () => {
++						keyboard.dismissPopup();
++					},
++					canSubmit: () => !gate.current.locked && !gate.current.machineBusy,
++					submit: (accelerated) => {
++						const g = gate.current;
++						if (accelerated && g.canSteerQueue) {
++							keyboard.steerQueue();
++							return;
++						}
++						if (g.uploadsPending) {
++							g.showToast(g.t("file.stillUploading"));
++							return;
++						}
++						keyboard.submit(resolveSubmitMode(g.busyEnter, g.running, accelerated ? "accelerated" : "enter", g.steeringAvailable));
++					},
++					intakeFiles: (files, directories) => {
++						gate.current.intakeFiles(files, directories);
++					},
++					pasteText: (text) => {
++						if (gate.current.machineBusy || gate.current.locked) return;
++						keyboard.paste(text);
++					}
++				});
+ 			}, [editor, keyboard]);
+ 			const keepFocus = (e) => {
+ 				keepDraftFocus(e, editor);

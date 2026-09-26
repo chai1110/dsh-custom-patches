@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-workspace/lib/index.js
 +++ @deepseek-ai/dsh-workspace/lib/index.js
-@@ -460,6 +460,21 @@
+@@ -609,6 +609,21 @@
  	* `sessionPersistence.list()` propagates so storage faults never
  	* masquerade as an unknown session.
  	*/

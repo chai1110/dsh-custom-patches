@@ -348,3 +348,17 @@ node --check <套用后的文件>
   （`settings.*` slot 全集逐项一致）。仍需人工确认 host 侧 `systemPrompt.section` 与
   persona 前缀/后缀拆分、以及 `ctx.agent` 移除对其 vendored 子包的影响。
 
+---
+
+## 0.1.7-rc.2 适配记录（2026-09-26）
+
+- **官方收编清单（补丁相应删除）**：archiveSession / unarchiveSession / insertSessionBefore / forkSession（客户端与 host 全链路原生提供）、DirectoryBrowseError（client-ui-workspace + api-workspace-controller 原生）。`client-connection` 补丁退役（0.1.7 的 client-connection 已无 archiveSession 相关代码，实现迁移至 client-ui-workspace）。
+- **仍缺失、补丁保留**：editLastPrompt（编辑重发全链路）、recallHistory/sendHistory（输入历史）、compaction 重试（llm/retry 规避）、「已归档会话」设置面板。
+- **0.1.7 结构变化与重锚要点**：
+  - typert schema 全面改 lazy `??=` 风格（`let _X$value; const _X = () => (_X$value ??= z/object({...}))`），editLastPrompt schema 按同风格插入；
+  - api-remotes codec 字段 `schema:` → `create:`（方法表条目同步改写）；
+  - api-remotes 方法表区域重排（job-controller 块前移），editLastPrompt 条目改插在 `session/rename` 前；
+  - client-ui-chat：ChatNodeSeat/ChatView 签名重构（新增 `useChatGroup`/`useConversation`/`openSkill`/`openExternalLink` 等，移除 `historyIncomplete`/`compactTranscript`/`useTranscriptView`），editLastPrompt 经 `seatProps` 流入 ChatNodeList；`messageDefinition.match` 保留 replacement 分支（编辑重发渲染的核心）；渲染尾部 0.1.7 用 `scroll.*`/`pendingInputs` 重构，旧结构作废；
+  - client-ui-conversation：composer keymap 0.1.7 提供 `installDraftKeymap` 薄封装，**不支持 arbitrate 覆盖** → 输入历史需直调 `registerComposerKeymap` 并包裹 `keyboard.arbitrate`；`intakeFiles` 新签名 `(files, directories)`；
+  - compaction-basic：消息构造 `createUserMessage` → `deepFreeze`，重试 hunk 的锚点随行号漂移重打。
+- **验证**：dry-run 11/11 零失败 → 全新副本真实套用 11/11 → node --check 全通过 → 功能标记计数与 0.1.5 参考成品一致（editLastPrompt 11/11、recallHistory 3/3、sendHistory 3/3）→ 套用后真机运行时验证通过（见 versions.md）。

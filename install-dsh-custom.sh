@@ -51,6 +51,8 @@ done
 #   patch       = path to the .patch file inside this repo
 #   marker      = feature marker used for "official already built-in" detection (empty = skip)
 #   source_rel  = path relative to <source>/packages, used in source/monorepo layout
+# 0.1.7-rc.2：client-connection 补丁退役 —— 官方已原生收编 unarchiveSession（迁移至
+# client-ui-workspace + host 侧），工作区归档/恢复/插入会话/目录浏览均已内置。
 # rc.1 (0.1.2-rc.1) 是架构重构版：host-apiproxy/client-runtime 已移除，
 # 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载；
 # 注意 0.1.2 新增 dsh-api-remotes：浏览器端 remote.session 方法表 = 其
@@ -63,7 +65,6 @@ FILES=(
   "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.patch|editLastPrompt|api/session-controller/lib/typert.remote-client.js"
   "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.patch|editLastPrompt|api/remotes/lib/client.js"
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
-  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|unarchiveSession|client/connection/lib/client.js"
   "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.patch|unarchiveSession|core/workspace/lib/index.js"
   "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
   "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.patch|recallHistory|client/ui-conversation/lib/client.js"

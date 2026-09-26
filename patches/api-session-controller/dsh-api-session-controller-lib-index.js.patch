@@ -1,11 +1,9 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/index.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/index.js
-@@ -813,6 +813,63 @@
- 			if (error instanceof AttachmentError) throw new RemoteError("session/attachment-invalid", error.message, { reason: error.code });
- 			throw new RemoteError("gateway/internal", "Unable to read image attachment.", {});
+@@ -930,6 +930,63 @@
  		}
-+	}
-+	/**
+ 	}
+ 	/**
 +	* Rewrite the LAST user message of a session and regenerate from it,
 +	* Codex-style: the new text replaces the previous user message AND all
 +	* assistant/tool surface nodes that followed it (they are shadowed by a
@@ -61,10 +59,12 @@
 +		}
 +		agent.followup(message);
 +		return { accepted: true };
- 	}
- 	/**
- 	* Mutate one still-pending queue occurrence without resuming a cold Agent.
-@@ -2488,6 +2545,7 @@
++	}
++	/**
+ 	* Mutate one pending Inbox occurrence, restoring an ordinary cold Agent when needed.
+ 	* @param request - Session, queue item, and requested mutation.
+ 	* @returns acknowledgement that the queue mutation was applied.
+@@ -2569,6 +2626,7 @@
  	let _fork_decorators;
  	let _prompt_decorators;
  	let _attachment_decorators;
@@ -72,7 +72,7 @@
  	let _updateQueue_decorators;
  	let _cancel_decorators;
  	let _page_decorators;
-@@ -2507,6 +2565,7 @@
+@@ -2591,6 +2649,7 @@
  			_fork_decorators = [Remote("fork")];
  			_prompt_decorators = [Remote("prompt")];
  			_attachment_decorators = [Remote("attachment")];
@@ -80,7 +80,7 @@
  			_updateQueue_decorators = [Remote("updateQueue")];
  			_cancel_decorators = [Remote("cancel")];
  			_page_decorators = [Remote("page")];
-@@ -2633,6 +2692,17 @@
+@@ -2740,6 +2799,17 @@
  				},
  				metadata: _metadata
  			}, null, _instanceExtraInitializers);
@@ -98,7 +98,7 @@
  			__esDecorate(this, null, _updateQueue_decorators, {
  				kind: "method",
  				name: "updateQueue",
-@@ -2930,6 +3000,15 @@
+@@ -3106,6 +3176,15 @@
  			return this.commands.attachment(request);
  		}
  		/**
@@ -111,6 +111,6 @@
 +			return this.commands.editLastPrompt(request);
 +		}
 +		/**
- 		* Mutate one still-pending queue occurrence on a live Agent.
+ 		* Mutate one still-pending queue occurrence, resuming a cold Agent first.
  		* @param request - Session, queue item, and requested mutation.
  		* @returns acknowledgement that the queue mutation was applied.
