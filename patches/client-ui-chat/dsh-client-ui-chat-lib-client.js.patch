@@ -48,7 +48,7 @@
 +						className: MessageIconActions_module_css_default.action,
 +						"aria-label": t("message.editPrompt"),
 +						onClick: startEdit,
-+						children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconEditOutline16, {})
++						children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconEditOutlineRegular, {})
 +					})
 +				}) : void 0
 +			});
@@ -160,20 +160,22 @@
  			const order = useChat((s) => s.order);
  			const groupedEntries = useConversation((snapshot) => snapshot.views.grouped("chat")?.entries);
  			const entries = (0, react.useMemo)(() => groupedEntries ?? order.map((key) => ({
-@@ -5052,6 +5149,12 @@
+@@ -5052,6 +5149,14 @@
  			const turnOutline = useProjection("turnOutline");
  			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
  			const inbox = useProjection("inbox");
 +			const lastUserKey = (0, react.useMemo)(() => {
-+				for (let i = order.length - 1; i >= 0; i--) {
-+					if (nodeStore.get(order[i])?.kind === "user") return order[i];
++				const list = groupedEntries ?? order.map((key) => ({ kind: "node", key }));
++				for (let i = list.length - 1; i >= 0; i--) {
++					const entry = list[i];
++					if (entry.kind === "node" && nodeStore.get(entry.key)?.kind === "user") return entry.key;
 +				}
 +				return null;
-+			}, [order, nodeStore]);
++			}, [groupedEntries, order, nodeStore]);
  			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
  			const fileImages = (0, react.useMemo)(() => ({
  				resolve: (path) => fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, path)),
-@@ -5208,6 +5311,8 @@
+@@ -5208,6 +5313,8 @@
  											loadImage,
  											renderMessageImages,
  											fileMentions,
@@ -182,7 +184,7 @@
  											renderSlot,
  											t
  										})
-@@ -5371,6 +5476,10 @@
+@@ -5371,6 +5478,10 @@
  			"fileOpen.title": "无法打开文件",
  			"fileOpen.unknown": "无法打开此文件",
  			"message.extraBlock": "附加内容块",
@@ -193,7 +195,7 @@
  			"message.systemPrompt": "系统提示词",
  			"message.systemPromptUpdate": "系统提示词更新",
  			"message.toolAdded": "已添加工具：{name}",
-@@ -5560,6 +5669,10 @@
+@@ -5560,6 +5671,10 @@
  			"fileOpen.title": "Couldn’t open file",
  			"fileOpen.unknown": "Couldn’t open this file",
  			"message.extraBlock": "Extra content block",
@@ -204,7 +206,7 @@
  			"message.systemPrompt": "System prompt",
  			"message.systemPromptUpdate": "System prompt update",
  			"message.toolAdded": "Tool added: {name}",
-@@ -9195,13 +9308,10 @@
+@@ -9195,13 +9310,10 @@
  		const messageDefinition = {
  			kind: "input-message",
  			target: "chat",
@@ -222,7 +224,7 @@
  			start: (_context, match, reader) => {
  				const event = match.event;
  				if (event.type !== "user/message") throw new Error("input-message start requires user/message");
-@@ -12369,7 +12479,11 @@
+@@ -12369,7 +12481,11 @@
  								}).then((childId) => {
  									ctx.uiWorkspace.openSession(childId);
  								}).catch(() => {});

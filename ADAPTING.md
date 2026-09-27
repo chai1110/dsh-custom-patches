@@ -362,3 +362,15 @@ node --check <套用后的文件>
   - client-ui-conversation：composer keymap 0.1.7 提供 `installDraftKeymap` 薄封装，**不支持 arbitrate 覆盖** → 输入历史需直调 `registerComposerKeymap` 并包裹 `keyboard.arbitrate`；`intakeFiles` 新签名 `(files, directories)`；
   - compaction-basic：消息构造 `createUserMessage` → `deepFreeze`，重试 hunk 的锚点随行号漂移重打。
 - **验证**：dry-run 11/11 零失败 → 全新副本真实套用 11/11 → node --check 全通过 → 功能标记计数与 0.1.5 参考成品一致（editLastPrompt 11/11、recallHistory 3/3、sendHistory 3/3）→ 套用后真机运行时验证通过（见 versions.md）。
+
+### 0.1.7-rc.2 运行时验证发现的两个真 bug（2026-09-27 已修）
+
+1. **`IconEditOutline16` 不存在**：编辑按钮图标名是 0.1.5 primitives 的，0.1.7 改名
+   `IconEditOutlineRegular` → isLastUser=true 渲染 extraActions 时 TypeError →
+   **整条用户消息气泡崩溃消失**（用户报「编辑后消息不见了」的真凶）。已换新名。
+2. **lastUserKey 扫错了列表**：原补丁扫 `order`，但 0.1.7 ChatView 实际渲染
+   `groupedEntries`（分组视图），order 与之脱节 → lastUserKey 恒 null → 编辑按钮
+   永不出现。已改为扫 `groupedEntries ?? order`。（该 bug 自 0.1.5 就存在，当时
+   标注「未运行时验证」故未暴露；另 0.1.5 的 `kind === "user"` 判定本身正确，
+   node.kind 确为 "user"，key 字符串里的 "input-message" 是 definition kind。）
+3. 验证方式：浏览器实录——发消息→点编辑→改文本→保存重发→两轮对话均正常显示。

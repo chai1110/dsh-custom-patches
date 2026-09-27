@@ -49,8 +49,8 @@
 +			session.append("user/message", message, {
 +				surfaceOp: {
 +					op: "replace",
-+					start: startSeq,
-+					end: endSeq
++					startSeq: startSeq,
++					endSeq: endSeq
 +				},
 +				sourceEventSeqs
 +			});
