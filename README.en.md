@@ -32,9 +32,9 @@ and **do not assume every doc is up to date**.
 | `README.md` / `README.en.md` | ✅ Adapted to 0.1.7-rc.2 | This file |
 | `versions.md` | ✅ Adapted to 0.1.7-rc.2 | Version tracking table |
 | `ADAPTING.md` | ✅ Includes the 0.1.7-rc.2 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
-| `CONTRIBUTING.md` | ✅ Adapted to 0.1.7-rc.2 | Contribution flow |
 | `POSTMORTEM.md` | 🕘 Historical (2026-08-19, rc.8 era) | Incident postmortem; **not updated for newer versions, and it doesn't need to be** |
-| `SECURITY.md` / `CODE_OF_CONDUCT.md` | ➖ Version-independent | Generic statements |
+| `docs/SSH-REMOTE.md` | 🕘 Pointer only | The SSH plugin itself lives in the separate repo [dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote); **maintenance is paused and it no longer follows 0.1.5+** |
+| `SECURITY.md` | ➖ Version-independent | How to report vulnerabilities |
 
 **Not supported**: the official **alpha pre-release line** (e.g. `0.1.2-alpha.2`) is **not adapted** — only pre-studied (see `ADAPTING.md`).
 This repo only commits to the versions marked 「✅」 above.
@@ -285,8 +285,22 @@ dsh-custom-patches/
 ├── versions.md             # Version tracking table
 ├── ADAPTING.md             # How to adapt to new official versions
 ├── patches/                # Patch files (organized by package)
+├── docs/SSH-REMOTE.md      # Pointer to the separate dsh-ssh-remote repo (maintenance paused)
+├── POSTMORTEM.md           # Historical incident postmortem (rc.8 era)
+├── SECURITY.md             # How to report vulnerabilities
 └── LICENSE                 # MIT
 ```
+
+---
+
+## 🤝 Contributing & Feedback
+
+Small project — **there is no separate contributing guide**. Just open an [Issue](https://github.com/chai1110/dsh-custom-patches/issues) or send a PR.
+
+- **Reporting a problem**: include the symptom, your environment (`dsh --version` / OS / Node version), reproduction steps, and the expected result; the `patch` output (`Hunk #N failed`) helps most.
+- **Pull requests**: new feature patches and adaptation fixes are welcome. Only three hard rules — ① **keep patches minimal** (change only what's necessary); ② leave a greppable **feature marker**; ③ keep the `FILES` arrays in `install-dsh-custom.sh` and `apply-dsh-patches.sh` in sync.
+- **Doc changes**: always refer to the main entry script as `install-dsh-custom.sh` (`apply-dsh-patches.sh` is the alternative — note that when mentioning it); examples must run directly after a fresh clone.
+- The full re-adaptation workflow lives in [`ADAPTING.md`](ADAPTING.md).
 
 ---
 
@@ -296,6 +310,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## 📎 Related Resources
 
-- SSH 多机并行插件: [chai1110/dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote)
-- 供应商配置模板: [chai1110/dsh-provider-config](https://github.com/chai1110/dsh-provider-config)
-- DeepSeek Harness 官方: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
+- SSH multi-machine parallel plugin: [chai1110/dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote)
+- Provider config templates: [chai1110/dsh-provider-config](https://github.com/chai1110/dsh-provider-config)
+- DeepSeek Harness (official): [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)

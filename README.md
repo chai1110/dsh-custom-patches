@@ -31,9 +31,9 @@
 | `README.md` / `README.en.md` | ✅ 已适配 0.1.7-rc.2 | 本文件 |
 | `versions.md` | ✅ 已适配 0.1.7-rc.2 | 版本追踪表 |
 | `ADAPTING.md` | ✅ 含 0.1.7-rc.2 适配记录 | 另含历史各版实录（`0.1.2-alpha.2` 预研 / `0.1.2-rc.1` / `0.1.5-rc.1`），属**有意保留的历史档案** |
-| `CONTRIBUTING.md` | ✅ 已适配 0.1.7-rc.2 | 贡献流程 |
 | `POSTMORTEM.md` | 🕘 历史记录（2026-08-19，rc.8 时期） | 事故复盘；**未随新版更新，也不需要** |
-| `SECURITY.md` / `CODE_OF_CONDUCT.md` | ➖ 与版本无关 | 通用声明 |
+| `docs/SSH-REMOTE.md` | 🕘 仅作跳转说明 | SSH 插件本体在独立仓库 [dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote)，**维护已暂停、不再跟进 0.1.5+** |
+| `SECURITY.md` | ➖ 与版本无关 | 漏洞上报联系方式 |
 
 **未适配的版本**：官方 **alpha 预发布线**（如 `0.1.2-alpha.2`）**未适配** —— 仅做过预研（见 `ADAPTING.md`）。
 本仓库只承诺上表标注「✅」的版本。
@@ -285,8 +285,26 @@ dsh-custom-patches/
 ├── versions.md             # 版本追踪表
 ├── ADAPTING.md             # 适配官方新版的操作手册
 ├── patches/                # 补丁文件（按包分目录）
+├── docs/SSH-REMOTE.md      # 指向独立仓库 dsh-ssh-remote（已暂停维护）
+├── POSTMORTEM.md           # 历史事故复盘（rc.8 时期）
+├── SECURITY.md             # 漏洞上报方式
 └── LICENSE                 # MIT
 ```
+
+---
+
+## 🤝 贡献与反馈
+
+小项目，**没有单独的贡献指南** —— 有事直接开 [Issue](https://github.com/chai1110/dsh-custom-patches/issues) 或提 PR 就行。
+
+- **报问题**：附上现象、环境（`dsh --version` / 操作系统 / Node 版本）、复现步骤、期望结果；
+  有 `patch` 的 `Hunk #N failed` 输出最好。
+- **提 PR**：欢迎新增功能补丁或修复适配。硬性要求只有三条 ——
+  ① **补丁最小化**（只改必要几处）；② 留下可 grep 的**功能标记**；③ `install-dsh-custom.sh` 与
+  `apply-dsh-patches.sh` 的 `FILES` 保持同步。
+- **改文档**：主入口脚本一律写 `install-dsh-custom.sh`（`apply-dsh-patches.sh` 是备选，提及请注明）；
+  示例要能在全新 clone 后直接执行。
+- 重新适配新版的完整流程见 [`ADAPTING.md`](ADAPTING.md)。
 
 ---
 
