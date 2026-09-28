@@ -11,7 +11,7 @@
 
 > **这是什么 / 不是什么**：这是一套**编译产物补丁**，不是官方插件，也不是源码 fork。
 > 它通过 `diff`/`patch` 直接修补 DSH 已装好的 npm 包文件（`node_modules` 里的编译 JS），
-> 给 DSH 加上官方还没有的两个功能。**任何 npm 重装 / 升级 DSH 都会覆盖这些补丁，需重新应用。**
+> 给 DSH 加上官方还没有的三个功能。**任何 npm 重装 / 升级 DSH 都会覆盖这些补丁，需重新应用。**
 
 ---
 
@@ -65,8 +65,8 @@
 
 ```bash
 # 1) 安装匹配版本的 DSH（已装且版本正确可跳过）
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1
-dsh --version          # 应输出 0.1.2-rc.1
+npm install -g @deepseek-ai/dsh@0.1.7-rc.2
+dsh --version          # 应输出 0.1.7-rc.2
 
 # 2) 克隆本仓库（HTTPS，对所有人可用）
 git clone https://github.com/chai1110/dsh-custom-patches.git
@@ -99,10 +99,10 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 |---|---|---|
 | **0.1.7-rc.2**（最新） | `v0.1.7-rc.2`（默认 main） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
 | 0.1.5-rc.1 | `v0.1.5-rc.1` | `git checkout v0.1.5-rc.1` 后 `bash install-dsh-custom.sh -y` |
-| **0.1.2-rc.1** | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` 后 `bash install-dsh-custom.sh -y` |
-| **0.1.1-rc.2** | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` 后 `bash install-dsh-custom.sh -y` |
-| **0.1.0-rc.8** | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` 后 `bash install-dsh-custom.sh -y` |
-| **0.1.0-rc.7** | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.2-rc.1 | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.1-rc.2 | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.8 | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.7 | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` 后 `bash install-dsh-custom.sh -y` |
 | 0.1.0-rc.6 及更早 | ❌ | 无独立补丁（仓库自 rc.7 起发布），建议升级官方后使用 |
 
 > **为什么用 tag 而不是参数？** 官方每个版本的补丁内容不同（尤其 0.1.2-rc.1 是架构重构版），
@@ -115,8 +115,8 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 
 ### 第 1 步：确认 DSH 版本
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1   # 装到匹配版本（老版本用户装自己那版即可）
-dsh --version                                 # 确认是 0.1.2-rc.1
+npm install -g @deepseek-ai/dsh@0.1.7-rc.2   # 装到匹配版本（老版本用户装自己那版即可）
+dsh --version                                 # 确认是 0.1.7-rc.2
 ```
 
 ### 第 2 步：克隆仓库
@@ -139,12 +139,12 @@ bash install-dsh-custom.sh -y
 脚本会自动：
 1. 定位 DSH 安装目录（同时探测系统级与用户级全局路径）
 2. 读取本地版本并查询 npm 官方最新版，给出版本诊断
-3. **校验版本**（本仓库 main 期望 `0.1.2-rc.1`；不匹配会拒绝并提示 checkout 正确的 tag）
+3. **校验版本**（本仓库 main 期望 `0.1.7-rc.2`；不匹配会拒绝并提示 checkout 正确的 tag）
 4. **检测官方是否已内置功能**——若目标文件已含功能标记（例如官方新版把这些功能收编了），自动跳过对应补丁
 5. 对需要应用的补丁**逐一备份（生成 `.bak`）并应用**
 6. 汇总报告 + 提示重启
 
-> 备选：`bash apply-dsh-patches.sh`（功能相同，但没有版本诊断与内置检测；两者等效地应用同一套补丁，任选其一即可）。老版本用户同样加版本号：`bash apply-dsh-patches.sh 0.1.0-rc.8`。
+> 备选：`bash apply-dsh-patches.sh`（功能相同，但没有版本诊断与内置检测；两者等效地应用同一套补丁，任选其一即可）。老版本用户请 checkout 对应 tag（该脚本不接受版本参数）。
 
 ### 第 4 步：重启 DSH
 ```bash
@@ -176,7 +176,7 @@ bash install-dsh-custom.sh -y
 ```
 脚本检测到 `DSH_SOURCE` 后会自动切换到源码布局：
 - 在 `<DSH_SOURCE>/packages/**/lib/` 下定位目标文件、备份、应用
-- **跳过 npm 版本校验**（源码没有 `0.1.2-rc.1` 这种版本号），但请确认你的源码 checkout 对应最新 rc.1 或对应版本时代的代码
+- **跳过 npm 版本校验**（源码没有 `0.1.7-rc.2` 这种版本号），但请确认你的源码 checkout 对应最新 rc.2 或对应版本时代的代码
 - 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
 
 ### 源码布局下的目标文件（对应关系）
@@ -251,7 +251,7 @@ bash install-dsh-custom.sh -y
 ```
 dsh-custom-patches/
 ├── install-dsh-custom.sh   # 一键安装（推荐）
-├── apply-dsh-patches.sh    # 基础安装（支持老版本参数）
+├── apply-dsh-patches.sh    # 备选安装（无版本诊断/内置检测）
 ├── check-update.sh         # 检测官方是否有新版本
 ├── versions.md             # 版本追踪表
 ├── ADAPTING.md             # 适配官方新版的操作手册

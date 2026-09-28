@@ -9,7 +9,7 @@
 #      feature (greps a marker in the target file) -- if so, skips that patch
 #      to avoid duplication/conflict
 #   3. backup (first time) + dry-run + apply + verify, all with colored logs
-#  4. Usage: bash install-dsh-custom.sh [-y] [版本号]    (-y skips interactive confirm; 版本号可选，老版本用户指定用，缺省为 0.1.7-rc.2)
+#  4. Usage: bash install-dsh-custom.sh [-y]    (-y skips interactive confirm; this branch is pinned to 0.1.7-rc.2, no version argument)
 #
 # Supports BOTH installation layouts:
 #   A. global npm install  (default): finds DSH in global node_modules
@@ -248,16 +248,16 @@ echo -e "  2. Hard-refresh the browser page (Cmd+Shift+R) to use the new feature
 if [ "$FAIL" -gt 0 ]; then
   echo ""
   echo -e "${RED}Some patches failed. Re-adapt per ADAPTING.md, or restore first:${NC}"
-  if [ "$TARGET_VERSION" = "0.1.2-rc.1" ] || [ "$TARGET_VERSION" = "0.1.7-rc.2" ]; then
-    echo "    npm layout:"
-    echo "      for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
-    echo "    source layout (DSH_SOURCE set):"
-    echo "      for e in api/session-controller/lib/index.js api/session-controller/lib/client.js api/session-controller/lib/typert.host.js api/session-controller/lib/typert.remote-client.js api/remotes/lib/client.js core/agent-loop/lib/index.js client/connection/lib/client.js core/workspace/lib/index.js core/compaction-basic/lib/index.js client/ui-conversation/lib/client.js client/ui-chat/lib/client.js client/ui-workspace/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
-  else
-    echo "    npm layout:"
-    echo "      for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
-    echo "    source layout (DSH_SOURCE set):"
-    echo "      for e in host/apiproxy/lib/index.js core/agent-loop/lib/index.js client/connection/lib/client.js client/runtime/lib/client.js client/ui-conversation/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
-  fi
+  # 恢复清单从 FILES 动态生成 —— 避免与补丁集脱节（历史上曾硬编码已退役的 client-connection）
+  NPM_LIST=""; SRC_LIST=""
+  for entry in "${FILES[@]}"; do
+    IFS='|' read -r rel _patch _marker srel <<< "$entry"
+    NPM_LIST="$NPM_LIST $rel"
+    SRC_LIST="$SRC_LIST $srel"
+  done
+  echo "    npm layout:"
+  echo "      for e in$NPM_LIST; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
+  echo "    source layout (DSH_SOURCE set):"
+  echo "      for e in$SRC_LIST; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
 fi
 echo ""

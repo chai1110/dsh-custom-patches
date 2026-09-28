@@ -96,11 +96,12 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 | Your DSH Version | Support | One-click Command |
 |---|---|---|
-| 0.1.5-rc.1 | `v0.1.5-rc.1` | (historical baseline) |
 | **0.1.7-rc.2** (latest) | `v0.1.7-rc.2` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
-| **0.1.1-rc.2** | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` then `bash install-dsh-custom.sh -y` |
-| **0.1.0-rc.8** | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` then `bash install-dsh-custom.sh -y` |
-| **0.1.0-rc.7** | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` then `bash install-dsh-custom.sh -y` |
+| 0.1.5-rc.1 | `v0.1.5-rc.1` | `git checkout v0.1.5-rc.1` then `bash install-dsh-custom.sh -y` |
+| 0.1.2-rc.1 | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` then `bash install-dsh-custom.sh -y` |
+| 0.1.1-rc.2 | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` then `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.8 | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` then `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.7 | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` then `bash install-dsh-custom.sh -y` |
 | 0.1.0-rc.6 and earlier | ❌ | No standalone patches (repo started publishing at rc.7); please upgrade DSH first |
 
 > **Why tags instead of arguments?** Each DSH version needs different patches (0.1.2-rc.1 is an architecture rewrite).
@@ -137,12 +138,12 @@ bash install-dsh-custom.sh -y
 The script will automatically:
 1. Locate DSH install dir (probes both system-level and user-level global paths)
 2. Read local version and query npm for latest, giving a version diagnosis
-3. **Validate version** (main expects `0.1.2-rc.1`; mismatch aborts and tells you to checkout the correct tag)
+3. **Validate version** (main expects `0.1.7-rc.2`; mismatch aborts and tells you to checkout the correct tag)
 4. **Detect if official already has the feature** — if the target file already contains feature markers (e.g. official bundled them), automatically skip that patch
 5. For patches that need applying: **backup each file (`.bak`) and apply**
 6. Summary report + restart hint
 
-> Alternative: `bash apply-dsh-patches.sh` (same functionality, but no version diagnosis or built-in detection; both apply the same patch set). Older version users also add version arg: `bash apply-dsh-patches.sh 0.1.0-rc.8`.
+> Alternative: `bash apply-dsh-patches.sh` (same functionality, but no version diagnosis or built-in detection; both apply the same patch set). Older version users should checkout the matching tag (this script takes no version argument).
 
 ### Step 4: Restart DSH
 ```bash
@@ -174,7 +175,7 @@ bash install-dsh-custom.sh -y
 ```
 When the script detects `DSH_SOURCE`, it automatically switches to source layout:
 - Locates target files under `<DSH_SOURCE>/packages/**/lib/`, backs up, and applies
-- **Skips npm version validation** (source doesn't have `0.1.2-rc.1` version strings), but please ensure your source checkout matches the latest rc.1-era code
+- **Skips npm version validation** (source doesn't have `0.1.7-rc.2` version strings), but please ensure your source checkout matches the latest rc.2-era code
 - After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
 ### Source Layout Target File Mapping
@@ -249,7 +250,7 @@ bash install-dsh-custom.sh -y
 ```
 dsh-custom-patches/
 ├── install-dsh-custom.sh   # One-click install (recommended)
-├── apply-dsh-patches.sh    # Basic install (supports older version args)
+├── apply-dsh-patches.sh    # Alternative install (no version diagnosis/built-in detection)
 ├── check-update.sh         # Check if official has a new version
 ├── versions.md             # Version tracking table
 ├── ADAPTING.md             # How to adapt to new official versions

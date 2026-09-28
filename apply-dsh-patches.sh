@@ -1,7 +1,7 @@
 #!/bin/bash
-# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.5-rc.1）
+# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.7-rc.2）
 # 用法:
-#   bash apply-dsh-patches.sh                # 本分支（version/0.1.5-rc.1）固定适配 DSH 0.1.5-rc.1
+#   bash apply-dsh-patches.sh                # 本分支（version/0.1.7-rc.2）固定适配 DSH 0.1.7-rc.2
 #
 # 其他 DSH 版本用户：请 checkout 对应版本 tag（见 README「多版本支持」）。
 # rc.6 及更早没有单独保存（本仓库自 rc.7 起发布），需升级官方后再用。
@@ -10,8 +10,8 @@ set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-# 本仓库（version/0.1.5-rc.1 分支）固定适配的 DSH 版本
-TARGET_VERSION="0.1.5-rc.1"
+# 本仓库（version/0.1.7-rc.2 分支）固定适配的 DSH 版本
+TARGET_VERSION="0.1.7-rc.2"
 
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
 # 格式: "相对插件路径|补丁在仓库中的相对路径"
@@ -26,7 +26,6 @@ FILES=(
   "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.patch"
   "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.patch"
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch"
-  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch"
   "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.patch"
   "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.patch"
   "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.patch"
@@ -66,7 +65,7 @@ echo -e "   当前版本: ${YELLOW}$VERSION${NC}（补丁目标: ${YELLOW}$TARGE
 if [ "$VERSION" != "$TARGET_VERSION" ]; then
   echo -e "${RED}❌ 版本不匹配：本补丁集按 $TARGET_VERSION 适配，当前是 $VERSION${NC}"
   echo -e "   两种处理方式（任选其一）："
-  echo -e "     a) 老版本用户：加上你的版本号重试，例如 ${YELLOW}bash apply-dsh-patches.sh $VERSION${NC}"
+  echo -e "     a) 老版本用户：${YELLOW}git checkout v$VERSION${NC} 切到对应 tag 后重跑本脚本"
   echo -e "     b) 想用最新版：升级 ${YELLOW}npm install -g @deepseek-ai/dsh@$TARGET_VERSION${NC} 后重试"
   exit 1
 fi
@@ -123,4 +122,4 @@ echo -e "  1. ${YELLOW}重启 DSH: kill $(pgrep -f 'dsh web') 2>/dev/null; dsh w
 echo -e "  2. 刷新浏览器页面使用新的功能"
 echo ""
 echo -e "如需恢复原版（仅当前设备）:"
-echo -e "  ${YELLOW}for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp "$PLUGIN_ROOT/\$e.bak" "$PLUGIN_ROOT/\$e"; done${NC}"i
+echo -e "  ${YELLOW}for e in dsh-api-session-controller/lib/index.js dsh-api-session-controller/lib/client.js dsh-api-session-controller/lib/typert.host.js dsh-api-session-controller/lib/typert.remote-client.js dsh-api-remotes/lib/client.js dsh-agent-loop/lib/index.js dsh-workspace/lib/index.js dsh-compaction-basic/lib/index.js dsh-client-ui-conversation/lib/client.js dsh-client-ui-chat/lib/client.js dsh-client-ui-workspace/lib/client.js; do cp "$PLUGIN_ROOT/\$e.bak" "$PLUGIN_ROOT/\$e"; done${NC}"

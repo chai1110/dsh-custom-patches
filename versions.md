@@ -2,7 +2,10 @@
 
 记录每个官方版本下，本补丁集是否可用，以及官方是否已内置我们的功能。
 
-> **版本管理方式**：每个已适配的 DSH 版本对应一个 git tag（`v0.1.2-rc.1` / `v0.1.1-rc.2` / `v0.1.0-rc.8` / `v0.1.0-rc.7`），tag 内补丁与脚本为该版本专用。用户 checkout 对应 tag 后直接 `bash install-dsh-custom.sh -y`，无需版本参数。
+> **版本管理方式**：每个已适配的 DSH 版本对应一个 git tag（`v0.1.7-rc.2` / `v0.1.5-rc.1` / `v0.1.2-rc.1` / `v0.1.1-rc.2` / `v0.1.0-rc.8` / `v0.1.0-rc.7`），tag 内补丁与脚本为该版本专用。用户 checkout 对应 tag 后直接 `bash install-dsh-custom.sh -y`，**无需版本参数**。
+>
+> ⭐ **当前基线是 `main` 分支（目标 `0.1.7-rc.2`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
+> ⚠️ 注意 `v0.1.7-rc.2` tag 指向 `d389396`，**落后 `main` 8 个提交**（含 2 处 editLastPrompt 运行时修复、安装器版本号修正、sendHistory 持久化）；该 tag 内的安装器仍钉在 `0.1.5-rc.1`，**checkout 该 tag 会因版本不匹配而失败**。0.1.7-rc.2 用户请一律用 `main`。
 
 | 官方版本 | 补丁可用？ | 官方内置「输入历史」？ | 官方内置「编辑重发」？ | 备注 |
 |---|---|---|---|---|
@@ -12,8 +15,8 @@
 | 0.1.1-rc.2 | ✅ 全部可用（ui 用 `.rc2` 版） | ❌ | ❌ | **旧基准**；含压缩重试补丁（`compaction-basic`，见下） |
 | 0.1.2-alpha.2 | ❌ 需重打（架构重构） | ❌ | ❌ | **预发布**；host-apiproxy/client-runtime 包消失，见 `ADAPTING.md` 预研记录 |
 | 0.1.2-rc.1 | ✅ 全部可用（`.rc1` 版） | ❌ | ❌ | 架构重构版：编辑重发改由 `dsh-api-session-controller` + `dsh-client-ui-chat` + `dsh-api-remotes`（浏览器端方法表冻结副本，必须同步）承载。补丁集在 `version/0.1.2-rc.1` 分支 / tag `v0.1.2-rc.1` |
-| **0.1.5-rc.1** | ✅ **全部可套用（已重打，12/12）** | ❌ | ❌ | **当前基准（`version/0.1.5-rc.1` 分支）**；官方 0.1.5 收编了 `SURFACE_EVENT_TYPES`/`isSurfaceEvent`（`core/session/src/surface.ts`），本补丁已删重复声明。⚠️ 仅静态校验通过（可套用 + `node --check`），**尚未在真实 0.1.5 运行时验证** |
-| **0.1.7-rc.2** | ✅ **重适配完成（12→11 项，client-connection 退役）** | ❌ | ❌ | **当前基准（`version/0.1.7-rc.2` 分支/tag）**。官方 0.1.6/0.1.7 已原生收编 archiveSession / unarchiveSession / insertSessionBefore / forkSession / DirectoryBrowseError —— `client-connection` 补丁整体退役，`client-ui-workspace` 仅保留「已归档会话」设置面板（官方仍无），工作区恢复已可走官方侧栏筛选。仍需补丁：**editLastPrompt（编辑重发）+ recallHistory/sendHistory（输入历史）+ compaction 重试**。适配要点：0.1.7 schema 全面改 lazy `??=` 风格、api-remotes codec 的 `schema:` 改名 `create:`、chat 组件签名重构（ChatNodeSeat/ChatView 新 props、inbox projection）、composer keymap 经 `installDraftKeymap` 薄封装（history recall 需直调 `registerComposerKeymap` 覆盖 arbitrate）。三道校验通过（dry-run 11/11 零失败 + 全新副本套用 + node --check）；运行时验证已通过（2026-09-26：套用后 launchd 服务干净启动、契约探针全绿、session/editLastPrompt 方法存在且形状被接受） |
+| 0.1.5-rc.1 | ✅ 全部可套用（已重打，12/12） | ❌ | ❌ | **历史基准（`version/0.1.5-rc.1` 分支）**，已被 0.1.7-rc.2 取代；官方 0.1.5 收编了 `SURFACE_EVENT_TYPES`/`isSurfaceEvent`（`core/session/src/surface.ts`），本补丁已删重复声明。⚠️ 仅静态校验通过（可套用 + `node --check`） |
+| **0.1.7-rc.2** | ✅ **重适配完成（12→11 项，client-connection 退役）** | ❌ | ❌ | **当前基准（`main` 分支）**。官方 0.1.6/0.1.7 已原生收编 archiveSession / unarchiveSession / insertSessionBefore / forkSession / DirectoryBrowseError —— `client-connection` 补丁整体退役，`client-ui-workspace` 仅保留「已归档会话」设置面板（官方仍无），工作区恢复已可走官方侧栏筛选。仍需补丁：**editLastPrompt（编辑重发）+ recallHistory/sendHistory（输入历史）+ compaction 重试**。适配要点：0.1.7 schema 全面改 lazy `??=` 风格、api-remotes codec 的 `schema:` 改名 `create:`、chat 组件签名重构（ChatNodeSeat/ChatView 新 props、inbox projection）、composer keymap 经 `installDraftKeymap` 薄封装（history recall 需直调 `registerComposerKeymap` 覆盖 arbitrate）。三道校验通过（dry-run 11/11 零失败 + 全新副本套用 + node --check）；运行时验证已通过（2026-09-26：套用后 launchd 服务干净启动、契约探针全绿、session/editLastPrompt 方法存在且形状被接受），并已修复 2 处真机运行时 bug（2026-09-27） |
 
 > **0.1.5-rc.1 适配要点（详见 `ADAPTING.md` 末节）**：
 > - 6 个补丁的锚点需重打（agent-loop / api-remotes / api-session-controller typert.remote-client /
@@ -28,19 +31,23 @@
 
 ## 老版本安装
 
-**无需 checkout 历史 commit。** 当前仓库同时保留 rc.1 / rc.7 / rc.8 / 0.1.1-rc.2 的补丁文件，
-安装脚本支持版本参数自动匹配——ui-conversation 按版本取 `.rc1` / `.rc2` / `.rc7` / `.rc8` 文件。
-rc.1（0.1.2-rc.1）为架构重构版，补丁文件全部独立（`.rc1`）：
+⚠️ **2026-09-28 修正**：本节旧写法（`install-dsh-custom.sh -y <版本号>`）**已失效** —— 当前脚本只接受 `-y`，
+传版本号会直接报 `Unknown argument: <版本号>` 并退出。老版本请走 **tag** 路径：
 
-| 官方版本 | 一键安装命令 |
+| 官方版本 | 安装方式 |
 |---|---|
-| 0.1.2-rc.1（最新） | `bash install-dsh-custom.sh -y` |
-| 0.1.1-rc.2 | `bash install-dsh-custom.sh -y 0.1.1-rc.2` |
-| 0.1.0-rc.8 | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
-| 0.1.0-rc.7 | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
+| **0.1.7-rc.2（最新基线）** | 直接用 `main`：`git clone` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.5-rc.1 | `git checkout v0.1.5-rc.1` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.2-rc.1 | `git checkout v0.1.2-rc.1` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.1-rc.2 | `git checkout v0.1.1-rc.2` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.8 | `git checkout v0.1.0-rc.8` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.7 | `git checkout v0.1.0-rc.7` 后 `bash install-dsh-custom.sh -y` |
 | 0.1.0-rc.6 及更早 | 无独立补丁文件（仓库自 rc.7 起发布），需先升级官方 |
 
-基础脚本：`bash apply-dsh-patches.sh 0.1.1-rc.2`；检测脚本：`bash check-update.sh 0.1.1-rc.2`。
+> 每个 tag 内的 `install-dsh-custom.sh` 已把 `TARGET_VERSION` 钉在该版本上，checkout 后直接 `-y` 即可，
+> **不需要也不接受版本参数**。（⚠️ 例外见上：`v0.1.7-rc.2` tag 的版本号未同步，请改用 `main`。）
+
+辅助脚本（随 tag 走，同样不接受版本参数）：`bash apply-dsh-patches.sh`（备选安装器）、`bash check-update.sh`（版本检测）。
 
 ---
 
