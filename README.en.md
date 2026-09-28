@@ -3,7 +3,7 @@
 
 
 Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
-**① Composer ↑/↓ key send history**, **② Edit last message and regenerate (Codex-style)**, and **③ Automatic retry for failed compaction (context summarization)**.
+**① Composer ↑/↓ key send history**, **② Edit last message and regenerate**, and **③ Automatic retry for failed compaction (context summarization)**.
 
 - Target version: **`@deepseek-ai/dsh@0.1.7-rc.2`** (official latest; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
@@ -51,7 +51,7 @@ This repo only commits to the versions marked 「✅」 above.
 - History position auto-resets when editing input text
 - Compatible with Chinese IME (no accidental trigger during pinyin composition), multi-line text (trigger only at first/last line), and consecutive duplicate dedup
 
-### 2. Edit Last Message and Regenerate (Codex-style)
+### 2. Edit Last Message and Regenerate
 - Hover over the **last user message** to see an **✏️ Edit** button
 - Click to turn the message into an editable text box (pre-filled with original text)
 - After editing, click **"Save & regenerate"**: the new text replaces the original, **discards all AI replies / tool calls after it**, and AI regenerates from the new content

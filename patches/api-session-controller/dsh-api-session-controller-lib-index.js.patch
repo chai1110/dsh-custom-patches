@@ -8,7 +8,7 @@
 +	}
 +	/**
 +	* Rewrite the LAST user message of a session and regenerate from it,
-+	* Codex-style: the new text replaces the previous user message AND all
++	* Replacement semantics: the new text replaces the previous user message AND all
 +	* assistant/tool surface nodes that followed it (they are shadowed by a
 +	* surface replace, never deleted from the append-only log), then the
 +	* agent is woken to answer the edited prompt anew. Only the most recent
