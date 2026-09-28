@@ -40,7 +40,7 @@
 | 0.1.2-alpha.2 | ❌ 需重打（架构重构） | ❌ | ❌ | **预发布**；host-apiproxy/client-runtime 包消失，见 `ADAPTING.md` 预研记录 |
 | 0.1.2-rc.1 | ✅ 全部可用（`.rc1` 版） | ❌ | ❌ | 架构重构版：编辑重发改由 `dsh-api-session-controller` + `dsh-client-ui-chat` + `dsh-api-remotes`（浏览器端方法表冻结副本，必须同步）承载。补丁集在 `version/0.1.2-rc.1` 分支 / tag `v0.1.2-rc.1` |
 | 0.1.5-rc.1 | ✅ 全部可套用（已重打，12/12） | ❌ | ❌ | **历史基准（`version/0.1.5-rc.1` 分支）**，已被 0.1.7-rc.2 取代；官方 0.1.5 收编了 `SURFACE_EVENT_TYPES`/`isSurfaceEvent`（`core/session/src/surface.ts`），本补丁已删重复声明。⚠️ 仅静态校验通过（可套用 + `node --check`） |
-| **0.1.7-rc.2** | ✅ **重适配完成（12→11 项，client-connection 退役）** | ❌ | ❌ | **当前基准（`main` 分支）**。官方 0.1.6/0.1.7 已原生收编 archiveSession / unarchiveSession / insertSessionBefore / forkSession / DirectoryBrowseError —— `client-connection` 补丁整体退役，`client-ui-workspace` 仅保留「已归档会话」设置面板（官方仍无），工作区恢复已可走官方侧栏筛选。仍需补丁：**editLastPrompt（编辑重发）+ recallHistory/sendHistory（输入历史）+ compaction 重试**。适配要点：0.1.7 schema 全面改 lazy `??=` 风格、api-remotes codec 的 `schema:` 改名 `create:`、chat 组件签名重构（ChatNodeSeat/ChatView 新 props、inbox projection）、composer keymap 经 `installDraftKeymap` 薄封装（history recall 需直调 `registerComposerKeymap` 覆盖 arbitrate）。三道校验通过（dry-run 11/11 零失败 + 全新副本套用 + node --check）；运行时验证已通过（2026-09-26：套用后 launchd 服务干净启动、契约探针全绿、session/editLastPrompt 方法存在且形状被接受），并已修复 2 处真机运行时 bug（2026-09-27） |
+| **0.1.7-rc.2** | ✅ **重适配完成（12→9 项，归档相关补丁全部退役）** | ❌ | ❌ | **当前基准（`main` 分支）**。官方 0.1.6/0.1.7 已原生收编 archiveSession / unarchiveSession / insertSessionBefore / forkSession / DirectoryBrowseError —— **归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）已于 2026-09-28 全部退役**：官方已提供完整链路（归档 + 取消归档 + 侧边栏三态筛选 + 行内恢复 + 搜索恢复 + 归档提示的 undo），我们不再重复实现，避免多此一举。仍需补丁：**editLastPrompt（编辑重发）+ recallHistory/sendHistory（输入历史）+ compaction 重试**。适配要点：0.1.7 schema 全面改 lazy `??=` 风格、api-remotes codec 的 `schema:` 改名 `create:`、chat 组件签名重构（ChatNodeSeat/ChatView 新 props、inbox projection）、composer keymap 经 `installDraftKeymap` 薄封装（history recall 需直调 `registerComposerKeymap` 覆盖 arbitrate）。三道校验通过（dry-run 9/9 零失败 + 全新副本套用 + node --check）；运行时验证已通过（2026-09-26：套用后 launchd 服务干净启动、契约探针全绿、session/editLastPrompt 方法存在且形状被接受），并已修复 2 处真机运行时 bug（2026-09-27） |
 
 > **0.1.5-rc.1 适配要点（详见 `ADAPTING.md` 末节）**：
 > - 6 个补丁的锚点需重打（agent-loop / api-remotes / api-session-controller typert.remote-client /
@@ -111,9 +111,12 @@ patch --dry-run -N -p1 < 补丁文件.patch
 |---|---|---|---|
 | 编辑重发 | `editLastPrompt` | api-session-controller（host/client/typert 两端）+ **api-remotes（浏览器端冻结方法表，必须同步）** + ui-chat | host-apiproxy / agent-loop / client-connection / client-runtime / ui-conversation |
 | 输入历史 | `recallHistory` `sendHistory` `historyIndexRef` | ui-conversation | ui-conversation |
-| 归档恢复 | `unarchiveSession` / `archived-sessions` | workspace + client-connection + ui-workspace | workspace / client-connection / ui-workspace |
 | agent-loop 去重 | `tailEvent?.type === "user/message"` | agent-loop | agent-loop |
 | 压缩自动重试 | `compactionBackoffDelay` `providerRetryPolicy` | compaction-basic（`.rc1`） | compaction-basic（`.retry`） |
+
+> ⚠️ **归档相关标记已不再是「我们的补丁」**：`unarchiveSession` / `archived-sessions` 曾用于补丁校验，
+> 但归档相关补丁已于 2026-09-28 **全部退役**（官方已原生提供完整链路）。
+> 现在 grep 到 `archiveSession` / `unarchiveSession` 只能说明**官方已内置**，不能再用来判断补丁是否生效。
 
 > **压缩自动重试**：官方 `dsh-llm-retry` 的重试只挂在 `agent/request-error`（正常对话请求），压缩（`dsh-compaction-basic` 直接调 `ctx.llm.stream()`）不走该扩展点，429/限流直接失败。本补丁在 `summarizeWithLlm` 内加重试循环，复用 provider 的 `retryPolicy`（maxRetries/retryableCodes/backoff，settings.yaml 已配），并记录 `llm/retry` 会话事件。详见 `ADAPTING.md`。
 

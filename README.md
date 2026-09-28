@@ -2,8 +2,8 @@
 > 📖 [English](README.en.md)
 
 
-为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用功能：
-**① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成（Codex 风格）** 与 **③ 归档会话恢复**。
+为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加两个官方暂未提供的实用功能：
+**① 输入框 ↑/↓ 键发送历史** 与 **② 编辑最后一条消息并重新生成（Codex 风格）**。
 
 - 适配版本：**`@deepseek-ai/dsh@0.1.7-rc.2`**（官方最新；本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
@@ -24,10 +24,10 @@
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `install-dsh-custom.sh` | ✅ 已适配 0.1.7-rc.2 | 主安装器；`TARGET_VERSION=0.1.7-rc.2`，11 项补丁 |
+| `install-dsh-custom.sh` | ✅ 已适配 0.1.7-rc.2 | 主安装器；`TARGET_VERSION=0.1.7-rc.2`，9 项补丁 |
 | `apply-dsh-patches.sh` | ✅ 已适配 0.1.7-rc.2 | 备选安装器（无版本诊断 / 无内置检测） |
 | `check-update.sh` | ✅ 已适配 0.1.7-rc.2 | 检测官方是否有新版 |
-| `patches/**` | ✅ 已重适配 | 12 → 11 项；`client-connection` 因官方已收编而退役 |
+| `patches/**` | ✅ 已重适配 | 12 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复） |
 | `README.md` / `README.en.md` | ✅ 已适配 0.1.7-rc.2 | 本文件 |
 | `versions.md` | ✅ 已适配 0.1.7-rc.2 | 版本追踪表 |
 | `ADAPTING.md` | ✅ 含 0.1.7-rc.2 适配记录 | 另含历史各版实录（`0.1.2-alpha.2` 预研 / `0.1.2-rc.1` / `0.1.5-rc.1`），属**有意保留的历史档案** |
@@ -58,14 +58,6 @@
 - 点击 **取消** 恢复原样
 
 **机制说明**：编辑通过 DSH 会话层的 **surface replace**（append-only 日志 + 阴影替换）实现——历史记录保留，但模型与界面只看替换后的新序列。
-
-### 3. 归档会话恢复
-- DSH 官方支持归档会话（从侧边栏隐藏），但**没有提供查看或恢复归档会话的 UI**——归档后"完全看不到"
-- 本补丁在**设置面板**新增「已归档会话」列（位于「右边栏工作区」下方）
-- 列出所有已归档会话及标题
-- 点会话标题可直接打开
-- 点「恢复」取消归档，会话重新出现在侧边栏列表中
-- 全链路实现：host 端 `unarchiveSession` 方法 → apiproxy 路由+schema → 客户端 runtime+connection RPC → 设置面板 UI
 
 ---
 
@@ -208,7 +200,7 @@ bash install-dsh-custom.sh -y
 - 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
 
 ### 源码布局下的目标文件（对应关系）
-当前补丁集（11 项）在两种布局下的对应关系：
+当前补丁集（9 项）在两种布局下的对应关系：
 
 | 补丁目标文件（npm 布局） | 源码布局路径 |
 |---|---|
@@ -218,11 +210,9 @@ bash install-dsh-custom.sh -y
 | `dsh-api-session-controller/lib/typert.remote-client.js` | `packages/api/session-controller/lib/typert.remote-client.js` |
 | `dsh-api-remotes/lib/client.js` | `packages/api/remotes/lib/client.js` |
 | `dsh-agent-loop/lib/index.js` | `packages/core/agent-loop/lib/index.js` |
-| `dsh-workspace/lib/index.js` | `packages/core/workspace/lib/index.js` |
 | `dsh-compaction-basic/lib/index.js` | `packages/core/compaction-basic/lib/index.js` |
 | `dsh-client-ui-conversation/lib/client.js` | `packages/client/ui-conversation/lib/client.js` |
 | `dsh-client-ui-chat/lib/client.js` | `packages/client/ui-chat/lib/client.js` |
-| `dsh-client-ui-workspace/lib/client.js` | `packages/client/ui-workspace/lib/client.js` |
 
 > 也就是说：一片补丁中写的 `dsh-xxx/lib/file.js`，在源码布局下就是 `<DSH_SOURCE>/packages/<对应目录>/lib/file.js`——内容一致，只是根不同。这也是为什么源码用户能直接趟通同一套补丁。
 > 上表即脚本 `FILES` 数组第 1 段与第 4 段的映射；补丁集变化时以脚本为准。

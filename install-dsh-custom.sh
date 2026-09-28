@@ -51,8 +51,10 @@ done
 #   patch       = path to the .patch file inside this repo
 #   marker      = feature marker used for "official already built-in" detection (empty = skip)
 #   source_rel  = path relative to <source>/packages, used in source/monorepo layout
-# 0.1.7-rc.2：client-connection 补丁退役 —— 官方已原生收编 unarchiveSession（迁移至
-# client-ui-workspace + host 侧），工作区归档/恢复/插入会话/目录浏览均已内置。
+# 0.1.7-rc.2：归档相关补丁**全部退役** —— 官方已原生提供完整链路
+# （archiveSession / unarchiveSession + 侧边栏三态筛选 + 行内「取消归档」+
+#  搜索恢复 + 归档提示的 undo），我们不再重复实现，避免多此一举。
+# 更早退役的 client-connection 同因。当前补丁集只保留官方仍缺的能力。
 # rc.1 (0.1.2-rc.1) 是架构重构版：host-apiproxy/client-runtime 已移除，
 # 编辑重发改由 dsh-api-session-controller + dsh-client-ui-chat 承载；
 # 注意 0.1.2 新增 dsh-api-remotes：浏览器端 remote.session 方法表 = 其
@@ -65,11 +67,9 @@ FILES=(
   "dsh-api-session-controller/lib/typert.remote-client.js|patches/api-session-controller/dsh-api-session-controller-lib-typert-remote-client.js.patch|editLastPrompt|api/session-controller/lib/typert.remote-client.js"
   "dsh-api-remotes/lib/client.js|patches/api-remotes/dsh-api-remotes-lib-client.js.patch|editLastPrompt|api/remotes/lib/client.js"
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
-  "dsh-workspace/lib/index.js|patches/workspace/dsh-workspace-lib-index.js.patch|unarchiveSession|core/workspace/lib/index.js"
   "dsh-compaction-basic/lib/index.js|patches/compaction-basic/dsh-compaction-basic-lib-index.js.patch|compactionBackoffDelay|core/compaction-basic/lib/index.js"
   "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.patch|recallHistory|client/ui-conversation/lib/client.js"
   "dsh-client-ui-chat/lib/client.js|patches/client-ui-chat/dsh-client-ui-chat-lib-client.js.patch|message.editPrompt|client/ui-chat/lib/client.js"
-  "dsh-client-ui-workspace/lib/client.js|patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.patch|archived-sessions|client/ui-workspace/lib/client.js"
 )
 
 

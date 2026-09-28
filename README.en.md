@@ -2,8 +2,8 @@
 > 📖 [中文版](README.md)
 
 
-Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
-**① Composer ↑/↓ key send history**, **② Edit last message and regenerate (Codex-style)**, and **③ Archived session recovery**.
+Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
+**① Composer ↑/↓ key send history** and **② Edit last message and regenerate (Codex-style)**.
 
 - Target version: **`@deepseek-ai/dsh@0.1.7-rc.2`** (official latest; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
@@ -11,7 +11,7 @@ Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com
 
 > **What this is / isn't**: This is a set of **compiled-artifact patches**, not an official plugin, not a source fork.
 > It uses `diff`/`patch` to directly modify DSH's installed npm package files (compiled JS in `node_modules`),
-> adding three features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
+> adding two features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
 
 ---
 
@@ -25,10 +25,10 @@ and **do not assume every doc is up to date**.
 
 | File | Status | Notes |
 |---|---|---|
-| `install-dsh-custom.sh` | ✅ Adapted to 0.1.7-rc.2 | Main installer; `TARGET_VERSION=0.1.7-rc.2`, 11 patches |
+| `install-dsh-custom.sh` | ✅ Adapted to 0.1.7-rc.2 | Main installer; `TARGET_VERSION=0.1.7-rc.2`, 9 patches |
 | `apply-dsh-patches.sh` | ✅ Adapted to 0.1.7-rc.2 | Alternative installer (no version diagnosis / no built-in detection) |
 | `check-update.sh` | ✅ Adapted to 0.1.7-rc.2 | Checks whether official has a newer version |
-| `patches/**` | ✅ Re-adapted | 12 → 11 items; `client-connection` retired because official now bundles it |
+| `patches/**` | ✅ Re-adapted | 12 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore) |
 | `README.md` / `README.en.md` | ✅ Adapted to 0.1.7-rc.2 | This file |
 | `versions.md` | ✅ Adapted to 0.1.7-rc.2 | Version tracking table |
 | `ADAPTING.md` | ✅ Includes the 0.1.7-rc.2 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
@@ -59,14 +59,6 @@ This repo only commits to the versions marked 「✅」 above.
 - Click **Cancel** to restore original
 
 **How it works**: Editing uses DSH session layer's **surface replace** (append-only log + shadow replacement) — history is preserved, but the model and UI only see the replaced sequence.
-
-### 3. Archived Session Recovery
-- DSH officially supports archiving sessions (hide from sidebar), but **provides no UI to view or restore them** — archived sessions are "visible nowhere"
-- This patch adds an **"Archived Sessions"** section in **Settings** (below "Right Panel Workspace")
-- Lists all archived sessions with their titles
-- Click a session title to open it
-- Click **"Restore"** to unarchive — the session reappears in the sidebar session list
-- Works by adding `unarchiveSession` API end-to-end: host workspace registry → apiproxy route + schema → client runtime + connection RPC → settings UI
 
 ---
 
@@ -208,7 +200,7 @@ When the script detects `DSH_SOURCE`, it automatically switches to source layout
 - After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
 ### Source Layout Target File Mapping
-How the current patch set (11 items) maps between the two layouts:
+How the current patch set (9 items) maps between the two layouts:
 
 | Patch target (npm layout) | Source layout path |
 |---|---|
@@ -218,11 +210,9 @@ How the current patch set (11 items) maps between the two layouts:
 | `dsh-api-session-controller/lib/typert.remote-client.js` | `packages/api/session-controller/lib/typert.remote-client.js` |
 | `dsh-api-remotes/lib/client.js` | `packages/api/remotes/lib/client.js` |
 | `dsh-agent-loop/lib/index.js` | `packages/core/agent-loop/lib/index.js` |
-| `dsh-workspace/lib/index.js` | `packages/core/workspace/lib/index.js` |
 | `dsh-compaction-basic/lib/index.js` | `packages/core/compaction-basic/lib/index.js` |
 | `dsh-client-ui-conversation/lib/client.js` | `packages/client/ui-conversation/lib/client.js` |
 | `dsh-client-ui-chat/lib/client.js` | `packages/client/ui-chat/lib/client.js` |
-| `dsh-client-ui-workspace/lib/client.js` | `packages/client/ui-workspace/lib/client.js` |
 
 > In other words: a patch path like `dsh-xxx/lib/file.js` maps to `<DSH_SOURCE>/packages/<corresponding-dir>/lib/file.js` in source layout — same content, different root. That's why source-build users can use the exact same patch set.
 > The table above is the mapping between fields 1 and 4 of the script's `FILES` array; when the patch set changes, the script is authoritative.

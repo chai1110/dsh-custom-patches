@@ -353,7 +353,15 @@ node --check <套用后的文件>
 ## 0.1.7-rc.2 适配记录（2026-09-26）
 
 - **官方收编清单（补丁相应删除）**：archiveSession / unarchiveSession / insertSessionBefore / forkSession（客户端与 host 全链路原生提供）、DirectoryBrowseError（client-ui-workspace + api-workspace-controller 原生）。`client-connection` 补丁退役（0.1.7 的 client-connection 已无 archiveSession 相关代码，实现迁移至 client-ui-workspace）。
-- **仍缺失、补丁保留**：editLastPrompt（编辑重发全链路）、recallHistory/sendHistory（输入历史）、compaction 重试（llm/retry 规避）、「已归档会话」设置面板。
+- **仍缺失、补丁保留**：editLastPrompt（编辑重发全链路）、recallHistory/sendHistory（输入历史）、compaction 重试（llm/retry 规避）。
+- **2026-09-28 补记 · 归档相关补丁全部退役（12 → 9 项）**：经实测核对，官方 0.1.7-rc.2 已提供**完整的归档/恢复链路** —— `archiveSession` + `unarchiveSession`（host 与客户端全链路）、侧边栏三态筛选（隐藏归档 / 全部会话 / 仅归档）、归档行内「取消归档」按钮、搜索结果里的恢复、以及归档提示自带的 **undo**。
+  因此本仓库**不再重复实现**，删除了两个补丁文件与两条 `FILES` 条目：
+  - `patches/workspace/dsh-workspace-lib-index.js.patch`（host 侧 `unarchiveSession`，此前已被内置检测自动跳过）
+  - `patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.patch`（设置面板「已归档会话」列表）
+  > 附带修掉一个缺陷：后者把 `ctx.slots.inject("settings.section", ...)` 整块写了两遍（同一 `id: "archived-sessions"`），
+  > 而官方 `SlotCore` 对 list slot 的重复 `id` 会**直接抛错**（`list slot "X" already has an entry with id "Y"`），
+  > 表现为控制台多一条报错。删除后该问题一并消失。
+  > 同时把 `apply-dsh-patches.sh` 里**硬编码的恢复清单**改为从 `FILES` 动态生成（此前仍列着已删文件）。
 - **0.1.7 结构变化与重锚要点**：
   - typert schema 全面改 lazy `??=` 风格（`let _X$value; const _X = () => (_X$value ??= z/object({...}))`），editLastPrompt schema 按同风格插入；
   - api-remotes codec 字段 `schema:` → `create:`（方法表条目同步改写）；
