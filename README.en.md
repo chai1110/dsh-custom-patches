@@ -96,7 +96,8 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 | Your DSH Version | Support | One-click Command |
 |---|---|---|
-| **0.1.2-rc.1** (latest) | `v0.1.2-rc.1` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
+| 0.1.5-rc.1 | `v0.1.5-rc.1` | (historical baseline) |
+| **0.1.7-rc.2** (latest) | `v0.1.7-rc.2` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
 | **0.1.1-rc.2** | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` then `bash install-dsh-custom.sh -y` |
 | **0.1.0-rc.8** | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` then `bash install-dsh-custom.sh -y` |
 | **0.1.0-rc.7** | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` then `bash install-dsh-custom.sh -y` |
@@ -112,8 +113,8 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 ### Step 1: Confirm DSH Version
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1   # install matching version (older users install their own)
-dsh --version                                 # confirm it's 0.1.2-rc.1
+npm install -g @deepseek-ai/dsh@0.1.7-rc.2   # install matching version
+dsh --version                                 # confirm it's 0.1.7-rc.2
 ```
 
 ### Step 2: Clone the Repo
