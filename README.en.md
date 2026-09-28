@@ -28,7 +28,7 @@ and **do not assume every doc is up to date**.
 | `install-dsh-custom.sh` | ✅ Adapted to 0.1.7-rc.2 | Main installer; `TARGET_VERSION=0.1.7-rc.2`, 9 patches |
 | `apply-dsh-patches.sh` | ✅ Adapted to 0.1.7-rc.2 | Alternative installer (no version diagnosis / no built-in detection) |
 | `check-update.sh` | ✅ Adapted to 0.1.7-rc.2 | Checks whether official has a newer version |
-| `patches/**` | ✅ Re-adapted | 12 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore) |
+| `patches/**` | ✅ Re-adapted | 11 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore). Against the previous release `v0.1.5-rc.1` (12 items) it is **12 → 9** (`client-connection` was retired early in the 0.1.7-rc.2 adaptation, 12→11; `workspace` + `client-ui-workspace` were retired on 2026-09-28, 11→9) |
 | `README.md` / `README.en.md` | ✅ Adapted to 0.1.7-rc.2 | This file |
 | `versions.md` | ✅ Adapted to 0.1.7-rc.2 | Version tracking table |
 | `ADAPTING.md` | ✅ Includes the 0.1.7-rc.2 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |

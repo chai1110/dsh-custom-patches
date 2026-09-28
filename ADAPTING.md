@@ -354,7 +354,10 @@ node --check <套用后的文件>
 
 - **官方收编清单（补丁相应删除）**：archiveSession / unarchiveSession / insertSessionBefore / forkSession（客户端与 host 全链路原生提供）、DirectoryBrowseError（client-ui-workspace + api-workspace-controller 原生）。`client-connection` 补丁退役（0.1.7 的 client-connection 已无 archiveSession 相关代码，实现迁移至 client-ui-workspace）。
 - **仍缺失、补丁保留**：editLastPrompt（编辑重发全链路）、recallHistory/sendHistory（输入历史）、compaction 重试（llm/retry 规避）。
-- **2026-09-28 补记 · 归档相关补丁全部退役（12 → 9 项）**：经实测核对，官方 0.1.7-rc.2 已提供**完整的归档/恢复链路** —— `archiveSession` + `unarchiveSession`（host 与客户端全链路）、侧边栏三态筛选（隐藏归档 / 全部会话 / 仅归档）、归档行内「取消归档」按钮、搜索结果里的恢复、以及归档提示自带的 **undo**。
+- **2026-09-28 补记 · 归档相关补丁全部退役（11 → 9 项）**：经实测核对，官方 0.1.7-rc.2 已提供**完整的归档/恢复链路** —— `archiveSession` + `unarchiveSession`（host 与客户端全链路）、侧边栏三态筛选（隐藏归档 / 全部会话 / 仅归档）、归档行内「取消归档」按钮、搜索结果里的恢复、以及归档提示自带的 **undo**。
+  > 📌 计数口径：本轮退役的是 `workspace` + `client-ui-workspace` **2 项**（11 → 9）；
+  > `client-connection` 是**更早一轮**在 0.1.7-rc.2 适配期退役的（12 → 11，见上一节）。
+  > 因此「12 → 9」是**跨两轮**的累计结果，不是本轮数字 —— 本轮为 **11 → 9**。
   因此本仓库**不再重复实现**，删除了两个补丁文件与两条 `FILES` 条目：
   - `patches/workspace/dsh-workspace-lib-index.js.patch`（host 侧 `unarchiveSession`，此前已被内置检测自动跳过）
   - `patches/client-ui-workspace/dsh-client-ui-workspace-lib-client.js.patch`（设置面板「已归档会话」列表）

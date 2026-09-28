@@ -27,7 +27,7 @@
 | `install-dsh-custom.sh` | ✅ 已适配 0.1.7-rc.2 | 主安装器；`TARGET_VERSION=0.1.7-rc.2`，9 项补丁 |
 | `apply-dsh-patches.sh` | ✅ 已适配 0.1.7-rc.2 | 备选安装器（无版本诊断 / 无内置检测） |
 | `check-update.sh` | ✅ 已适配 0.1.7-rc.2 | 检测官方是否有新版 |
-| `patches/**` | ✅ 已重适配 | 12 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复） |
+| `patches/**` | ✅ 已重适配 | 11 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复）。相对上一发布版 `v0.1.5-rc.1` 的 12 项为 **12 → 9**（`client-connection` 在 0.1.7-rc.2 适配早期退役，12→11；`workspace` + `client-ui-workspace` 于 2026-09-28 退役，11→9） |
 | `README.md` / `README.en.md` | ✅ 已适配 0.1.7-rc.2 | 本文件 |
 | `versions.md` | ✅ 已适配 0.1.7-rc.2 | 版本追踪表 |
 | `ADAPTING.md` | ✅ 含 0.1.7-rc.2 适配记录 | 另含历史各版实录（`0.1.2-alpha.2` 预研 / `0.1.2-rc.1` / `0.1.5-rc.1`），属**有意保留的历史档案** |
