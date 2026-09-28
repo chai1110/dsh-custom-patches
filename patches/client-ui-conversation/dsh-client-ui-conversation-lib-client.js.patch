@@ -36,10 +36,11 @@
  				this.locationIndex.rebuild(sorted);
  				this.timelineDirty = true;
  				for (const entry of sorted) this.matchInput(entry);
-@@ -1945,6 +1960,15 @@
+@@ -1944,6 +1959,15 @@
+ 				for (const context of this.contexts.values()) this.markDirty(context);
  				this.replacePending = true;
  				return "immediate";
- 			}
++			}
 +			/** Fold every replace surfaceOp in a window into the shadowed-seq set. */
 +			scanShadowed(sorted) {
 +				this.shadowed.clear();
@@ -48,10 +49,9 @@
 +					const op = entry.event.surfaceOp;
 +					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
 +				}
-+			}
+ 			}
  			/**
  			* Add one contiguous live tail event without scanning existing Contexts.
- 			* @param record - appended Session event entry.
 @@ -1953,6 +1977,13 @@
  			append(record) {
  				const event = record.event;
@@ -82,11 +82,10 @@
  				return this.dispatchInput(input, (definition, id, role) => this.acceptMatch(definition, id, role, input));
  			}
  			collectInput(input, pending) {
-@@ -3666,6 +3699,14 @@
- 			async cancel() {
+@@ -3667,6 +3700,14 @@
  				const result = await this.scopedSession("cancel").cancel();
  				if (!result.ok) throw new Error(`conversation.cancel failed: ${result.error.code}: ${result.error.message}`);
-+			}
+ 			}
 +			/**
 +			* Rewrite the scoped session's last user message and regenerate from it.
 +			* @param text - replacement plain text for the most recent user message.
@@ -94,28 +93,43 @@
 +			async editLastPrompt(text) {
 +				const result = await this.scopedSession("editLastPrompt").editLastPrompt(text);
 +				if (!result.ok) throw new Error(`conversation.editLastPrompt failed: ${result.error.code}: ${result.error.message}`);
- 			}
++			}
  			/** Pull one older history page for the scoped Session. */
  			async loadOlder() {
-@@ -13491,6 +13532,8 @@
+ 				await this.scopedSession("loadOlder").loadOlder();
+@@ -13491,6 +13532,16 @@
  			unregister;
  			noticeSeq = 0;
  			lastMirroredDraft = "";
-+			/** Sent-message history for ArrowUp recall in the composer (newest last, deduped). */
-+			sendHistory = [];
++			/** Sent-message history for ArrowUp recall in the composer (newest last, deduped).
++			 *  持久化到 localStorage：页面重载后仍能 ↑ 召回之前发送过的消息（Lite 补丁增强）。 */
++			sendHistory = (() => {
++				try {
++					const saved = JSON.parse(localStorage.getItem("dsh-send-history") ?? "[]");
++					return Array.isArray(saved) ? saved.filter((x) => typeof x === "string") : [];
++				} catch {
++					return [];
++				}
++			})();
  			attachmentIds = [];
  			disposed = false;
  			/** Draft persistence mirror (Conversation store write; receives the clipboard projection). */
-@@ -13652,6 +13695,8 @@
+@@ -13651,6 +13702,14 @@
+ 				if (before.phase === "claimed" && this.attachmentIds.length > 0 && before.claim?.attachments !== true) {
  					this.notify("error", this.deps.commandAttachments.unsupportedNotice(before.claim?.token ?? before.draft));
  					return;
- 				}
++				}
 +				const sentText = this.snapshot.draft.trim();
-+				if (sentText !== "" && this.sendHistory[this.sendHistory.length - 1] !== sentText) this.sendHistory.push(sentText);
++				if (sentText !== "" && this.sendHistory[this.sendHistory.length - 1] !== sentText) {
++					this.sendHistory.push(sentText);
++					try {
++						localStorage.setItem("dsh-send-history", JSON.stringify(this.sendHistory.slice(-50)));
++					} catch {
++					}
+ 				}
  				this.dispatchRun({
  					type: "enter",
- 					mode,
-@@ -17167,6 +17212,8 @@
+@@ -17167,6 +17226,8 @@
  			const editor = keyboard?.editor ?? null;
  			const attachments = (0, react.useMemo)(() => input === void 0 || resolveDraftAttachments === void 0 ? [] : resolveDraftAttachments(input.attachmentIds), [resolveDraftAttachments, input?.attachmentIds]);
  			const empty = draft.trim() === "" && attachments.length === 0;
@@ -124,7 +138,7 @@
  			const uploads = useFileUploads((snapshot) => snapshot);
  			const uploadsPending = attachments.some((attachment) => attachment.kind === "file" && uploads[attachment.id]?.status !== "ready");
  			const [toast, setToast] = (0, react.useState)(null);
-@@ -17298,6 +17345,38 @@
+@@ -17298,6 +17359,38 @@
  				showToast,
  				t,
  				canAcceptDrop
@@ -163,7 +177,7 @@
  			};
  			(0, react.useEffect)(() => {
  				if (keyboard === void 0) return;
-@@ -17305,7 +17384,50 @@
+@@ -17305,7 +17398,50 @@
  			}, [keyboard]);
  			(0, react.useEffect)(() => {
  				if (editor === null || keyboard === void 0) return;
