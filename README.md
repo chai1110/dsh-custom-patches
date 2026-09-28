@@ -5,7 +5,7 @@
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用功能：
 **① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成（Codex 风格）** 与 **③ 归档会话恢复**。
 
-- 适配版本：**`@deepseek-ai/dsh@0.1.2-rc.1`**（本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
+- 适配版本：**`@deepseek-ai/dsh@0.1.7-rc.2`**（官方最新；本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
 - 维护：chai1110（<chai011379@gmail.com>）
 
@@ -53,7 +53,7 @@
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh`**（本仓库 main 适配 `0.1.2-rc.1`；其他版本用户 checkout 对应 tag，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
+- 已用 npm **全局安装 `@deepseek-ai/dsh`**（本仓库 main 适配 `0.1.7-rc.2`；其他版本用户 checkout 对应 tag，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
 
 > **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/chai1110/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
 
