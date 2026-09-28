@@ -2,10 +2,34 @@
 
 记录每个官方版本下，本补丁集是否可用，以及官方是否已内置我们的功能。
 
-> **版本管理方式**：每个已适配的 DSH 版本对应一个 git tag（`v0.1.7-rc.2` / `v0.1.5-rc.1` / `v0.1.2-rc.1` / `v0.1.1-rc.2` / `v0.1.0-rc.8` / `v0.1.0-rc.7`），tag 内补丁与脚本为该版本专用。用户 checkout 对应 tag 后直接 `bash install-dsh-custom.sh -y`，**无需版本参数**。
+> **版本管理方式**：每个已适配的 DSH 版本对应**一个 git tag + 一个同名快照分支**（tag `vX` ↔ 分支 `version/X`，两者指向同一提交），tag 内补丁与脚本为该版本专用。用户 checkout 对应 tag 后直接 `bash install-dsh-custom.sh -y`，**无需版本参数**。
+>
+> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2`（共 6 个）。
+> 一致性自查（在仓库目录执行）——**以命令输出为准，不要相信静态描述**：
+>
+> ```sh
+> for t in $(git tag -l | sort -V); do
+>   b="version/${t#v}"
+>   printf '%-14s tag=%s  分支=%s  %s\n' "$t" "$(git rev-parse --short $t)" \
+>     "$(git rev-parse --short $b 2>/dev/null || echo 缺失)" \
+>     "$([ "$(git rev-parse $t^{tree})" = "$(git rev-parse $b^{tree} 2>/dev/null)" ] && echo ✅ 一致 || echo ⚠️ 不一致)"
+> done
+> ```
 >
 > ⭐ **当前基线是 `main` 分支（目标 `0.1.7-rc.2`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
-> ⚠️ 注意 `v0.1.7-rc.2` tag 指向 `d389396`，**落后 `main` 8 个提交**（含 2 处 editLastPrompt 运行时修复、安装器版本号修正、sendHistory 持久化）；该 tag 内的安装器仍钉在 `0.1.5-rc.1`，**checkout 该 tag 会因版本不匹配而失败**。0.1.7-rc.2 用户请一律用 `main`。
+> ✅ **每个 tag 都自带正确的版本常量。** tag 内的 `install-dsh-custom.sh` / `apply-dsh-patches.sh` / `check-update.sh`
+> 都把版本钉在该 tag 对应的官方版本上，checkout 后直接 `-y` 即可。
+> 一条命令自查全部 tag（在仓库目录执行）——**不要相信本文档的静态描述，以这条命令的输出为准**：
+>
+> ```sh
+> for t in $(git tag -l); do echo -n "$t → "; git show "$t:install-dsh-custom.sh" | grep -m1 '^TARGET_VERSION='; done
+> ```
+>
+> 正常应逐行输出与 tag 名一致的版本号。**若某个 tag 的常量与 tag 名不符，说明该 tag 已损坏** —— 请改用 `main`，并在 Issue 里附上上面这条命令的输出。
+>
+> 🕘 **历史事故（2026-09-28 已修复）**：`v0.1.7-rc.2` 曾指向 `d389396`（落后 `main` 11 个提交），
+> 其内置脚本仍钉在 `0.1.5-rc.1`，checkout 该 tag 会因版本不匹配直接失败。
+> 现已重打为 `main` 的快照。tag 与 `main` 的差距随时可用 `git rev-list --count <tag>..main` 查，本文档不再硬编码该数字。
 
 | 官方版本 | 补丁可用？ | 官方内置「输入历史」？ | 官方内置「编辑重发」？ | 备注 |
 |---|---|---|---|---|
@@ -45,7 +69,7 @@
 | 0.1.0-rc.6 及更早 | 无独立补丁文件（仓库自 rc.7 起发布），需先升级官方 |
 
 > 每个 tag 内的 `install-dsh-custom.sh` 已把 `TARGET_VERSION` 钉在该版本上，checkout 后直接 `-y` 即可，
-> **不需要也不接受版本参数**。（⚠️ 例外见上：`v0.1.7-rc.2` tag 的版本号未同步，请改用 `main`。）
+> **不需要也不接受版本参数**。（自查方式见本文档开头那条 `for t in $(git tag -l)` 命令。）
 
 辅助脚本（随 tag 走，同样不接受版本参数）：`bash apply-dsh-patches.sh`（备选安装器）、`bash check-update.sh`（版本检测）。
 
