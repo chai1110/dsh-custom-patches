@@ -15,6 +15,35 @@ Adds three practical features to the [DeepSeek Harness (DSH)](https://github.com
 
 ---
 
+## 📌 Current support scope (which docs are "latest")
+
+**Target version of this repo's `main` branch: `@deepseek-ai/dsh@0.1.7-rc.2` (official `latest`).**
+
+⚠️ This is a **multi-version repo**, and **not every document has been rewritten alongside the latest version**.
+The table below states each file's actual status — judge reliability by the "Status" column,
+and **do not assume every doc is up to date**.
+
+| File | Status | Notes |
+|---|---|---|
+| `install-dsh-custom.sh` | ✅ Adapted to 0.1.7-rc.2 | Main installer; `TARGET_VERSION=0.1.7-rc.2`, 11 patches |
+| `apply-dsh-patches.sh` | ✅ Adapted to 0.1.7-rc.2 | Alternative installer (no version diagnosis / no built-in detection) |
+| `check-update.sh` | ✅ Adapted to 0.1.7-rc.2 | Checks whether official has a newer version |
+| `patches/**` | ✅ Re-adapted | 12 → 11 items; `client-connection` retired because official now bundles it |
+| `README.md` / `README.en.md` | ✅ Adapted to 0.1.7-rc.2 | This file |
+| `versions.md` | ✅ Adapted to 0.1.7-rc.2 | Version tracking table |
+| `ADAPTING.md` | ✅ Includes the 0.1.7-rc.2 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
+| `CONTRIBUTING.md` | ✅ Adapted to 0.1.7-rc.2 | Contribution flow |
+| `POSTMORTEM.md` | 🕘 Historical (2026-08-19, rc.8 era) | Incident postmortem; **not updated for newer versions, and it doesn't need to be** |
+| `SECURITY.md` / `CODE_OF_CONDUCT.md` | ➖ Version-independent | Generic statements |
+
+**Not supported**: the official **alpha pre-release line** (e.g. `0.1.2-alpha.2`) is **not adapted** — only pre-studied (see `ADAPTING.md`).
+This repo only commits to the versions marked 「✅」 above.
+
+> "Adapted" here means: **the patches apply cleanly on that version and pass validation**.
+> It does **not** mean every document in this repo has been rewritten — the table above exists precisely to draw that distinction.
+
+---
+
 ## ✨ Features
 
 ### 1. Composer Arrow-Up/Down History (terminal-like)
@@ -179,25 +208,30 @@ When the script detects `DSH_SOURCE`, it automatically switches to source layout
 - After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
 ### Source Layout Target File Mapping
-| npm Package | Source Package Dir | Patch Target File (built) |
-|---|---|---|
-| `@deepseek-ai/dsh-host-apiproxy` | `packages/host/apiproxy` | `lib/index.js` |
-| `@deepseek-ai/dsh-agent-loop` | `packages/core/agent-loop` | `lib/index.js` |
-| `@deepseek-ai/dsh-client-connection` | `packages/client/connection` | `lib/client.js` |
-| `@deepseek-ai/dsh-client-runtime` | `packages/client/runtime` | `lib/client.js` |
-| `@deepseek-ai/dsh-client-ui-conversation` | `packages/client/ui-conversation` | `lib/client.js` |
+How the current patch set (11 items) maps between the two layouts:
+
+| Patch target (npm layout) | Source layout path |
+|---|---|
+| `dsh-api-session-controller/lib/index.js` | `packages/api/session-controller/lib/index.js` |
+| `dsh-api-session-controller/lib/client.js` | `packages/api/session-controller/lib/client.js` |
+| `dsh-api-session-controller/lib/typert.host.js` | `packages/api/session-controller/lib/typert.host.js` |
+| `dsh-api-session-controller/lib/typert.remote-client.js` | `packages/api/session-controller/lib/typert.remote-client.js` |
+| `dsh-api-remotes/lib/client.js` | `packages/api/remotes/lib/client.js` |
+| `dsh-agent-loop/lib/index.js` | `packages/core/agent-loop/lib/index.js` |
+| `dsh-workspace/lib/index.js` | `packages/core/workspace/lib/index.js` |
+| `dsh-compaction-basic/lib/index.js` | `packages/core/compaction-basic/lib/index.js` |
+| `dsh-client-ui-conversation/lib/client.js` | `packages/client/ui-conversation/lib/client.js` |
+| `dsh-client-ui-chat/lib/client.js` | `packages/client/ui-chat/lib/client.js` |
+| `dsh-client-ui-workspace/lib/client.js` | `packages/client/ui-workspace/lib/client.js` |
 
 > In other words: a patch path like `dsh-xxx/lib/file.js` maps to `<DSH_SOURCE>/packages/<corresponding-dir>/lib/file.js` in source layout — same content, different root. That's why source-build users can use the exact same patch set.
+> The table above is the mapping between fields 1 and 4 of the script's `FILES` array; when the patch set changes, the script is authoritative.
 
 ### How to Restore (source layout)
 ```bash
-for e in \
-  host/apiproxy/lib/index.js \
-  core/agent-loop/lib/index.js \
-  client/connection/lib/client.js \
-  client/runtime/lib/client.js \
-  client/ui-conversation/lib/client.js; do
-  cp "$DSH_SOURCE/packages/$e.bak" "$DSH_SOURCE/packages/$e"
+# run from the repo directory; the list is taken from field 4 of the script's FILES, so it always matches the current patch set
+for e in $(sed -n '/^FILES=(/,/^)/p' install-dsh-custom.sh | grep '^  "' | sed 's/.*|\([^|]*\)"$/\1/'); do
+  [ -f "$DSH_SOURCE/packages/$e.bak" ] && cp "$DSH_SOURCE/packages/$e.bak" "$DSH_SOURCE/packages/$e" && echo "restored $e"
 done
 ```
 
@@ -207,17 +241,13 @@ done
 
 ## ↩️ How to Restore Original (uninstall patches)
 
-The install script backs up each modified file as `.bak`. To restore, copy those backups back (path is dynamically obtained via `npm root -g`, works with any global install layout):
+The install script backs up each modified file as `.bak`. To restore, copy those backups back (path is dynamically obtained via `npm root -g`, works with any global install layout; **the file list is derived from the script's `FILES`, so it always matches the current patch set**):
 
 ```bash
+# run from the repo directory
 PLUGIN="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
-for e in \
-  dsh-host-apiproxy/lib/index.js \
-  dsh-agent-loop/lib/index.js \
-  dsh-client-connection/lib/client.js \
-  dsh-client-runtime/lib/client.js \
-  dsh-client-ui-conversation/lib/client.js; do
-  cp "$PLUGIN/$e.bak" "$PLUGIN/$e"
+for e in $(grep -oE '"dsh-[a-z-]+/lib/[a-z.-]+\.js' install-dsh-custom.sh | tr -d '"'); do
+  [ -f "$PLUGIN/$e.bak" ] && cp "$PLUGIN/$e.bak" "$PLUGIN/$e" && echo "restored $e"
 done
 ```
 

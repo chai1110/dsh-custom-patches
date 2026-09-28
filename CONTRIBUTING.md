@@ -22,7 +22,7 @@
 ## 🚦 开始之前
 
 1. **看是否已有类似 Issue**：先在 [Issues](https://github.com/chai1110/dsh-custom-patches/issues) 搜索，避免重复。
-2. **确认适用版本**：本项目只适配 `@deepseek-ai/dsh@0.1.1-rc.2`（见 [versions.md](versions.md)）。如果你想适配其他版本，是**另一类工作**（见下文「适配新版」）。
+2. **确认适用版本**：本项目 `main` 分支当前适配 `@deepseek-ai/dsh@0.1.7-rc.2`（官方 `latest`，见 [versions.md](versions.md)）。如果你想适配其他版本，是**另一类工作**（见下文「适配新版」）。
 
 ---
 
@@ -61,18 +61,22 @@ diff -u <包>/lib/<文件>.bak <包>/lib/<文件> > <名>.patch
 - 放到 `patches/<插件包>/` 目录下
 
 ### 第 4 步：登记到脚本
-把新补丁加入 **`install-dsh-custom.sh` 和 `apply-dsh-patches.sh` 的 `FILES` 数组**，格式：
+把新补丁加入 **`install-dsh-custom.sh` 的 `FILES` 数组**，格式（4 段，用 `|` 分隔）：
 ```
-相对插件路径|仓库中的补丁路径|内置检测标记
+相对插件路径|仓库中的补丁路径|内置检测标记|源码布局相对路径
 ```
-> `install-dsh-custom.sh` 与 `apply-dsh-patches.sh` 都要登记，保持两者同步。
+> - `install-dsh-custom.sh`：**4 段**（第 4 段「源码布局相对路径」供 `DSH_SOURCE` 模式使用；第 3 段留空 = 跳过内置检测）
+> - `apply-dsh-patches.sh`：**2 段**（`相对插件路径|补丁路径`）
+> - 两个脚本都要登记，保持补丁集同步。
+> - `install-dsh-custom.sh` 在补丁失败时打印的**恢复清单会从 `FILES` 自动生成**，无需手工维护。
 
 ### 第 5 步：本地验证（必须）
 在**干净环境**（或先恢复原始文件）跑一遍，确认补丁可干净应用：
 ```bash
-# 恢复原始（模拟别人的机器）
-for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do
-  cp "$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai/$e.bak" "$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai/$e"
+# 恢复原始（模拟别人的机器）—— 清单直接取自脚本的 FILES，避免手工维护后与补丁集脱节
+PLUGIN_ROOT="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
+for e in $(grep -oE '"dsh-[a-z-]+/lib/[a-z.-]+\.js' install-dsh-custom.sh | tr -d '"'); do
+  [ -f "$PLUGIN_ROOT/$e.bak" ] && cp "$PLUGIN_ROOT/$e.bak" "$PLUGIN_ROOT/$e" && echo "restored $e"
 done
 
 # 一键应用全部补丁

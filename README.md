@@ -15,6 +15,34 @@
 
 ---
 
+## 📌 当前适配范围（哪些文档是「最新」的）
+
+**本仓库 `main` 分支的目标版本：`@deepseek-ai/dsh@0.1.7-rc.2`（官方 `latest`）。**
+
+⚠️ 本仓库是**多版本仓库**，而且**并非每个文档都随最新版同步重写过**。下表如实说明各文件的状态 ——
+请以「状态」列判断可信度，**不要默认所有文档都是最新的**。
+
+| 文件 | 状态 | 说明 |
+|---|---|---|
+| `install-dsh-custom.sh` | ✅ 已适配 0.1.7-rc.2 | 主安装器；`TARGET_VERSION=0.1.7-rc.2`，11 项补丁 |
+| `apply-dsh-patches.sh` | ✅ 已适配 0.1.7-rc.2 | 备选安装器（无版本诊断 / 无内置检测） |
+| `check-update.sh` | ✅ 已适配 0.1.7-rc.2 | 检测官方是否有新版 |
+| `patches/**` | ✅ 已重适配 | 12 → 11 项；`client-connection` 因官方已收编而退役 |
+| `README.md` / `README.en.md` | ✅ 已适配 0.1.7-rc.2 | 本文件 |
+| `versions.md` | ✅ 已适配 0.1.7-rc.2 | 版本追踪表 |
+| `ADAPTING.md` | ✅ 含 0.1.7-rc.2 适配记录 | 另含历史各版实录（`0.1.2-alpha.2` 预研 / `0.1.2-rc.1` / `0.1.5-rc.1`），属**有意保留的历史档案** |
+| `CONTRIBUTING.md` | ✅ 已适配 0.1.7-rc.2 | 贡献流程 |
+| `POSTMORTEM.md` | 🕘 历史记录（2026-08-19，rc.8 时期） | 事故复盘；**未随新版更新，也不需要** |
+| `SECURITY.md` / `CODE_OF_CONDUCT.md` | ➖ 与版本无关 | 通用声明 |
+
+**未适配的版本**：官方 **alpha 预发布线**（如 `0.1.2-alpha.2`）**未适配** —— 仅做过预研（见 `ADAPTING.md`）。
+本仓库只承诺上表标注「✅」的版本。
+
+> 这里的「适配」指：**补丁能在该版本上干净套用、并通过校验**；
+> 它**不等于**本仓库每个文档都重写过 —— 上面这张表就是用来区分这件事的。
+
+---
+
 ## ✨ 功能简介
 
 ### 1. 输入框上下键历史（类似终端）
@@ -180,25 +208,30 @@ bash install-dsh-custom.sh -y
 - 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
 
 ### 源码布局下的目标文件（对应关系）
-| npm 包名 | 源码中的包目录 | 补丁目标文件（构建后） |
-|---|---|---|
-| `@deepseek-ai/dsh-host-apiproxy` | `packages/host/apiproxy` | `lib/index.js` |
-| `@deepseek-ai/dsh-agent-loop` | `packages/core/agent-loop` | `lib/index.js` |
-| `@deepseek-ai/dsh-client-connection` | `packages/client/connection` | `lib/client.js` |
-| `@deepseek-ai/dsh-client-runtime` | `packages/client/runtime` | `lib/client.js` |
-| `@deepseek-ai/dsh-client-ui-conversation` | `packages/client/ui-conversation` | `lib/client.js` |
+当前补丁集（11 项）在两种布局下的对应关系：
+
+| 补丁目标文件（npm 布局） | 源码布局路径 |
+|---|---|
+| `dsh-api-session-controller/lib/index.js` | `packages/api/session-controller/lib/index.js` |
+| `dsh-api-session-controller/lib/client.js` | `packages/api/session-controller/lib/client.js` |
+| `dsh-api-session-controller/lib/typert.host.js` | `packages/api/session-controller/lib/typert.host.js` |
+| `dsh-api-session-controller/lib/typert.remote-client.js` | `packages/api/session-controller/lib/typert.remote-client.js` |
+| `dsh-api-remotes/lib/client.js` | `packages/api/remotes/lib/client.js` |
+| `dsh-agent-loop/lib/index.js` | `packages/core/agent-loop/lib/index.js` |
+| `dsh-workspace/lib/index.js` | `packages/core/workspace/lib/index.js` |
+| `dsh-compaction-basic/lib/index.js` | `packages/core/compaction-basic/lib/index.js` |
+| `dsh-client-ui-conversation/lib/client.js` | `packages/client/ui-conversation/lib/client.js` |
+| `dsh-client-ui-chat/lib/client.js` | `packages/client/ui-chat/lib/client.js` |
+| `dsh-client-ui-workspace/lib/client.js` | `packages/client/ui-workspace/lib/client.js` |
 
 > 也就是说：一片补丁中写的 `dsh-xxx/lib/file.js`，在源码布局下就是 `<DSH_SOURCE>/packages/<对应目录>/lib/file.js`——内容一致，只是根不同。这也是为什么源码用户能直接趟通同一套补丁。
+> 上表即脚本 `FILES` 数组第 1 段与第 4 段的映射；补丁集变化时以脚本为准。
 
 ### 如何恢复（源码布局）
 ```bash
-for e in \
-  host/apiproxy/lib/index.js \
-  core/agent-loop/lib/index.js \
-  client/connection/lib/client.js \
-  client/runtime/lib/client.js \
-  client/ui-conversation/lib/client.js; do
-  cp "$DSH_SOURCE/packages/$e.bak" "$DSH_SOURCE/packages/$e"
+# 在仓库目录下执行；清单取自脚本 FILES 的第 4 段，永远与当前补丁集同步
+for e in $(sed -n '/^FILES=(/,/^)/p' install-dsh-custom.sh | grep '^  "' | sed 's/.*|\([^|]*\)"$/\1/'); do
+  [ -f "$DSH_SOURCE/packages/$e.bak" ] && cp "$DSH_SOURCE/packages/$e.bak" "$DSH_SOURCE/packages/$e" && echo "restored $e"
 done
 ```
 
@@ -208,17 +241,13 @@ done
 
 ## ↩️ 如何恢复原版（卸载补丁）
 
-安装时脚本已为每个被改文件生成 `.bak` 备份。恢复只需把这些备份拷贝回去（**路径用 `npm root -g` 动态获取，兼容任意全局安装方式**）：
+安装时脚本已为每个被改文件生成 `.bak` 备份。恢复只需把这些备份拷贝回去（**路径用 `npm root -g` 动态获取，兼容任意全局安装方式**；**文件清单直接取自脚本的 `FILES`，因此永远与当前补丁集同步**）：
 
 ```bash
+# 在仓库目录下执行
 PLUGIN="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
-for e in \
-  dsh-host-apiproxy/lib/index.js \
-  dsh-agent-loop/lib/index.js \
-  dsh-client-connection/lib/client.js \
-  dsh-client-runtime/lib/client.js \
-  dsh-client-ui-conversation/lib/client.js; do
-  cp "$PLUGIN/$e.bak" "$PLUGIN/$e"
+for e in $(grep -oE '"dsh-[a-z-]+/lib/[a-z.-]+\.js' install-dsh-custom.sh | tr -d '"'); do
+  [ -f "$PLUGIN/$e.bak" ] && cp "$PLUGIN/$e.bak" "$PLUGIN/$e" && echo "restored $e"
 done
 ```
 
