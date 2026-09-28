@@ -2,8 +2,8 @@
 > 📖 [中文版](README.md)
 
 
-Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
-**① Composer ↑/↓ key send history** and **② Edit last message and regenerate (Codex-style)**.
+Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
+**① Composer ↑/↓ key send history**, **② Edit last message and regenerate (Codex-style)**, and **③ Automatic retry for failed compaction (context summarization)**.
 
 - Target version: **`@deepseek-ai/dsh@0.1.7-rc.2`** (official latest; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
@@ -11,7 +11,7 @@ Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/d
 
 > **What this is / isn't**: This is a set of **compiled-artifact patches**, not an official plugin, not a source fork.
 > It uses `diff`/`patch` to directly modify DSH's installed npm package files (compiled JS in `node_modules`),
-> adding two features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
+> adding three features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
 
 ---
 
@@ -59,6 +59,15 @@ This repo only commits to the versions marked 「✅」 above.
 - Click **Cancel** to restore original
 
 **How it works**: Editing uses DSH session layer's **surface replace** (append-only log + shadow replacement) — history is preserved, but the model and UI only see the replaced sequence.
+
+### 3. Automatic Retry for Failed Compaction (Context Summarization)
+- When the context is nearly full, DSH auto-"compacts" it — asking the model to summarize the history. But **that compaction LLM call does not go through the official retry mechanism** (`dsh-llm-retry` only hooks the normal conversation request's `agent/request-error`, while compaction calls `ctx.llm.stream()` directly), so a **429 / rate limit fails it outright and the whole compaction is wasted**
+- This patch wraps the summarization call in a **retry loop** that reuses the provider's `retryPolicy` (`retryableCodes` / `maxRetries` / `initialDelayMs` / `maxDelayMs` / `jitterRatio` — the same one already configured in `settings.yaml`)
+- Backoff is **exponential with jitter**, and is **abortable** — pressing stop will not leave you stuck waiting
+- Every retry appends `llm/retry` / `llm/retry-started` events to the session, so you can see it directly in the session log
+- In one line: **a network hiccup won't waste an entire compaction**
+
+> This one has **no UI** — it is a "silent" reliability improvement that only kicks in on rate limits or network errors, but you will appreciate it over time.
 
 ---
 
@@ -176,6 +185,8 @@ After refreshing the page, check these **observable signals** — all met means 
 - [x] Pressing **↑** in the composer recalls the previous message
 - [x] Hovering over the **last user message** shows the **✏️ Edit** button
 - [x] Clicking edit → changing content → "Save & regenerate" replaces and regenerates
+
+> Item 3 (compaction retry) has **no observable UI signal** — it only takes effect in the background on rate limits / network errors, so no manual verification is needed; to confirm it works, look for `llm/retry` events in the session log.
 
 > Self-diagnosis via script: run `bash install-dsh-custom.sh -y` again; if it outputs *"All features already present (built-in or applied). Nothing to do."* then all features are in place.
 

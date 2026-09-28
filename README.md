@@ -2,8 +2,8 @@
 > 📖 [English](README.en.md)
 
 
-为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加两个官方暂未提供的实用功能：
-**① 输入框 ↑/↓ 键发送历史** 与 **② 编辑最后一条消息并重新生成（Codex 风格）**。
+为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用改进：
+**① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成（Codex 风格）** 与 **③ 压缩（上下文总结）失败自动重试**。
 
 - 适配版本：**`@deepseek-ai/dsh@0.1.7-rc.2`**（官方最新；本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
@@ -58,6 +58,15 @@
 - 点击 **取消** 恢复原样
 
 **机制说明**：编辑通过 DSH 会话层的 **surface replace**（append-only 日志 + 阴影替换）实现——历史记录保留，但模型与界面只看替换后的新序列。
+
+### 3. 压缩（上下文总结）失败自动重试
+- DSH 上下文快满时会自动「压缩」——让模型把历史总结成摘要。但**压缩那一次 LLM 调用不走官方的重试机制**（`dsh-llm-retry` 的重试只挂在正常对话请求的 `agent/request-error` 上，而压缩是直接调 `ctx.llm.stream()`），所以遇到 **429 / 限流会直接失败，整次压缩白做**
+- 本补丁在压缩的总结调用外加了**重试循环**，复用该 provider 的 `retryPolicy`（`retryableCodes` / `maxRetries` / `initialDelayMs` / `maxDelayMs` / `jitterRatio`，即 `settings.yaml` 里已配的那份）
+- 退避为**指数退避 + 随机抖动**，且**可被中止**——你按停止时不会卡在等待里
+- 每次重试都会往会话写入 `llm/retry` / `llm/retry-started` 事件，在会话日志里能直接看到
+- 一句话价值：**网络抖一下，不会让一次压缩白做**
+
+> 这一项**没有 UI**，属于「无感」的可靠性改进——只在限流/网络错误时才生效，但用久了会感激它。
 
 ---
 
@@ -176,6 +185,9 @@ kill $(pgrep -f 'dsh web') 2>/dev/null; sleep 1; dsh web
 - [x] 输入框按 **↑** 能翻出上一条消息
 - [x] 鼠标悬停到**最后一条用户消息**上出现 **✏️ 编辑** 按钮
 - [x] 点击编辑 → 改内容 → 「保存并重新生成」能替换并重新生成
+
+> 第 3 项（压缩失败重试）**没有可观察的 UI 信号** —— 它只在限流 / 网络错误时于后台生效，无需人工验收；
+> 想确认它是否生效，可在会话日志里找 `llm/retry` 事件。
 
 > 也可用脚本自诊断：再次运行 `bash install-dsh-custom.sh -y`，若输出 *"All features already present (built-in or applied). Nothing to do."* 即表示所有功能已就位。
 
