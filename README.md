@@ -97,7 +97,9 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 
 | 你的 DSH 版本 | 适配情况 | 一键安装命令 |
 |---|---|---|
-| **0.1.2-rc.1**（最新） | `v0.1.2-rc.1`（默认 main） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
+| **0.1.7-rc.2**（最新） | `v0.1.7-rc.2`（默认 main） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
+| 0.1.5-rc.1 | `v0.1.5-rc.1` | `git checkout v0.1.5-rc.1` 后 `bash install-dsh-custom.sh -y` |
+| **0.1.2-rc.1** | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` 后 `bash install-dsh-custom.sh -y` |
 | **0.1.1-rc.2** | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` 后 `bash install-dsh-custom.sh -y` |
 | **0.1.0-rc.8** | `v0.1.0-rc.8` | `git checkout v0.1.0-rc.8` 后 `bash install-dsh-custom.sh -y` |
 | **0.1.0-rc.7** | `v0.1.0-rc.7` | `git checkout v0.1.0-rc.7` 后 `bash install-dsh-custom.sh -y` |
