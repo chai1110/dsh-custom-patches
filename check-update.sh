@@ -26,9 +26,12 @@ for cand in "$GLOBAL_ROOT/@deepseek-ai/dsh/package.json" "$HOME/.local/lib/node_
   if [ -f "$cand" ]; then DSH_PKG="$cand"; break; fi
 done
 if [ -n "$DSH_PKG" ]; then
-  LOCAL=$(node -e "console.log(require('$DSH_PKG').version)" 2>/dev/null)
+  # 用 argv 传路径：Windows 下 npm root 返回反斜杠路径，
+  # 直接拼进 require('...') 会被 JS 吞掉转义导致抛错；且必须 `|| true`，
+  # 否则命令替换返回非 0 会让 set -e 直接终止整个脚本（此前 Windows 上静默失败）。
+  LOCAL=$(node -e "console.log(require(process.argv[1]).version)" "$DSH_PKG" 2>/dev/null || echo "")
 fi
-[ -z "$LOCAL" ] && LOCAL="(未找到本地 DSH)"
+if [ -z "$LOCAL" ]; then LOCAL="(未找到本地 DSH)"; fi
 echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL}"
 
 # 2. 官方版本 —— 两个频道都要看（见文件头说明）
@@ -94,7 +97,60 @@ sha256_of() {
   node -e 'const c=require("crypto"),f=require("fs");const h=c.createHash("sha256");const s=f.createReadStream(process.argv[1]);s.on("data",d=>h.update(d));s.on("end",()=>console.log(h.digest("hex")))' "$1" 2>/dev/null || echo ""
 }
 
-if [ ! -f "$SRC_ASAR" ]; then
+fp_field() { # $1=指纹文件 $2=字段名
+  node -e 'try{console.log(require(process.argv[1])[process.argv[2]]||"")}catch(e){console.log("")}' "$1" "$2" 2>/dev/null || echo ""
+}
+
+# 逐项核对功能标记 —— 证明补丁「真的生效」，而不只是文件被换过。
+# $1=asar 路径 $2=结果前缀（如「补丁版」）
+verify_markers() {
+  local asar="$1" label="$2"
+  [ -f "$MARKERS" ] && [ -f "$ASAR_TOOL" ] || return 0
+  local miss=0 total=0 rel marker n
+  while IFS=$'\t' read -r rel marker; do
+    # Windows 下 git 可能把 tsv 检出成 CRLF，行尾 \r 会粘在标记上导致 grep 永远不命中
+    rel="${rel%$'\r'}"; marker="${marker%$'\r'}"
+    case "$rel" in ''|\#*) continue ;; esac
+    [ -n "${marker:-}" ] || continue
+    total=$((total+1))
+    n=$(node "$ASAR_TOOL" cat "$asar" "dsh/node_modules/@deepseek-ai/$rel" 2>/dev/null | grep -cF -- "$marker" 2>/dev/null || true)
+    [ "${n:-0}" -ge 1 ] 2>/dev/null || { miss=$((miss+1)); echo -e "  ${RED}✗${NC} 标记未命中: $rel （$marker）"; }
+  done < "$MARKERS"
+  if [ "$miss" -eq 0 ] && [ "$total" -gt 0 ]; then
+    echo -e "  ${GREEN}✅ ${label}功能标记 ${total}/${total} 全部命中${NC}"
+  elif [ "$total" -gt 0 ]; then
+    echo -e "  ${RED}⚠️  ${label}有 $miss/$total 个标记未命中 —— 补丁可能已被官方更新覆盖${NC}"
+    echo -e "     处理：${YELLOW}node desktop/windows/apply-desktop-asar-patches.js${NC}（Windows）/ ${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}（macOS）"
+  fi
+}
+
+# ── 平台分派 ────────────────────────────────────────────────────────────────
+# Windows：**就地**打补丁（不复制副本），asar 在安装目录里，自动更新会直接覆盖它。
+# macOS  ：双 app 模型（官方 app + ~/Applications 打过补丁的副本），见下方分支。
+WIN_ASAR="${LOCALAPPDATA:-}/Programs/DeepSeek Harness/resources/app.asar"
+
+if [ -n "${LOCALAPPDATA:-}" ] && [ -f "$WIN_ASAR" ]; then
+  W_FP="$(dirname "$WIN_ASAR")/.dsh-desktop-patch.json"
+  echo -e "  安装路径: ${DIM}${WIN_ASAR}${NC}"
+  if [ -f "$W_FP" ]; then
+    NOW_SELF=$(sha256_of "$WIN_ASAR")
+    WAS_PATCHED=$(fp_field "$W_FP" patchedAsarSha256)
+    PATCHED_AT=$(fp_field "$W_FP" patchedAt)
+    echo -e "  打补丁时间: ${PATCHED_AT:-（未知）}"
+    if [ -n "$WAS_PATCHED" ] && [ "$WAS_PATCHED" = "$NOW_SELF" ]; then
+      echo -e "  ${GREEN}✅ 当前 asar 与打补丁时的产出逐字节一致（补丁未被覆盖）${NC}"
+    else
+      echo -e "  ${RED}⚠️  当前 asar 与打补丁时的产出不同 —— 很可能已被官方自动更新覆盖${NC}"
+      echo -e "     打补丁时: ${DIM}${WAS_PATCHED:-未知}${NC}"
+      echo -e "     当前      : ${DIM}${NOW_SELF}${NC}"
+      echo -e "     ${YELLOW}处理：node desktop/windows/apply-desktop-asar-patches.js${NC}"
+    fi
+  else
+    echo -e "  ${YELLOW}没有来源指纹（本次安装早于指纹功能）—— 以功能标记核对为准${NC}"
+    echo -e "     重跑安装即可补写指纹：${YELLOW}node desktop/windows/apply-desktop-asar-patches.js${NC}"
+  fi
+  verify_markers "$WIN_ASAR" "补丁版"
+elif [ ! -f "$SRC_ASAR" ]; then
   echo -e "  ${YELLOW}未安装桌面版（$SRC_APP 不存在），跳过${NC}"
 elif [ ! -f "$DST_ASAR" ]; then
   echo -e "  ${YELLOW}尚未打补丁${NC} —— 需要时执行：${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}"
@@ -102,8 +158,8 @@ elif [ ! -f "$DST_ASAR" ]; then
 else
   NOW_SRC=$(sha256_of "$SRC_ASAR")
   if [ -f "$FP" ]; then
-    WAS_SRC=$(node -e 'try{console.log(require(process.argv[1]).sourceAsarSha256||"")}catch(e){console.log("")}' "$FP" 2>/dev/null || echo "")
-    PATCHED_AT=$(node -e 'try{console.log(require(process.argv[1]).patchedAt||"")}catch(e){console.log("")}' "$FP" 2>/dev/null || echo "")
+    WAS_SRC=$(fp_field "$FP" sourceAsarSha256)
+    PATCHED_AT=$(fp_field "$FP" patchedAt)
     echo -e "  补丁版: ${DST_APP}"
     echo -e "  打补丁时间: ${PATCHED_AT:-（未知）}"
     if [ -n "$WAS_SRC" ] && [ "$WAS_SRC" = "$NOW_SRC" ]; then
@@ -120,22 +176,6 @@ else
     echo -e "     建议重跑一次：${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}"
   fi
 
-  # 逐项核对功能标记 —— 证明补丁「真的生效」，而不只是文件被换过
-  if [ -f "$MARKERS" ] && [ -f "$ASAR_TOOL" ]; then
-    miss=0; total=0
-    while IFS=$'\t' read -r rel marker; do
-      case "$rel" in ''|\#*) continue ;; esac
-      [ -n "${marker:-}" ] || continue
-      total=$((total+1))
-      n=$(node "$ASAR_TOOL" cat "$DST_ASAR" "dsh/node_modules/@deepseek-ai/$rel" 2>/dev/null | grep -cF -- "$marker" 2>/dev/null || true)
-      [ "${n:-0}" -ge 1 ] 2>/dev/null || { miss=$((miss+1)); echo -e "  ${RED}✗${NC} 标记未命中: $rel （$marker）"; }
-    done < "$MARKERS"
-    if [ "$miss" -eq 0 ]; then
-      echo -e "  ${GREEN}✅ 补丁版功能标记 ${total}/${total} 全部命中${NC}"
-    else
-      echo -e "  ${RED}⚠️  补丁版有 $miss/$total 个标记未命中 —— 补丁可能已被官方更新覆盖${NC}"
-      echo -e "     处理：${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}"
-    fi
-  fi
+  verify_markers "$DST_ASAR" "补丁版"
 fi
 echo ""
