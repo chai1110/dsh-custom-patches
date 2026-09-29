@@ -9,7 +9,7 @@
 #      feature (greps a marker in the target file) -- if so, skips that patch
 #      to avoid duplication/conflict
 #   3. backup (first time) + dry-run + apply + verify, all with colored logs
-#  4. Usage: bash install-dsh-custom.sh [-y]    (-y skips interactive confirm; this branch is pinned to 0.1.7-rc.2, no version argument)
+#  4. Usage: bash install-dsh-custom.sh [-y]    (-y skips interactive confirm; this branch is pinned to 0.2.0-rc.1, no version argument)
 #
 # Supports BOTH installation layouts:
 #   A. global npm install  (default): finds DSH in global node_modules
@@ -19,7 +19,7 @@
 #        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
 #        export DSH_SOURCE=/path/to/deepseek-harness
 #
-# Adapted versions: 0.1.7-rc.2 (default on this branch) / 0.1.2-rc.1 / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7 (see versions.md)
+# Adapted versions: 0.2.0-rc.1 (default on this branch) / 0.1.7-rc.2 / 0.1.2-rc.1 / 0.1.1-rc.2 / 0.1.0-rc.8 / 0.1.0-rc.7 (see versions.md)
 # =============================================================================
 set -u
 
@@ -29,9 +29,9 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-# 本仓库（version/0.1.7-rc.2 分支）固定适配的 DSH 版本：0.1.7-rc.2。
+# 本仓库（version/0.2.0-rc.1 分支）固定适配的 DSH 版本：0.2.0-rc.1。
 # 其他 DSH 版本用户：请 checkout 对应版本分支/tag（见 README「多版本支持」）。
-TARGET_VERSION="0.1.7-rc.2"
+TARGET_VERSION="0.2.0-rc.1"
 
 ASK=1
 for arg in "$@"; do
@@ -40,7 +40,7 @@ for arg in "$@"; do
     *)
       err "Unknown argument: $arg"
       echo "  Usage: bash install-dsh-custom.sh [-y]"
-      echo "  （本分支固定适配 DSH 0.1.7-rc.2；其他版本请 checkout 对应分支/tag）"
+      echo "  （本分支固定适配 DSH 0.2.0-rc.1；其他版本请 checkout 对应分支/tag）"
       exit 1
       ;;
   esac
@@ -51,6 +51,10 @@ done
 #   patch       = path to the .patch file inside this repo
 #   marker      = feature marker used for "official already built-in" detection (empty = skip)
 #   source_rel  = path relative to <source>/packages, used in source/monorepo layout
+# 0.2.0-rc.1：**补丁集零改动** —— 官方这次没碰我们 9 个补丁的任何一个锚点区，
+# 实测 `patch -F 0`（零模糊）9/9 干净套用、实套 + node --check 9/9 通过。
+# 官方在 agent-loop 里新增的 ToolCallRecovery（修「工具调度异常后对话无法继续」）
+# 与本补丁的 `__stack` 诊断 + `user/message` 去重**不是同一件事**，故保留。
 # 0.1.7-rc.2：归档相关补丁**全部退役** —— 官方已原生提供完整链路
 # （archiveSession / unarchiveSession + 侧边栏三态筛选 + 行内「取消归档」+
 #  搜索恢复 + 归档提示的 undo），我们不再重复实现，避免多此一举。

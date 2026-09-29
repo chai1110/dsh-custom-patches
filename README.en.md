@@ -5,7 +5,7 @@
 Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
 **① Composer ↑/↓ key send history**, **② Edit last message and regenerate**, and **③ Automatic retry for failed compaction (context summarization)**.
 
-- Target version: **`@deepseek-ai/dsh@0.1.7-rc.2`** (official latest; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
+- Target version: **`@deepseek-ai/dsh@0.2.0-rc.1`** (official `next`; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
 - Maintainer: chai1110 (<chai011379@gmail.com>)
 
@@ -17,7 +17,11 @@ Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github
 
 ## 📌 Current support scope (which docs are "latest")
 
-**Target version of this repo's `main` branch: `@deepseek-ai/dsh@0.1.7-rc.2` (official `latest`).**
+**Target version of this repo's `main` branch: `@deepseek-ai/dsh@0.2.0-rc.1` (official `next` channel).**
+
+> ⚠️ `0.2.0-rc.1` is on the official **`next`** channel — **`latest` is still `0.1.7-rc.2`**.
+> A plain `npm install -g @deepseek-ai/dsh` gives you `0.1.7-rc.2`; in that case **checkout `v0.1.7-rc.2`**,
+> or install the new version explicitly: `npm install -g @deepseek-ai/dsh@0.2.0-rc.1`.
 
 ⚠️ This is a **multi-version repo**, and **not every document has been rewritten alongside the latest version**.
 The table below states each file's actual status — judge reliability by the "Status" column,
@@ -25,13 +29,13 @@ and **do not assume every doc is up to date**.
 
 | File | Status | Notes |
 |---|---|---|
-| `install-dsh-custom.sh` | ✅ Adapted to 0.1.7-rc.2 | Main installer; `TARGET_VERSION=0.1.7-rc.2`, 9 patches |
-| `apply-dsh-patches.sh` | ✅ Adapted to 0.1.7-rc.2 | Alternative installer (no version diagnosis / no built-in detection) |
-| `check-update.sh` | ✅ Adapted to 0.1.7-rc.2 | Checks whether official has a newer version |
+| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | Main installer; `TARGET_VERSION=0.2.0-rc.1`, 9 patches |
+| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | Alternative installer (no version diagnosis / no built-in detection) |
+| `check-update.sh` | ✅ Adapted to 0.2.0-rc.1 | Checks whether official has a newer version |
 | `patches/**` | ✅ Re-adapted | 11 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore). Against the previous release `v0.1.5-rc.1` (12 items) it is **12 → 9** (`client-connection` was retired early in the 0.1.7-rc.2 adaptation, 12→11; `workspace` + `client-ui-workspace` were retired on 2026-09-28, 11→9) |
-| `README.md` / `README.en.md` | ✅ Adapted to 0.1.7-rc.2 | This file |
-| `versions.md` | ✅ Adapted to 0.1.7-rc.2 | Version tracking table |
-| `ADAPTING.md` | ✅ Includes the 0.1.7-rc.2 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
+| `README.md` / `README.en.md` | ✅ Adapted to 0.2.0-rc.1 | This file |
+| `versions.md` | ✅ Adapted to 0.2.0-rc.1 | Version tracking table |
+| `ADAPTING.md` | ✅ Includes the 0.2.0-rc.1 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
 | `POSTMORTEM.md` | 🕘 Historical (2026-08-19, rc.8 era) | Incident postmortem; **not updated for newer versions, and it doesn't need to be** |
 | `docs/SSH-REMOTE.md` | 🕘 Pointer only | The SSH plugin itself lives in the separate repo [dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote); **maintenance is paused and it no longer follows 0.1.5+** |
 | `SECURITY.md` | ➖ Version-independent | How to report vulnerabilities |
@@ -83,7 +87,7 @@ The install script is written in **bash** and depends on **Unix command-line too
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed
-- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.1.7-rc.2`; users on other versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
+- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.2.0-rc.1`; users on other DSH versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
 
 > **No CLI tools needed**: The easiest path is to send this repo link (`https://github.com/chai1110/dsh-custom-patches`) to your AI assistant and let it follow the "Quick Start" section to install and configure on your machine — it will handle Windows `taskkill` differences automatically.
 
@@ -95,8 +99,8 @@ Four steps total, **HTTPS clone recommended** (no SSH key needed). You can paste
 
 ```bash
 # 1) Install matching DSH version (skip if already installed and correct version)
-npm install -g @deepseek-ai/dsh@0.1.7-rc.2
-dsh --version          # should output 0.1.7-rc.2
+npm install -g @deepseek-ai/dsh@0.2.0-rc.1
+dsh --version          # should output 0.2.0-rc.1
 
 # 2) Clone this repo (HTTPS, works for everyone)
 git clone https://github.com/chai1110/dsh-custom-patches.git
@@ -126,7 +130,8 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 | Your DSH Version | Support | One-click Command |
 |---|---|---|
-| **0.1.7-rc.2** (latest) | `v0.1.7-rc.2` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
+| **0.2.0-rc.1** (official `next`) | `v0.2.0-rc.1` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
+| 0.1.7-rc.2 (official `latest`) | `v0.1.7-rc.2` | `git checkout v0.1.7-rc.2` then `bash install-dsh-custom.sh -y` |
 | 0.1.5-rc.1 | `v0.1.5-rc.1` | `git checkout v0.1.5-rc.1` then `bash install-dsh-custom.sh -y` |
 | 0.1.2-rc.1 | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` then `bash install-dsh-custom.sh -y` |
 | 0.1.1-rc.2 | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` then `bash install-dsh-custom.sh -y` |
@@ -144,8 +149,8 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 ### Step 1: Confirm DSH Version
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.7-rc.2   # install matching version
-dsh --version                                 # confirm it's 0.1.7-rc.2
+npm install -g @deepseek-ai/dsh@0.2.0-rc.1   # install matching version
+dsh --version                                 # confirm it's 0.2.0-rc.1
 ```
 
 ### Step 2: Clone the Repo
@@ -168,7 +173,7 @@ bash install-dsh-custom.sh -y
 The script will automatically:
 1. Locate DSH install dir (probes both system-level and user-level global paths)
 2. Read local version and query npm for latest, giving a version diagnosis
-3. **Validate version** (main expects `0.1.7-rc.2`; mismatch aborts and tells you to checkout the correct tag)
+3. **Validate version** (main expects `0.2.0-rc.1`; mismatch aborts and tells you to checkout the correct tag)
 4. **Detect if official already has the feature** — if the target file already contains feature markers (e.g. official bundled them), automatically skip that patch
 5. For patches that need applying: **backup each file (`.bak`) and apply**
 6. Summary report + restart hint
@@ -207,7 +212,7 @@ bash install-dsh-custom.sh -y
 ```
 When the script detects `DSH_SOURCE`, it automatically switches to source layout:
 - Locates target files under `<DSH_SOURCE>/packages/**/lib/`, backs up, and applies
-- **Skips npm version validation** (source doesn't have `0.1.7-rc.2` version strings), but please ensure your source checkout matches the latest rc.2-era code
+- **Skips npm version validation** (source doesn't have `0.2.0-rc.1` version strings), but please ensure your source checkout matches the latest rc-era code
 - After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
 ### Source Layout Target File Mapping

@@ -385,3 +385,90 @@ node --check <套用后的文件>
    标注「未运行时验证」故未暴露；另 0.1.5 的 `kind === "user"` 判定本身正确，
    node.kind 确为 "user"，key 字符串里的 "input-message" 是 definition kind。）
 3. 验证方式：浏览器实录——发消息→点编辑→改文本→保存重发→两轮对话均正常显示。
+
+---
+
+## 0.2.0-rc.1 适配记录（2026-09-28）—— ⭐ 首个「零改动」适配
+
+**结论：9 个补丁一个字都没改，直接可用。** 这是本仓库第一次遇到官方大版本更新却完全不需要重打锚点。
+
+> 版本背景：`0.2.0-rc.1` 是官方 `0.2.0` 系列首个候选版，发布在 **`next`** 频道
+> （`latest` 仍是 `0.1.7-rc.2`），2026-09-28 发布，是 `0.1.7-rc.2` 之后的首个版本。
+
+### 为什么这次不用改
+
+**官方这次没碰我们 9 个补丁的任何一个锚点区。** 逐文件对比两个版本的行数：
+
+| 目标文件 | 0.1.7-rc.2 | 0.2.0-rc.1 | 差异行 |
+|---|---|---|---|
+| `dsh-api-session-controller/lib/index.js` | 3189 | 3189 | **0** |
+| `dsh-api-session-controller/lib/typert.remote-client.js` | 1288 | 1288 | **0** |
+| `dsh-compaction-basic/lib/index.js` | 1027 | 1027 | **0** |
+| `dsh-api-session-controller/lib/typert.host.js` | 3059 | 3059 | 4 |
+| `dsh-api-session-controller/lib/client.js` | 3674 | 3675 | 5 |
+| `dsh-agent-loop/lib/index.js` | 1966 | 1981 | 29 |
+| `dsh-client-ui-conversation/lib/client.js` | 18401 | 18465 | 114 |
+| `dsh-api-remotes/lib/client.js` | 13040 | 13314 | 274 |
+| `dsh-client-ui-chat/lib/client.js` | 12420 | 12552 | 276 |
+
+有文件改动（`dsh-api-remotes` 改了 274 行、`dsh-client-ui-chat` 改了 276 行），
+但**改动都落在锚点区之外** —— 所以补丁照样套得上。
+
+### ⭐ 新增铁律 3：`patch` 默认允许 2 行模糊，「干净套用」不等于「锚点没漂」
+
+`patch` 默认的 fuzz factor 是 **2** —— 它能在**上下文对不上 2 行**的情况下照样成功。
+这意味着 `patch --dry-run` 返回 0 **并不能证明锚点精确匹配**。
+
+**必须用 `-F 0` 复测：**
+
+```sh
+patch --dry-run -N -F 0 -p1 <target> < <patch>   # -F 0 = 零模糊，锚点必须逐字对上
+```
+
+本轮两轮结果一致（都 9/9），所以可以确信锚点真的没漂。
+**若 `-F 0` 失败而默认通过 —— 说明锚点已漂，必须重打，否则套用位置可能错位。**
+
+### 验证清单（全部通过）
+
+| 检查项 | 结果 |
+|---|---|
+| `patch -F 0`（零模糊）dry-run | **9/9** |
+| 真实套用 | **9/9** |
+| `node --check`（套用后） | **9/9** |
+| 端到端跑 `install-dsh-custom.sh -y` | **9/9 成功**，9 个 `.bak` 齐全 |
+| 幂等性（二次运行） | ✅ 正确识别 9 个标记并全部跳过 |
+| 运行时 API 存活 | `ctx.llm.providerRetryPolicy`、`session.surface.nodes`、`session.eventAt`、`isReplacementSurfaceEvent` **全部仍在** |
+| 官方是否已内置我们的功能 | ❌ `editLastPrompt` / `recallHistory` / `sendHistory` / `message.editPrompt` / `compactionBackoffDelay` **一个都没有** |
+
+> ⚠️ **真机运行时验证尚未做**（本机未安装 DSH，只做了静态校验）。
+> 与 0.1.7-rc.2 那轮不同 —— 那轮是「静态 + 真机」双通过，这轮**只有静态**。
+
+### 官方 0.2.0 的改动中，与本补丁集相关的
+
+从 release notes 与实测代码对比，只有一处需要判断：
+
+- **官方在 `dsh-agent-loop` 新增 `ToolCallRecovery`**（对应 release note
+  「修复工具调度异常后对话无法继续的问题；已执行但结果未知的操作会提示先核实副作用，不盲目重试」）。
+  实现方式是 `session/event` 监听 + 在 catch 里补 `tool/result`。
+  **判断：与本补丁不是同一件事，保留。** 我们的 agent-loop 补丁做的是
+  ① 给错误对象加 `__stack`（诊断增强）② `user/message` 去重（尾部已是同 id 就不重复 append）。
+  官方的 `ToolCallRecovery` 修的是工具结果丢失，两者机制不同、可共存。
+
+其余 release note 条目（动画间距、图片重传、桌面更新提示、未命名会话、插件管理界面、
+深色主题开关、Office/PDF 预览选区、Windows 沙箱权限诊断、macOS 录音权限、Safari 刷新恢复、
+Linux npm 安装）**均不涉及我们打补丁的 6 个包**。
+
+- **自动化任务改由可选插件包提供** → 依赖闭包只新增 `dsh-experimental-schedule-bundle`，
+  其余 81 个包一个没少（`0.1.7-rc.2` 81 个 → `0.2.0-rc.1` 82 个）。
+  ⭐ **这顺便证伪了一个误判**：光看主包 `package.json` 的**直接**依赖会以为
+  `dsh-agent-loop` / `dsh-api-session-controller` 等包「消失了」—— 其实它们是**传递依赖**，
+  从来就不在直接依赖里。**判断「包还在不在」必须解析完整依赖树，不能只看主包的直接依赖。**
+
+### 本轮改了什么（只有版本常量与文档）
+
+- 3 个脚本的版本常量：`TARGET_VERSION` / `TARGET` → `0.2.0-rc.1`
+- `README.md` / `README.en.md`：适配版本、安装命令、多版本支持表、文件状态表
+- `versions.md`：新增 0.2.0-rc.1 行，0.1.7-rc.2 降为「上一基准」
+- 本文件：本节
+
+**补丁文件（`patches/**`）零改动。**
