@@ -81,9 +81,10 @@ if [ -z "$LOCAL" ]; then LOCAL="(未找到本地 DSH)"; fi
 if [ "$LOCAL" = "(未找到本地 DSH)" ]; then
   echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL}"
   # 目录找到了却读不出版本，通常是 node 不在 PATH 上 —— 单独提示，别让人以为「没装」
-  [ -n "$CLI_DIR" ] && echo -e "  ${DIM}目录已定位但读不出版本（node 不可用？）：${CLI_DIR}${NC}"
+  # echo -e 会把反斜杠路径里的 \n \U 当转义符 → 显示前统一成正斜杠
+  [ -n "$CLI_DIR" ] && echo -e "  ${DIM}目录已定位但读不出版本（node 不可用？）：${CLI_DIR//\\//}${NC}"
 else
-  echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL} ${DIM}${CLI_DIR}${NC}"
+  echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL} ${DIM}${CLI_DIR//\\//}${NC}"
 fi
 
 # 2. 官方版本 —— 两个频道都要看（见文件头说明）
