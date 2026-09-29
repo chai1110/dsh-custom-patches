@@ -440,8 +440,8 @@ patch --dry-run -N -F 0 -p1 <target> < <patch>   # -F 0 = 零模糊，锚点必�
 | 运行时 API 存活 | `ctx.llm.providerRetryPolicy`、`session.surface.nodes`、`session.eventAt`、`isReplacementSurfaceEvent` **全部仍在** |
 | 官方是否已内置我们的功能 | ❌ `editLastPrompt` / `recallHistory` / `sendHistory` / `message.editPrompt` / `compactionBackoffDelay` **一个都没有** |
 
-> ⚠️ **真机运行时验证尚未做**（本机未安装 DSH，只做了静态校验）。
-> 与 0.1.7-rc.2 那轮不同 —— 那轮是「静态 + 真机」双通过，这轮**只有静态**。
+> ✅ **真机运行时验证已完成（2026-09-29）**：本机安装 `0.2.0-rc.1` 真机运行后，
+> 静态校验覆盖不到的 4 个 bug 已全部暴露并修复，见文末「真机运行时验证发现的 4 个 bug」。
 
 ### 官方 0.2.0 的改动中，与本补丁集相关的
 
@@ -471,4 +471,34 @@ Linux npm 安装）**均不涉及我们打补丁的 6 个包**。
 - `versions.md`：新增 0.2.0-rc.1 行，0.1.7-rc.2 降为「上一基准」
 - 本文件：本节
 
-**补丁文件（`patches/**`）零改动。**
+**补丁文件初版零改动**；真机验证后修了补丁内 3 处键名/codec 问题（另修安装脚本 1 处），见文末小节 —— 修复只动 `+` 新增行，不碰锚点，`patch -F 0` 仍 9/9。
+
+---
+
+## 0.2.0-rc.1 真机运行时验证发现的 4 个 bug（2026-09-29 已修）
+
+静态校验（dry-run / 真实套用 / `node --check`）能证明「补丁套得上」，但证明不了「套上之后是对的」。真机运行后暴露以下 4 个问题，均已修复并回归通过：
+
+1. **typert codec 写了 `schema:` 而不是 `create:`**（`api-session-controller` 的 `typert.host.js` / `typert.remote-client.js`）。
+   0.1.7 起 codec 方法表的键名是 `create:`；写成 `schema:` 会让 strict 定义注册失败，
+   连带 `permissionPresets` / `llm` / `agentPresets` 三个 surface 全部 `withdrawn`，设置页空白。
+2. **`surfaceOp` 用了 `start:` / `end:`**（`api-session-controller/lib/index.js` 的 `editLastPromptOnce`）。
+   `isReplaceOp` 要求该对象**恰好 3 个键**（`op` / `startSeq` / `endSeq`），多出 `start`/`end` 就判非法 →
+   `session/edit-rejected: ... carries an invalid replace surfaceOp`，**编辑上一条消息一按重新生成就报错**。改用 `startSeq` / `endSeq` 后正常。
+3. **`scanShadowed` 读了 `op.start` / `op.end`**（`client-ui-conversation/lib/client.js`，两处）。
+   同上，replace surfaceOp 的真实键是 `startSeq` / `endSeq`；读到 `undefined` 后
+   `for (seq = undefined; undefined <= undefined; ...)` 循环体一次都不执行 → `shadowed` 集合恒空 →
+   `matchInput` 永不跳过被替换的事件 → **编辑重发后，旧的那一轮（旧提问 + 旧 AI 回复）仍然留在会话里**，
+   新消息追加在后面，同一句话出现两遍。
+   > 交叉印证：同文件官方代码 L1066 / L1077 / L1078 用的正是 `op.startSeq` / `op.endSeq`。
+   > 这是用户 2026-09-29 直接报上来的现象。
+4. **`apply-dsh-patches.sh` 的版本检测在 Windows 下必失败**。
+   `node -e "require('$DSH_DIR/package.json')"` 里 `DSH_DIR` 是反斜杠路径，
+   `\n` / `\U` 被 JS 当转义序列 → 抛错 → `VERSION` 为空 → 脚本直接 `版本不匹配` 退出。
+   改为 `require(process.argv[1])` 并把路径作为**参数**传入。
+
+### 回归
+
+- `node --check` 通过；
+- 9 个补丁在 pristine `0.2.0-rc.1` 上仍 **9/9 可套用**（4 处修复只动 `+` 新增行，不碰上下文锚点）；
+- 真机功能验证：编辑重发 → 旧轮次即刻从会话消失，只留下替换后的新一轮。

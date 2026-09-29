@@ -63,6 +63,11 @@
 
 **机制说明**：编辑通过 DSH 会话层的 **surface replace**（append-only 日志 + 阴影替换）实现——历史记录保留，但模型与界面只看替换后的新序列。
 
+> ✅ **2026-09-29 修复**：此前「重新发送后，旧的那一轮还留在会话里」是本补丁自己的 bug ——
+> shadow 计算读错了 surfaceOp 的键名（写了 `op.start` / `op.end`，真实键是 `op.startSeq` / `op.endSeq`），
+> 导致 `shadowed` 集合恒空、被替换的旧事件从不被跳过。修复后重发即刻生效：
+> **旧提问与它的 AI 回复立即从会话消失，只留下替换后的新一轮**，同一句话不再出现两遍。
+
 ### 3. 压缩（上下文总结）失败自动重试
 - DSH 上下文快满时会自动「压缩」——让模型把历史总结成摘要。但**压缩那一次 LLM 调用不走官方的重试机制**（`dsh-llm-retry` 的重试只挂在正常对话请求的 `agent/request-error` 上，而压缩是直接调 `ctx.llm.stream()`），所以遇到 **429 / 限流会直接失败，整次压缩白做**
 - 本补丁在压缩的总结调用外加了**重试循环**，复用该 provider 的 `retryPolicy`（`retryableCodes` / `maxRetries` / `initialDelayMs` / `maxDelayMs` / `jitterRatio`，即 `settings.yaml` 里已配的那份）

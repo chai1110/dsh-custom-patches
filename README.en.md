@@ -64,6 +64,11 @@ This repo only commits to the versions marked 「✅」 above.
 
 **How it works**: Editing uses DSH session layer's **surface replace** (append-only log + shadow replacement) — history is preserved, but the model and UI only see the replaced sequence.
 
+> ✅ **Fixed 2026-09-29**: previously, after re-sending, the old turn stayed in the transcript — a bug in this very patch.
+> The shadow fold read the wrong `surfaceOp` keys (`op.start` / `op.end` instead of `op.startSeq` / `op.endSeq`),
+> so the `shadowed` set stayed empty and replaced events were never skipped.
+> After the fix the rewrite is immediate: **the old prompt and its reply disappear at once**, leaving only the new turn.
+
 ### 3. Automatic Retry for Failed Compaction (Context Summarization)
 - When the context is nearly full, DSH auto-"compacts" it — asking the model to summarize the history. But **that compaction LLM call does not go through the official retry mechanism** (`dsh-llm-retry` only hooks the normal conversation request's `agent/request-error`, while compaction calls `ctx.llm.stream()` directly), so a **429 / rate limit fails it outright and the whole compaction is wasted**
 - This patch wraps the summarization call in a **retry loop** that reuses the provider's `retryPolicy` (`retryableCodes` / `maxRetries` / `initialDelayMs` / `maxDelayMs` / `jitterRatio` — the same one already configured in `settings.yaml`)

@@ -47,7 +47,7 @@
 +				for (const entry of sorted) {
 +					if (!isReplacementSurfaceEvent(entry.event)) continue;
 +					const op = entry.event.surfaceOp;
-+					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++					for (let seq = op.startSeq; seq <= op.endSeq; seq++) this.shadowed.add(seq);
 +				}
  			}
  			/**
@@ -58,7 +58,7 @@
  				if (this.inputs.has(event.seq)) return "none";
 +				if (isReplacementSurfaceEvent(event)) {
 +					const op = event.surfaceOp;
-+					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++					for (let seq = op.startSeq; seq <= op.endSeq; seq++) this.shadowed.add(seq);
 +					this.inputs.set(event.seq, record);
 +					this.replaceWindow(this.sortedInputs(), this.hasMore);
 +					return "immediate";
