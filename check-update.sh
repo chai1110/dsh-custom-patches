@@ -18,21 +18,73 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; DIM='\033[2m'; NC='\0
 # 本仓库 main 分支固定适配的 DSH 版本（README「多版本支持」：其他版本 checkout 对应 tag）
 TARGET="0.2.0-rc.2"
 
-# 1. 本地已装版本（通过全局 npm root 找到 DSH）
+# 1. 本地已装版本
+#
+# ⚠️ 不能只用 `npm root -g`：它只反映**当前 PATH 上那个 npm**。DSH 常被装在自建目录
+#    （如 ~/.local/node-v24/lib/node_modules/），而工具/CI/沙箱环境里的 `npm root -g`
+#    往往指向**另一个** node → 明明装了却报「未找到本地 DSH」，把最关键的「本机版本」
+#    变成空白。下面四条依次尝试，与 patch-all.sh 保持同一套探测。
+find_cli_dir() {
+  local d="" g="" cand="" exe="" real=""
+
+  # 0) 调用方已探测过（patch-all.sh 会 export DSH_DIR 供子脚本复用）
+  if [ -n "${DSH_DIR:-}" ] && [ -d "$DSH_DIR" ]; then printf '%s' "$DSH_DIR"; return 0; fi
+
+  # 1) 当前 PATH 上那个 npm 的全局根
+  g=$(npm root -g 2>/dev/null || echo "")
+  if [ -n "$g" ] && [ -d "$g/@deepseek-ai/dsh" ]; then d="$g/@deepseek-ai/dsh"; fi
+
+  # 2) 让 node 自己解析（尊重 node_modules 逐级查找）
+  if [ -z "$d" ]; then
+    d=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json\$/,''))}catch(e){console.log('')}" 2>/dev/null || echo "")
+  fi
+
+  # 3) ⭐ 最可靠：顺着用户**实际在用**的 `dsh` 可执行文件反推
+  if [ -z "$d" ]; then
+    exe=$(command -v dsh 2>/dev/null || echo "")
+    if [ -n "$exe" ]; then
+      # macOS 自带 readlink 没有 -f，用 node 解析符号链接
+      real=$(node -e "try{console.log(require('fs').realpathSync(process.argv[1]))}catch(e){console.log('')}" "$exe" 2>/dev/null || echo "")
+      case "$real" in
+        */@deepseek-ai/dsh/lib/bin.js) d="${real%/lib/bin.js}" ;;
+        */@deepseek-ai/dsh/*)          d="${real%%/@deepseek-ai/dsh/*}/@deepseek-ai/dsh" ;;
+      esac
+    fi
+  fi
+
+  # 4) 兜底：扫常见安装位置
+  if [ -z "$d" ]; then
+    for cand in /usr/local/lib/node_modules \
+                "$HOME/.local/lib/node_modules" \
+                "$HOME"/.local/*/lib/node_modules \
+                "$HOME"/.nvm/versions/node/*/lib/node_modules \
+                "$HOME"/.volta/tools/image/node/*/lib/node_modules \
+                "${APPDATA:-/nonexistent}/npm/node_modules" \
+                "${LOCALAPPDATA:-/nonexistent}/npm/node_modules"; do
+      [ -d "$cand/@deepseek-ai/dsh" ] || continue
+      d="$cand/@deepseek-ai/dsh"; break
+    done
+  fi
+
+  printf '%s' "$d"
+}
+
 LOCAL=""
-GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
-DSH_PKG=""
-for cand in "$GLOBAL_ROOT/@deepseek-ai/dsh/package.json" "$HOME/.local/lib/node_modules/@deepseek-ai/dsh/package.json"; do
-  if [ -f "$cand" ]; then DSH_PKG="$cand"; break; fi
-done
-if [ -n "$DSH_PKG" ]; then
+CLI_DIR="$(find_cli_dir || true)"
+if [ -n "$CLI_DIR" ] && [ -f "$CLI_DIR/package.json" ]; then
   # 用 argv 传路径：Windows 下 npm root 返回反斜杠路径，
   # 直接拼进 require('...') 会被 JS 吞掉转义导致抛错；且必须 `|| true`，
   # 否则命令替换返回非 0 会让 set -e 直接终止整个脚本（此前 Windows 上静默失败）。
-  LOCAL=$(node -e "console.log(require(process.argv[1]).version)" "$DSH_PKG" 2>/dev/null || echo "")
+  LOCAL=$(node -e "console.log(require(process.argv[1]).version)" "$CLI_DIR/package.json" 2>/dev/null || echo "")
 fi
 if [ -z "$LOCAL" ]; then LOCAL="(未找到本地 DSH)"; fi
-echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL}"
+if [ "$LOCAL" = "(未找到本地 DSH)" ]; then
+  echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL}"
+  # 目录找到了却读不出版本，通常是 node 不在 PATH 上 —— 单独提示，别让人以为「没装」
+  [ -n "$CLI_DIR" ] && echo -e "  ${DIM}目录已定位但读不出版本（node 不可用？）：${CLI_DIR}${NC}"
+else
+  echo -e "${GREEN}本地已装 DSH：${NC}${LOCAL} ${DIM}${CLI_DIR}${NC}"
+fi
 
 # 2. 官方版本 —— 两个频道都要看（见文件头说明）
 LATEST=$(npm view @deepseek-ai/dsh dist-tags.latest 2>/dev/null || echo "")
