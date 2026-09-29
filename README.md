@@ -28,11 +28,16 @@
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.1 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚 |
-| `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版主安装器；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁 |
-| `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版备选安装器（无版本诊断 / 无内置检测） |
-| `desktop/windows/apply-desktop-asar-patches.js` | ✅ 已验证 0.2.0-rc.1 / 0.2.0-rc.2 | **桌面版（Electron）安装器**：改写 `resources/app.asar`，反向试套判幂等 + 全量逐字节校验，详见下方「🖥️ 桌面版支持」 |
-| `check-update.sh` | ✅ 已适配 0.2.0-rc.1 | 检测官方是否有新版 |
+| `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.1 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚；**先反向判「是否已套用」再套**（防重复套用） |
+| `tools/contract-test-surface-op.mjs` | ✅ 已在真机实跑 | `surfaceOp` 契约测试（零副作用，不落盘、不碰真实会话）；升级后回归用，退出码 0=符合预期、1=有偏差 |
+| `tools/patch-markers.tsv` | ✅ 已实测 | **功能标记的单一数据源**（9 项）。`patch-all.sh` / 桌面版脚本 / `check-update.sh` 读同一份，避免三处各写一套标记而漂移 |
+| `patch-all.sh` | ✅ 已适配 0.2.0-rc.1 | **一键打两面**：CLI 侧（浏览器 + VS Code）与桌面版，并输出**功能标记交叉核对矩阵**；`--check` 只核对不改动 |
+| `desktop/**` | ✅ macOS 已实测通过 | **桌面版（Electron）适配** —— 改签名过的 `app.asar` 的外科手术。macOS 与 Windows **暂分两个模块**（`desktop/macos/`、`desktop/windows/`），理由与合并判据见 `desktop/README.md` |
+| `desktop/macos/**` | ✅ 0.2.0-rc.2 已实测 | macOS 模块：克隆 → 抽文件 → 打补丁 → 改写 asar → 校验 → **重签名**。9/9 命中、12964/12964 未目标条目逐字节一致 |
+| `desktop/windows/**` | ✅ 0.2.0-rc.1 / 0.2.0-rc.2 已实测 | Windows 模块（**他人贡献**）：跨平台 `apply-desktop-asar-patches.js`，反向试套判幂等 + 全量逐字节校验。**其 macOS 分支已于 2026-09-29 在真机实测通过**（见下方「🖥️ 桌面版支持」） |
+| `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版一键安装（**备选**）；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁；已修「纯插入型补丁被重复套用」的 bug |
+| `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版最简安装（**备选**，无版本诊断 / 无内置检测）；已修「纯插入型补丁被重复套用」的 bug；支持外部传入 `DSH_DIR` |
+| `check-update.sh` | ✅ 已适配 0.2.0-rc.1 | 检测官方是否有新版，**并检查桌面版补丁是否已被官方 nightly 更新覆盖**（比对来源指纹 + 功能标记） |
 | `patches/**` | ✅ 已重适配 | 11 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复）。相对上一发布版 `v0.1.5-rc.1` 的 12 项为 **12 → 9**（`client-connection` 在 0.1.7-rc.2 适配早期退役，12→11；`workspace` + `client-ui-workspace` 于 2026-09-28 退役，11→9） |
 | `README.md` / `README.en.md` | ✅ 已适配 0.2.0-rc.1 | 本文件 |
 | `versions.md` | ✅ 已适配 0.2.0-rc.1 | 版本追踪表 |
@@ -97,9 +102,23 @@ node tools/dsh-patch.mjs -y
 
 | 平台 | 是否支持 | 说明 |
 |---|---|---|
-| **macOS** | ✅ 原生支持 | 自带的 `bash`/`patch` 即可（`pgrep` 也已内置） |
+| **macOS** | ✅ 原生支持 | 自带的 `/bin/bash`（**仍是 3.2.57**）与 `patch` 即可，`pgrep` 也已内置。**两个 shell 脚本已在本机 bash 3.2 下实跑通过** |
 | **Linux** | ✅ 原生支持 | 自带 `patch`；部分精简发行版需 `sudo apt install patch` |
 | **Windows** | ✅ 推荐用上面的 Node 安装器 | 纯 Node 实现，不依赖 `patch`/`pgrep`/`cp`/`find`，**没有路径分隔符问题**。若仍用 shell 版：Git for Windows 提供 `bash`；重启请用 `taskkill //F //IM node.exe`（`pgrep` 在 Windows 不存在） |
+
+**为什么 Node 安装器在**所有**平台都是首选**（不只是 Windows）——它比 shell 版多四件事：
+
+1. **零模糊**：`patch` 默认 fuzz=2，会容忍上下文行不匹配；Node 版要求每一行精确命中。
+2. **主动报出 hunk 偏移**：`patch -F 0` 只关掉 fuzz，**不关掉 offset**，普通输出还看不见。
+   Node 版会直接打印 `N hunk(s) matched at a different line than declared` —— 这是抓上游漂移的关键信号。
+3. **套用后 `node --check`**：语法炸了自动从 `.bak` 回滚。
+4. **先反向判「是否已套用」再套**：避免纯插入型补丁被**重复套用**（shell 版曾因此出过事故，
+   见 [`ADAPTING.md`](ADAPTING.md) 的「严重 bug：shell 版会重复套用纯插入型补丁」）。
+
+> **实测状态（2026-09-29）**：macOS（Apple Silicon）+ DSH `0.2.0-rc.1` 上，
+> `tools/dsh-patch.mjs` 的 `--check` / `--list` / `--dry-run` / `-y` / 幂等 `-y` / `--restore` 六步全过；
+> 两个 shell 脚本在 `/bin/bash` 3.2.57 下也实跑通过。**Windows 侧此前已适配并推送**，
+> 因此这套补丁集目前是**双平台实测**过的。
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
@@ -131,7 +150,7 @@ pkill -f 'dsh web'; dsh web
 
 > **Windows 重启**：把第 4 步换成 `taskkill /F /IM node.exe`（或结束对应 node 进程）后重新 `dsh web` 即可。
 > **源码构建（monorepo）用户**：把第 3 步换成 `DSH_SOURCE=/path/to/deepseek-harness node tools/dsh-patch.mjs -y`，只需重建/重启你的开发服务（详见「源码构建（monorepo）用户」一节）。
-> **shell 版仍然可用**：`bash install-dsh-custom.sh -y`（主安装器）、`bash apply-dsh-patches.sh`（备选）。二者与 Node 版套用同一套补丁，按需选用。
+> **shell 版仍然可用**：`bash install-dsh-custom.sh -y`（带版本诊断 + 内置检测）、`bash apply-dsh-patches.sh`（最简）。二者与 Node 版套用同一套补丁，按需选用；**但推荐入口是 Node 版**（更严：会报 hunk 偏移、有 `node --check` 回滚、且能防重复套用）。
 
 然后**硬刷新**浏览器页面（`Cmd+Shift+R` / `Ctrl+Shift+R`）：
 - 输入框按 **↑** 即可翻历史
@@ -297,6 +316,32 @@ done
 
 ---
 
+## 🖥 桌面版（Electron）
+
+上面讲的都是 **CLI 侧**（`node_modules/@deepseek-ai/**`，供**浏览器**与 **VS Code** 使用）。
+**桌面版 `DeepSeek Harness.app` 完全不同** —— 它的 dsh 运行时封在一个**签名过的 `app.asar`** 里，
+profile 目录、环境变量、客户端插件五条路全部走不通，**只能做 asar 外科手术**。
+
+**详细说明见 [`desktop/README.md`](desktop/README.md)**（含五条死路的原因、代价与限制、回滚方式）。
+
+```bash
+# 只打桌面版（产出 ~/Applications/DeepSeek Harness Patched.app，官方 app 一个字节都不动）
+bash desktop/macos/dsh-desktop-patch.sh
+
+# 两面一起打，并交叉核对功能标记
+bash patch-all.sh
+```
+
+要点：
+
+- **补丁文件是同一套**（`patches/**`），不重复维护；差别只在「打到哪里」。
+- 桌面版走 **nightly 自动更新**，官方包一更新补丁就被覆盖 —— 用 `bash check-update.sh` 检测。
+- 产出是**独立的一份 app**，与官方版**共用同一个 user-data 目录**（单实例锁 + 固定端口 `19387`），
+  二者不能同时运行；回滚就是删掉副本。
+- **Windows 桌面版是独立模块**，待他人贡献，见 [`desktop/windows/README.md`](desktop/windows/README.md)。
+
+---
+
 ## ↩️ 如何恢复原版（卸载补丁）
 
 安装时脚本已为每个被改文件生成 `.bak` 备份。恢复只需把这些备份拷贝回去（**路径用 `npm root -g` 动态获取，兼容任意全局安装方式**；**文件清单直接取自脚本的 `FILES`，因此永远与当前补丁集同步**）：
@@ -328,6 +373,10 @@ bash install-dsh-custom.sh -y
 
 - **官方是否已内置我们的功能？** 一键脚本会自动检测并跳过已内置的补丁；也可手动用 [`versions.md`](versions.md) 里的 grep 方法确认。
 - **补丁失效了？** 按 [`ADAPTING.md`](ADAPTING.md) 的操作手册重新适配，并在 `versions.md` 追加新版本一行。
+- **桌面版补丁被覆盖了？** 桌面版走 **nightly 自动更新**，官方包一更新就会把补丁冲掉。
+  `bash check-update.sh` 会比对「来源指纹」并检查功能标记，告诉你是否需要重跑
+  `bash desktop/macos/dsh-desktop-patch.sh`。
+- **想一次确认两面都活着？** `bash patch-all.sh --check` —— 只核对不改动，退出码 0 即两面全绿。
 
 > ⚠️ 若升级后 `patch` 报错，说明新版改了相应代码，需要按 `ADAPTING.md` 重新适配。
 
@@ -337,21 +386,31 @@ bash install-dsh-custom.sh -y
 
 ```
 dsh-custom-patches/
-├── install-dsh-custom.sh         # 一键安装（推荐）
-├── apply-dsh-patches.sh          # 备选安装（无版本诊断/内置检测）
-├── check-update.sh               # 检测官方是否有新版本
-├── tools/dsh-patch.mjs           # 推荐安装器（零依赖 Node）
-├── desktop/                      # 桌面版（Electron）适配
-│   ├── README.md                 #   桌面版适配指南（教程 / 平台差异 / 更新清单）
-│   └── windows/
-│       └── apply-desktop-asar-patches.js  #   app.asar 安装脚本（Windows 已实测，macOS 待补）
-├── versions.md                   # 版本追踪表
-├── ADAPTING.md                   # 适配官方新版的操作手册
-├── patches/                      # 补丁文件（按包分目录）
-├── docs/SSH-REMOTE.md            # 指向独立仓库 dsh-ssh-remote（已暂停维护）
-├── POSTMORTEM.md                 # 历史事故复盘（rc.8 时期）
-├── SECURITY.md                   # 漏洞上报方式
-└── LICENSE                       # MIT
+├── tools/
+│   ├── dsh-patch.mjs                    # 一键安装（推荐）：跨平台、零依赖、零模糊
+│   ├── contract-test-surface-op.mjs     # surfaceOp 契约测试（零副作用，升级后回归用）
+│   └── patch-markers.tsv                # 功能标记单一数据源（9 项，各脚本共用）
+├── desktop/                             # 桌面版（Electron）适配 —— 独立模块
+│   ├── README.md / README.en.md         #   总入口：为什么只能改 app.asar、平台策略、合并判据
+│   ├── dsh-desktop-asar.mjs             #   【共享】asar 读取/外科式改写/逐条目校验（跨平台）
+│   ├── macos/                           #   macOS 模块（已实测通过）
+│   │   ├── README.md / README.en.md
+│   │   └── dsh-desktop-patch.sh         #     克隆→抽文件→打补丁→改写 asar→校验→重签名
+│   └── windows/                         #   Windows 模块（他人贡献）
+│       ├── README.md                    #     交付清单 + 合并判据 + 踩坑清单
+│       └── apply-desktop-asar-patches.js #    跨平台 app.asar 安装器（macOS 分支已实测）
+├── patch-all.sh            # 一键打两面（CLI 侧 + 桌面版），并交叉核对功能标记
+├── install-dsh-custom.sh   # shell 版一键安装（备选；带版本诊断 + 内置检测）
+├── apply-dsh-patches.sh    # shell 版最简安装（无诊断，只套补丁）
+├── check-update.sh         # 检测官方是否有新版 + 桌面版补丁是否已被覆盖
+├── versions.md             # 版本追踪表
+├── ADAPTING.md             # 适配官方新版的操作手册
+├── patches/                # 补丁文件（按包分目录；CLI 侧与桌面版共用）
+├── docs/SSH-REMOTE.md      # 指向独立仓库 dsh-ssh-remote（已暂停维护）
+├── POSTMORTEM.md           # 历史事故复盘（rc.8 时期）
+├── SECURITY.md             # 漏洞上报方式
+├── README.en.md            # 英文版 README
+└── LICENSE                 # MIT
 ```
 
 ---
@@ -362,11 +421,20 @@ dsh-custom-patches/
 
 - **报问题**：附上现象、环境（`dsh --version` / 操作系统 / Node 版本）、复现步骤、期望结果；
   有 `patch` 的 `Hunk #N failed` 输出最好。
-- **提 PR**：欢迎新增功能补丁或修复适配。硬性要求只有三条 ——
-  ① **补丁最小化**（只改必要几处）；② 留下可 grep 的**功能标记**；③ `install-dsh-custom.sh` 与
-  `apply-dsh-patches.sh` 的 `FILES` 保持同步。
-- **改文档**：主入口脚本一律写 `install-dsh-custom.sh`（`apply-dsh-patches.sh` 是备选，提及请注明）；
+- **提 PR**：欢迎新增功能补丁或修复适配。硬性要求只有四条 ——
+  ① **补丁最小化**（只改必要几处）；② 留下可 grep 的**功能标记**；③ **三处 `FILES` 表必须同步**：
+  `tools/dsh-patch.mjs`、`install-dsh-custom.sh`、`apply-dsh-patches.sh`
+  （Node 版是推荐入口，另两处是 shell 版；三者字段不同，别只改一处）；
+  ④ **同步更新 `tools/patch-markers.tsv`** —— 功能标记的单一数据源，
+  `patch-all.sh` / `desktop/macos/dsh-desktop-patch.sh` / `check-update.sh` 都读它。
+  挑标记的铁律：**官方原版里必须 0 次命中**（反例：`surfaceOp: "append"` 在原版已出现 8 次，无法判别）。
+- **改桌面版相关**：见 [`desktop/README.md`](desktop/README.md) 与
+  [`desktop/windows/README.md`](desktop/windows/README.md)（Windows 贡献清单）。
+- **改文档**：主入口一律写 `node tools/dsh-patch.mjs`（shell 版是备选，提及请注明）；
   示例要能在全新 clone 后直接执行。
+- **改补丁正文后**：跑一次 `node tools/dsh-patch.mjs --dry-run`，
+  确认没有 `N hunk(s) matched at a different line than declared` ——
+  理想情况是 **0**（详见 [`ADAPTING.md`](ADAPTING.md) 关于 `-F 0` 与 offset 的更正）。
 - 重新适配新版的完整流程见 [`ADAPTING.md`](ADAPTING.md)。
 
 ---

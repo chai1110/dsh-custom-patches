@@ -13,7 +13,7 @@
 
 set -e
 
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; DIM='\033[2m'; NC='\033[0m'
 
 # 本仓库（version/0.2.0-rc.1 分支）固定适配的 DSH 版本
 TARGET="0.2.0-rc.1"
@@ -70,5 +70,72 @@ else
   echo "     bash install-dsh-custom.sh -y"
   echo ""
   echo "  4) 若失败，按 ADAPTING.md 重新适配，并更新 versions.md"
+fi
+echo ""
+
+# ── 4. 桌面版（Electron）补丁状态 ────────────────────────────────────────────
+# 为什么单独一段：桌面版把运行时封在签名过的 app.asar 里，补丁打在一个**独立的副本**上
+# （默认 ~/Applications/DeepSeek Harness Patched.app），而官方 app 走 nightly 自动更新。
+# 官方一更新，副本就静默落后了 —— 这一段就是用来发现这件事的。
+#
+# 判据：桌面补丁脚本会在副本里写一份「来源指纹」（.dsh-desktop-patch.json，
+# 记录克隆时官方 asar 的 sha256）。把它和**当前**官方 asar 的 sha256 一比即可。
+echo -e "${YELLOW}── 桌面版（Electron）──────────────────────────────${NC}"
+# 路径可用环境变量覆盖（便于多副本并存 / 自测）
+SRC_APP="${DSH_DESKTOP_SRC_APP:-/Applications/DeepSeek Harness.app}"
+DST_APP="${DSH_DESKTOP_DST_APP:-$HOME/Applications/DeepSeek Harness Patched.app}"
+SRC_ASAR="$SRC_APP/Contents/Resources/app.asar"
+DST_ASAR="$DST_APP/Contents/Resources/app.asar"
+FP="$DST_APP/Contents/Resources/.dsh-desktop-patch.json"
+MARKERS="$(dirname "$0")/tools/patch-markers.tsv"
+ASAR_TOOL="$(dirname "$0")/desktop/dsh-desktop-asar.mjs"
+
+sha256_of() {
+  node -e 'const c=require("crypto"),f=require("fs");const h=c.createHash("sha256");const s=f.createReadStream(process.argv[1]);s.on("data",d=>h.update(d));s.on("end",()=>console.log(h.digest("hex")))' "$1" 2>/dev/null || echo ""
+}
+
+if [ ! -f "$SRC_ASAR" ]; then
+  echo -e "  ${YELLOW}未安装桌面版（$SRC_APP 不存在），跳过${NC}"
+elif [ ! -f "$DST_ASAR" ]; then
+  echo -e "  ${YELLOW}尚未打补丁${NC} —— 需要时执行：${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}"
+  echo -e "  ${DIM}（官方桌面版已安装，但 ~/Applications 下没有打过补丁的副本）${NC}"
+else
+  NOW_SRC=$(sha256_of "$SRC_ASAR")
+  if [ -f "$FP" ]; then
+    WAS_SRC=$(node -e 'try{console.log(require(process.argv[1]).sourceAsarSha256||"")}catch(e){console.log("")}' "$FP" 2>/dev/null || echo "")
+    PATCHED_AT=$(node -e 'try{console.log(require(process.argv[1]).patchedAt||"")}catch(e){console.log("")}' "$FP" 2>/dev/null || echo "")
+    echo -e "  补丁版: ${DST_APP}"
+    echo -e "  打补丁时间: ${PATCHED_AT:-（未知）}"
+    if [ -n "$WAS_SRC" ] && [ "$WAS_SRC" = "$NOW_SRC" ]; then
+      echo -e "  ${GREEN}✅ 官方桌面版未变动，补丁版仍然对得上${NC}"
+    else
+      echo -e "  ${RED}⚠️  官方桌面版已更新（asar 内容变了），补丁版已落后${NC}"
+      echo -e "     打补丁时的官方 asar: ${DIM}${WAS_SRC:-未知}${NC}"
+      echo -e "     当前官方 asar      : ${DIM}${NOW_SRC}${NC}"
+      echo -e "     ${YELLOW}处理：重跑 bash desktop/macos/dsh-desktop-patch.sh${NC}"
+      echo -e "     ${DIM}（若补丁不再零 fuzz 应用，需先按 ADAPTING.md 重新适配 patches/）${NC}"
+    fi
+  else
+    echo -e "  ${YELLOW}补丁版存在，但没有来源指纹（可能由旧版脚本产出）${NC}"
+    echo -e "     建议重跑一次：${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}"
+  fi
+
+  # 逐项核对功能标记 —— 证明补丁「真的生效」，而不只是文件被换过
+  if [ -f "$MARKERS" ] && [ -f "$ASAR_TOOL" ]; then
+    miss=0; total=0
+    while IFS=$'\t' read -r rel marker; do
+      case "$rel" in ''|\#*) continue ;; esac
+      [ -n "${marker:-}" ] || continue
+      total=$((total+1))
+      n=$(node "$ASAR_TOOL" cat "$DST_ASAR" "dsh/node_modules/@deepseek-ai/$rel" 2>/dev/null | grep -cF -- "$marker" 2>/dev/null || true)
+      [ "${n:-0}" -ge 1 ] 2>/dev/null || { miss=$((miss+1)); echo -e "  ${RED}✗${NC} 标记未命中: $rel （$marker）"; }
+    done < "$MARKERS"
+    if [ "$miss" -eq 0 ]; then
+      echo -e "  ${GREEN}✅ 补丁版功能标记 ${total}/${total} 全部命中${NC}"
+    else
+      echo -e "  ${RED}⚠️  补丁版有 $miss/$total 个标记未命中 —— 补丁可能已被官方更新覆盖${NC}"
+      echo -e "     处理：${YELLOW}bash desktop/macos/dsh-desktop-patch.sh${NC}"
+    fi
+  fi
 fi
 echo ""

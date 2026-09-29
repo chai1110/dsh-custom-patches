@@ -129,7 +129,50 @@ patch --dry-run -N -p1 < 补丁文件.patch
 > 但归档相关补丁已于 2026-09-28 **全部退役**（官方已原生提供完整链路）。
 > 现在 grep 到 `archiveSession` / `unarchiveSession` 只能说明**官方已内置**，不能再用来判断补丁是否生效。
 
+> ⭐ **机器可读的标记表在 [`tools/patch-markers.tsv`](tools/patch-markers.tsv)** ——
+> 上表是给人看的说明，TSV 是给脚本用的单一数据源。`patch-all.sh` / `desktop/macos/dsh-desktop-patch.sh` /
+> `check-update.sh` 都读它。**新增或修改补丁时，两处都要更新。**
+> 一条命令核对「两面是否都生效」：
+>
+> ```sh
+> bash patch-all.sh --check      # 退出码 0 = CLI 侧与桌面版 9 个标记全绿
+> ```
+
 > **压缩自动重试**：官方 `dsh-llm-retry` 的重试只挂在 `agent/request-error`（正常对话请求），压缩（`dsh-compaction-basic` 直接调 `ctx.llm.stream()`）不走该扩展点，429/限流直接失败。本补丁在 `summarizeWithLlm` 内加重试循环，复用 provider 的 `retryPolicy`（maxRetries/retryableCodes/backoff，settings.yaml 已配），并记录 `llm/retry` 会话事件。详见 `ADAPTING.md`。
+
+---
+
+## 桌面版（Electron）
+
+**桌面版是独立的第四个面**，用的是**同一套 `patches/**`**，但要打到签名过的 `app.asar` 里。
+完整说明见 [`desktop/README.md`](desktop/README.md)。
+
+| 桌面版版本 | 补丁可用？ | 备注 |
+|---|---|---|
+| **0.2.0-rc.2** | ✅ **9/9 零 fuzz 套用 + 9 个功能标记全绿** | ⭐ 当前实测版本。`Info.plist` 的 `CFBundleShortVersionString` 与 asar 内 `@deepseek-ai/dsh` 版本**都是 `0.2.0-rc.2`**。 |
+
+**2026-09-29 实测数据（桌面版 `0.2.0-rc.2`）**：
+
+| 项 | 值 |
+|---|---|
+| 官方 asar | `18d5036b…` · 121,387,457 字节 |
+| 补丁版 asar | `4286629a…` · 123,850,535 字节 |
+| 未改动条目 | **12,964 / 12,964 逐字节一致** |
+| 替换条目 | 9 / 9，缺失 0，意外变化 0 |
+| 功能标记 | 9 / 9 命中 |
+| 可复现性 | 脚本两次运行产出的 asar **逐字节相同** |
+| 重签名 | ad-hoc，`valid on disk` + `satisfies its Designated Requirement` |
+| 两面一致性 | CLI 侧与桌面版标记计数**逐项相等**（2/2、2/2、1/1、1/1、1/1、1/1、2/2、3/3、11/11） |
+
+**桌面版特有的两个坑**：
+
+1. **走 nightly 自动更新** —— 官方包一更新，补丁就被覆盖。`bash check-update.sh` 会比对
+   打补丁时记录的「来源指纹」（官方 asar 的 sha256）并重查功能标记，提示是否要重跑。
+2. **与官方版共用 user-data** —— 单实例锁 + 固定端口 `19387`，两者不能同时运行。
+   补丁版是**独立的一份 app**（默认 `~/Applications/DeepSeek Harness Patched.app`），回滚就是删掉它。
+
+> **Windows 桌面版是独立模块**，待他人贡献 —— 交付清单与「合并判据」见
+> [`desktop/windows/README.md`](desktop/windows/README.md)。
 
 ---
 

@@ -39,16 +39,33 @@ const APP_NAME = 'DeepSeek Harness';
 const DEFAULT_PORT = 19387;
 
 // 补丁应用成功的功能标记（校验新 asar 必须命中）
-const MARKERS = [
-  ['dsh-api-session-controller/lib/index.js', 'editLastPrompt'],
-  ['dsh-client-ui-conversation/lib/client.js', 'recallHistory'],
-  ['dsh-compaction-basic/lib/index.js', 'compactionBackoffDelay'],
-];
-
+// 单一数据源：tools/patch-markers.tsv（patch-all.sh / desktop/macos 脚本 / check-update.sh 读同一份）。
+// 2026-09-29 起从「内置 3 项」改为读该表（9 项）—— 覆盖全部 9 个补丁目标，不再只抽查 3 个。
 const PKG_PREFIX = '/dsh/node_modules/@deepseek-ai/';
 
 // 本脚本位于 <repo>/desktop/windows/，补丁集在仓库根的 patches/
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+const MARKERS_FILE = path.join(REPO_ROOT, 'tools', 'patch-markers.tsv');
+
+function loadMarkers() {
+  const fallback = [
+    ['dsh-api-session-controller/lib/index.js', 'editLastPrompt'],
+    ['dsh-client-ui-conversation/lib/client.js', 'recallHistory'],
+    ['dsh-compaction-basic/lib/index.js', 'compactionBackoffDelay'],
+  ];
+  if (!fs.existsSync(MARKERS_FILE)) {
+    console.warn(`${'\x1b[1;33m'}[!!]${'\x1b[0m'} 未找到 tools/patch-markers.tsv，退回内置的 3 项标记`);
+    return fallback;
+  }
+  const rows = fs.readFileSync(MARKERS_FILE, 'utf8').split(/\r?\n/)
+    .filter((l) => l.trim() && !l.trimStart().startsWith('#'))
+    .map((l) => l.split('\t').map((s) => s.trim()))
+    .filter((c) => c.length >= 2 && c[0] && c[1]);
+  return rows.length ? rows : fallback;
+}
+
+const MARKERS = loadMarkers();
 
 /* ---------------- 小工具 ---------------- */
 const RED = '\x1b[0;31m', GREEN = '\x1b[0;32m', YELLOW = '\x1b[1;33m', NC = '\x1b[0m';
@@ -275,17 +292,30 @@ function main() {
     info(`patch: ${patchBin}`);
 
     // 幂等判断：先反向 dry-run。已打过补丁的文件反向试套会成功（exit 0 且无 Unreversed），
-    // 原始文件则报 "Unreversed patch detected" 且 exit 1 —— 据此区分「已应用 / 待应用」。
+    // 原始文件则被跳过且 exit 1 —— 据此区分「已应用 / 待应用」。
     // （正向 dry-run 不能用来判断：本仓库有补丁在已应用的文件上仍能正向套上，会重复叠加。）
+    //
+    // ⚠️⚠️ 两次调用都必须带 `-N`（--forward），这是 **macOS 上能否跑通的关键**：
+    //   BSD patch 在「反向套不上」时会**交互式追问** `Unreversed patch detected! Ignore -R? [n]`，
+    //   没有 `-N` 就会卡在等待输入 —— 表现为脚本**零输出直接死掉**（被环境的命令守卫
+    //   SIGTERM 掉，退出码 137），极难排查。GNU patch（Windows 用 Git for Windows）行为不同，
+    //   所以这个问题**只在 macOS 上暴露**，正是本文档「平台差异」里预判的 BSD/GNU 差异。
+    //   加上 `-N` 后：未打补丁的文件干净地输出
+    //   `Ignoring previously applied (or reversed) patch.` 并 exit 1，可稳定解析。
+    //
+    //   2026-09-29 macOS 实测（桌面版 0.2.0-rc.2，同一目录同一文件）：
+    //     patch --dry-run --reverse -p1          → 卡死 / SIGTERM
+    //     patch --dry-run -N -F 0 --reverse -p1  → exit 1，输出 5 out of 5 hunks ignored ✅
+    //   `-F 0` 同样必要：默认 fuzz=2 会容忍上下文不匹配，可能在错误的锚点上「成功」。
     const classify = j => {
       const run = args => {
         const r = spawnSync(patchBin, args, { cwd: tmp, input: fs.readFileSync(j.patch), encoding: 'utf8' });
         return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
       };
-      const rev = run(['--dry-run', '-R', '-p1', j.rel]);
-      if (rev.status === 0 && !/Unreversed|FAILED|Skipping|ignored/i.test(rev.out)) return 'applied';
-      const fwd = run(['--dry-run', '-N', '-p1', j.rel]);
-      if (fwd.status !== 0 || /FAILED|Unreversed|ignored/i.test(fwd.out)) { console.error(fwd.out); return 'fail'; }
+      const rev = run(['--dry-run', '-N', '-F', '0', '--reverse', '-p1', j.rel]);
+      if (rev.status === 0 && !/Unreversed|FAILED|Skipping|ignored|Ignoring/i.test(rev.out)) return 'applied';
+      const fwd = run(['--dry-run', '-N', '-F', '0', '-p1', j.rel]);
+      if (fwd.status !== 0 || /FAILED|Unreversed|ignored|Ignoring/i.test(fwd.out)) { console.error(fwd.out); return 'fail'; }
       return 'pending';
     };
 
@@ -306,7 +336,7 @@ function main() {
     if (pending.length === 0) warn('补丁全部处于「已应用」状态，生成的 asar 将与原文件内容一致');
 
     for (const j of pending) {
-      const r = spawnSync(patchBin, ['-N', '-p1', j.rel], { cwd: tmp, input: fs.readFileSync(j.patch), encoding: 'utf8' });
+      const r = spawnSync(patchBin, ['-N', '-F', '0', '-p1', j.rel], { cwd: tmp, input: fs.readFileSync(j.patch), encoding: 'utf8' });
       const out = (r.stdout || '') + (r.stderr || '');
       if (r.status !== 0 || /FAILED|Rejected|ignored/i.test(out)) { console.error(out); die(`${path.basename(j.patch)} 应用失败`); }
       info(`${j.rel.padEnd(52)} 已应用`);

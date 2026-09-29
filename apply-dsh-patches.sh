@@ -34,29 +34,50 @@ FILES=(
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 1. 定位 DSH 安装目录（跨平台：macOS / Linux / Windows）
+#    方法 0：外部显式指定 —— 若调用方（如 patch-all.sh）已设好 DSH_DIR，直接采用，跳过探测。
+#            用途：本机 DSH 装在自建 node 目录（~/.local/node-v24/lib/node_modules）时，
+#            `npm root -g` 可能解析到另一个 node 而探测失败，此时由调用方传入最可靠。
 #    方法 A：npm root -g（最可靠——npm 全局根，任何平台都返回正确值）
 #    方法 B：require.resolve 兜底（用 [\\/] 兼容 Windows 反斜杠路径）
 #    方法 C：常见全局目录扫描兜底（含 Windows %APPDATA%/%LOCALAPPDATA%）
-DSH_DIR=""
-GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
-if [ -n "$GLOBAL_ROOT" ] && [ -d "$GLOBAL_ROOT/@deepseek-ai/dsh" ]; then
-  DSH_DIR="$GLOBAL_ROOT/@deepseek-ai/dsh"
-fi
-if [ -z "$DSH_DIR" ]; then
-  DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json$/,''))}catch(e){console.log('')}" 2>/dev/null)
-fi
-# ⚠️ $APPDATA / $LOCALAPPDATA 在 macOS / Linux 上未定义：旧写法 "$LOCALAPPDATA"/*/node_modules
-# 会展开成 /*/node_modules，让 find 去扫根目录下的每一层（慢且可能命中无关目录）。
-# 改为 ${VAR:-} 判空 + 逐目录探测，POSIX 安全，且不依赖数组。
-if [ -z "$DSH_DIR" ]; then
-  for _base in /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
-               "${APPDATA:-/nonexistent}/npm/node_modules" \
-               "${LOCALAPPDATA:-/nonexistent}/npm/node_modules"; do
-    if [ -d "$_base" ]; then
-      DSH_DIR=$(find "$_base" -maxdepth 4 -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
-      if [ -n "$DSH_DIR" ]; then break; fi
+DSH_DIR="${DSH_DIR:-}"
+if [ -n "$DSH_DIR" ] && [ -d "$DSH_DIR/node_modules/@deepseek-ai" ]; then
+  echo -e "${GREEN}✅ 使用调用方指定的 DSH: $DSH_DIR${NC}"
+else
+  DSH_DIR=""
+  GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
+  if [ -n "$GLOBAL_ROOT" ] && [ -d "$GLOBAL_ROOT/@deepseek-ai/dsh" ]; then
+    DSH_DIR="$GLOBAL_ROOT/@deepseek-ai/dsh"
+  fi
+  if [ -z "$DSH_DIR" ]; then
+    DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json$/,''))}catch(e){console.log('')}" 2>/dev/null)
+  fi
+  # 方法 C′：顺着 `dsh` 可执行文件反推（覆盖自建 node 目录 / nvm / volta）
+  if [ -z "$DSH_DIR" ]; then
+    _exe=$(command -v dsh 2>/dev/null || echo "")
+    if [ -n "$_exe" ]; then
+      _real=$(node -e "try{console.log(require('fs').realpathSync(process.argv[1]))}catch(e){console.log('')}" "$_exe" 2>/dev/null)
+      case "$_real" in
+        */@deepseek-ai/dsh/lib/bin.js) DSH_DIR="${_real%/lib/bin.js}" ;;
+        */@deepseek-ai/dsh/*)          DSH_DIR="${_real%%/@deepseek-ai/dsh/*}/@deepseek-ai/dsh" ;;
+      esac
     fi
-  done
+  fi
+  # ⚠️ $APPDATA / $LOCALAPPDATA 在 macOS / Linux 上未定义：旧写法 "$LOCALAPPDATA"/*/node_modules
+  # 会展开成 /*/node_modules，让 find 去扫根目录下的每一层（慢且可能命中无关目录）。
+  # 改为 ${VAR:-} 判空 + 逐目录探测，POSIX 安全，且不依赖数组。
+  if [ -z "$DSH_DIR" ]; then
+    for _base in /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
+                 "$HOME"/.local/*/lib/node_modules \
+                 "$HOME"/.nvm/versions/node/*/lib/node_modules \
+                 "${APPDATA:-/nonexistent}/npm/node_modules" \
+                 "${LOCALAPPDATA:-/nonexistent}/npm/node_modules"; do
+      if [ -d "$_base/@deepseek-ai/dsh" ]; then
+        DSH_DIR="$_base/@deepseek-ai/dsh"
+        break
+      fi
+    done
+  fi
 fi
 if [ -z "$DSH_DIR" ]; then
   echo -e "${RED}❌ 未找到 DSH 安装目录，请先安装 @deepseek-ai/dsh@$TARGET_VERSION${NC}"
@@ -111,11 +132,21 @@ for entry in "${FILES[@]}"; do
   # 应用
   # 注意 -F 0：patch 默认 fuzz=2，会容忍上下文行不匹配（＝可能在错误的锚点上"成功"）。
   # 零模糊才能真正证明锚点未被上游改动（见 ADAPTING.md 铁律 3）。
-  if patch --dry-run -N -F 0 -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
+  #
+  # ⚠️⚠️ 顺序不能反：**必须先做「反向 dry-run」判断是否已套用，正向 dry-run 只能放在 elif。**
+  # 本补丁集里有**纯插入型**补丁（典型：api-session-controller/lib/client.js），
+  # 它插入的那段代码不破坏自身的上下文行，所以套用之后**正向 dry-run 依然会成功**。
+  # 而 `patch -N`（--forward）只抑制「正向失败」的补丁，对这种情况完全无效 ——
+  # 结果就是同一个补丁被**套用两遍**。
+  # 2026-09-29 实测事故：该文件被插入两遍，3674 行 → 3698 行，
+  # `editLastPrompt` 从应有的 2 次变成 4 次（重复的函数定义）。
+  # 反向 dry-run 在「未套用」时必然失败、在「已套用」时才成功，是唯一可靠的判据；
+  # tools/dsh-patch.mjs 就是这么做的（isAlreadyApplied 先于 applyPatch）。
+  if patch --dry-run -N -F 0 -p1 --reverse "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
+    echo -e "  ${YELLOW}ℹ️  已是打过补丁的状态，跳过: $rel_path${NC}"
+  elif patch --dry-run -N -F 0 -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
     patch -N -F 0 -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1
     echo -e "  ${GREEN}✅ 已应用: $rel_path${NC}"
-  elif patch --dry-run -N -F 0 -p1 --reverse "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
-    echo -e "  ${YELLOW}ℹ️  已是打过补丁的状态，跳过: $rel_path${NC}"
   else
     echo -e "  ${RED}❌ 应用失败: $rel_path${NC}"
     echo -e "    可能是补丁已应用或文件已被改动。可尝试：cp '$full_path.bak' '$full_path' 后重跑。"

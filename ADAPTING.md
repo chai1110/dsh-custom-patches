@@ -72,6 +72,29 @@ git push
 ### 第 5 步：验证
 在其他设备 / 干净环境跑一遍 `bash install-dsh-custom.sh -y` 确认成功，再重启 `dsh web` 实测功能。
 
+### 第 6 步：别忘了桌面版（Electron）
+
+**适配完 CLI 侧不等于适配完了。** 桌面版的 dsh 运行时封在签名过的 `app.asar` 里，
+用的是**同一套 `patches/**`**，但要打到另一个目标上：
+
+```bash
+bash patch-all.sh          # CLI 侧 + 桌面版一次打完，并交叉核对功能标记
+bash patch-all.sh --check  # 只核对（推荐先用这个看现状）
+```
+
+判断「两面是否真的都生效」看 `patch-all.sh` 输出的矩阵 —— 每一行两列都必须 ≥1。
+`--check` 退出码 0 即全绿。
+
+桌面版特有的注意点（完整说明见 [`desktop/README.md`](desktop/README.md)）：
+
+| 点 | 说明 |
+|---|---|
+| **补丁文件共用** | 不新增补丁文件，直接复用 `patches/**`；只有「打到哪里」不同 |
+| **零 fuzz 同样适用** | 桌面脚本用 `-N -F 0 -p1`；桌面版与 CLI 版的官方代码**可能不同**，一侧能套不代表另一侧能套 |
+| **必须重签名** | 改完 asar 要 ad-hoc 重签，否则 macOS 拒绝启动；`Info.plist` 不用改（保险丝 `EnableEmbeddedAsarIntegrityValidation = 0`） |
+| **夜间更新会覆盖** | 桌面版走 nightly 自动更新，官方包一更新就得重跑；`bash check-update.sh` 会比对「来源指纹」提醒你 |
+| **标记表要同步** | 新增/修改补丁时更新 [`tools/patch-markers.tsv`](tools/patch-markers.tsv)，三个脚本都读它 |
+
 ---
 
 ## ⚙️ 一次新版更新的总清单（npm 版 + 桌面版 + 配置 + 插件）
@@ -461,6 +484,16 @@ patch --dry-run -N -F 0 -p1 <target> < <patch>   # -F 0 = 零模糊，锚点必�
 本轮两轮结果一致（都 9/9），所以可以确信锚点真的没漂。
 **若 `-F 0` 失败而默认通过 —— 说明锚点已漂，必须重打，否则套用位置可能错位。**
 
+> ⚠️ **2026-09-29 补充更正（重要）：`-F 0` 只关掉 fuzz，不关掉 offset。**
+> fuzz 与 offset 是 `patch` 的**两个独立旋钮**：`-F 0` 保证「上下文逐字对上」，
+> 但 hunk 落在**第几行**仍然是搜索出来的，offset 会被静默容忍，普通输出里看不见。
+> 实测本补丁集在官方原版上 `-F 0` 套用：**42 个 hunk 里有 21 个不在 `@@` 声明的那一行**
+> （最大偏 273 行，还出现过负偏移）。
+> ⇒ 想真正证明「位置没漂」，要么用 `patch --verbose` 看 offset 是否为 0，
+> 要么用 `node tools/dsh-patch.mjs --dry-run`（它会主动打印
+> `N hunk(s) matched at a different line than declared`）。
+> 详见下文「更正：`-F 0` 保证的是「零模糊」，**不是**「零偏移」」。
+
 ### 验证清单（全部通过）
 
 | 检查项 | 结果 |
@@ -584,24 +617,236 @@ Node 本来就是装 DSH 的硬前置，因此把套用逻辑搬进 Node 可以�
   版本不匹配的建议改为 `git checkout v$VERSION`；重启/刷新提示按 `uname -s` 分支；
   失败时的恢复指引改为推荐 `node tools/dsh-patch.mjs --restore`。
 - `apply-dsh-patches.sh`：dry-run 加 **`-F 0`**（零模糊，落实铁律 3）；
-  新增「已是补丁态」的 reverse 检测；重启/刷新提示按平台分支。
+  新增「已是补丁态」的 reverse 检测（**必须放在正向检测之前**，见下方「纯插入型补丁」）；
+  重启/刷新提示按平台分支。
 - `ADAPTING.md` 第 1 步：查版本改为同时看 `latest` 与 `next`。
 
-### ⚠️ 验证状态
+### ✅ 验证状态：已全部实跑通过（2026-09-29，macOS 真机）
 
-**`tools/dsh-patch.mjs` 尚未实际运行过。** 本机 shell 在写入该文件后即不可用
-（所有命令返回 exit 137 / SIGTERM，子代理同样如此），因此**没有跑过任何一次执行验证**。
-下次可执行时，必须补做：
+> 本节此前写着「**`tools/dsh-patch.mjs` 尚未实际运行过**」——那是沙箱不可用期间的如实记录。
+> **现已补做，且全部通过。** 下面是实测结果，不再是待办清单。
+
+环境：macOS（Apple Silicon），DSH `0.2.0-rc.1`，`node v24`（`~/.local/node-v24`）。
+
+#### 1. `tools/dsh-patch.mjs` —— 5 步全过
 
 ```bash
-node --check tools/dsh-patch.mjs                       # 语法
-node tools/dsh-patch.mjs --dry-run                     # 应 9/9 干净
-node tools/dsh-patch.mjs -y                            # 实套 + node --check
-node tools/dsh-patch.mjs -y                            # 幂等：应全部跳过
-node tools/dsh-patch.mjs --restore                     # 恢复
+node --check tools/dsh-patch.mjs      # ✅ 语法通过
+node tools/dsh-patch.mjs --list       # ✅ 列出 9 条，patch/marker 齐全
+node tools/dsh-patch.mjs --dry-run    # ✅ 定位到真机安装，9/9 全部「已存在 → 跳过」
+node tools/dsh-patch.mjs -y           # ✅ 隔离夹具上实套 9/9，0 失败，exit 0
+node tools/dsh-patch.mjs -y           # ✅ 幂等：第二次全部跳过，exit 0
+node tools/dsh-patch.mjs --restore    # ✅ 9/9 从 .bak 还原，exit 0
 ```
 
-**在这四步跑通之前，不要把本文件标为已验证。**
+⚠️ **`--dry-run` 在「已套用」的机器上不会输出「9/9 干净套用」**，而是走功能标记预筛，
+打印 `Every feature is already present ... Nothing to do.`（exit 0）。
+要验证**套用能力**必须用干净目标；本次是在隔离夹具上做的：
+
+```bash
+# 用官方原版（= 各文件的 .bak）搭一个 source 布局夹具，完全不碰真机
+FIX=$(mktemp -d); mkdir -p "$FIX/packages"
+# …按 FILES 表的 sourceRel 把 .bak 拷进 $FIX/packages/…
+DSH_SOURCE="$FIX" node tools/dsh-patch.mjs -y     # 9/9 applied，exit 0
+DSH_SOURCE="$FIX" node tools/dsh-patch.mjs -y     # 全部 skip
+DSH_SOURCE="$FIX" node tools/dsh-patch.mjs --restore
+```
+
+#### 2. shell 版两个脚本 —— macOS 自带 bash 3.2 下实跑通过
+
+```bash
+/bin/bash --version          # GNU bash, version 3.2.57(1)-release (arm64-apple-darwin25)
+/bin/bash -n install-dsh-custom.sh && /bin/bash -n apply-dsh-patches.sh   # ✅ 语法
+/bin/bash install-dsh-custom.sh -y   # ✅ 定位到真机、版本诊断正确、9/9 跳过
+/bin/bash apply-dsh-patches.sh       # ✅ 9/9 识别为「已打过补丁，跳过」
+```
+
+> 为什么要专门在 **3.2** 上跑：Windows 的 Git for Windows 自带 bash **5.x**，
+> 很多 bash 3.2 才有的坑在 Windows 侧永远暴露不出来。macOS 的 `/bin/bash` 至今仍是 3.2.57。
+
+#### 3. 真机安装状态（复核）
+
+| 检查项 | 结果 |
+|---|---|
+| live 文件 == 「官方 `.bak` + 补丁一次」 | **9/9 逐字节一致** |
+| 反向 dry-run（`-F 0`） | **9/9 命中**，证明 9 个补丁都在位 |
+| `.bak` / `.rej` / `.orig` | 9 / 0 / 0 |
+
+### ⭐⭐ 严重 bug：shell 版会**重复套用**纯插入型补丁（2026-09-29 已修）
+
+**这是真机跑出来的事故，不是理论推演。** `apply-dsh-patches.sh` 把
+`dsh-api-session-controller/lib/client.js` 的补丁**套了两遍**：
+
+| | 行数 | `editLastPrompt` 出现次数 |
+|---|---|---|
+| 官方原版（`.bak`） | 3674 | 0 |
+| 正确（补丁一次） | 3686 | 2 |
+| **事故现场** | **3698** | **4**（重复的函数定义） |
+
+#### 根因：正向 dry-run 分不清「没套过」和「套过了」
+
+原逻辑是「正向 dry-run 成功 → 套用；否则再看反向」：
+
+```bash
+if   patch --dry-run -N -F 0 -p1           ...; then patch -N -F 0 -p1 ...      # ❌ 危险
+elif patch --dry-run -N -F 0 -p1 --reverse ...; then echo "已套用，跳过"
+```
+
+**`patch -N`（`--forward`）只抑制「正向失败」的补丁**，它对「正向又成功了一次」无能为力。
+而这个补丁是**纯插入**：插进去的那段代码不破坏它自己的上下文行，所以套用之后
+**正向 dry-run 依然成功**。实测：
+
+| 文件状态 | 正向 dry-run | 反向 dry-run |
+|---|---|---|
+| 官方原版 | ✅ 成功（应成功） | ❌ 失败 ✓ |
+| **已套用一次** | **✅ 成功 ← 元凶** | ✅ 成功 ✓ |
+
+⇒ 唯一可靠的判据是**反向 dry-run**，而且必须**放在正向之前**。
+
+#### 修法
+
+两个脚本统一改成「**反向优先**」：
+
+```bash
+if   patch --dry-run -N -F 0 -p1 --reverse ...; then echo "已套用，跳过"   # ✅ 先判
+elif patch --dry-run -N -F 0 -p1           ...; then patch -N -F 0 -p1 ...  # 再套
+else echo "套用失败"
+```
+
+回归验证（就是拿当初出事的那台机器、那个文件复现）：
+
+```
+修复前：✅ 已应用: dsh-api-session-controller/lib/client.js     ← 又套了一遍
+修复后：ℹ️  已是打过补丁的状态，跳过: ...                         ← 9/9 全部跳过
+```
+
+> `tools/dsh-patch.mjs` **没有这个 bug** —— 它的 `isAlreadyApplied()` 本来就在
+> `applyPatch()` **之前**调用。shell 版这次是补齐到同一语义。
+
+### ⚠️ 更正：`-F 0` 保证的是「零模糊」，**不是**「零偏移」
+
+本文件「铁律 3」此前只说 `-F 0` 能证明锚点精确命中。**这句话不够准确。**
+`patch` 的 **fuzz** 与 **offset** 是两个独立的旋钮，`-F 0` 只关掉前者；
+**hunk 落在哪一行仍然靠搜索**，offset 照旧被静默容忍。
+
+实测（官方原版 `.bak` 上、`-F 0` 套用本补丁集）：
+
+| 文件 | hunks | 有 offset | 最大 \|offset\| |
+|---|---|---|---|
+| dsh-api-session-controller/lib/index.js | 5 | 0 | 0 |
+| dsh-api-session-controller/lib/client.js | 1 | 0 | 0 |
+| dsh-api-session-controller/lib/typert.host.js | 3 | 0 | 0 |
+| dsh-api-session-controller/lib/typert.remote-client.js | 2 | 0 | 0 |
+| dsh-api-remotes/lib/client.js | 2 | **2** | **273** |
+| dsh-agent-loop/lib/index.js | 2 | **2** | 15 |
+| dsh-compaction-basic/lib/index.js | 2 | 0 | 0 |
+| dsh-client-ui-conversation/lib/client.js | 13 | **5** | 51 |
+| dsh-client-ui-chat/lib/client.js | 12 | **12** | **142** |
+| **合计** | **42** | **21** | 273 |
+
+⇒ **42 个 hunk 里有 21 个不在 `@@` 声明的那一行**，最大偏 273 行，还出现过**负偏移**。
+说明这些补丁的 `@@` 行号与正文**已经脱节**（正文被手工改过 / 从别的基线生成过），
+只是靠「全文件搜索唯一命中」才照样套上。
+
+**两个后果，都要记住：**
+
+1. **`patch` 默认不告诉你。** 上面这张表是加 `--verbose` 才看到的
+   （`Hunk #6 succeeded at 5266 (offset 129 lines).`）；不加就**只有一行 `patching file`**，
+   偏移 142 行也照样静默。
+   ⇒ 以后判断「锚点有没有漂」，**不能只看 `-F 0` 的成败**，要看 `--verbose` 的 offset 是否为 0。
+2. **`tools/dsh-patch.mjs` 会主动报出来**：`21 hunk(s) matched at a different line than declared`。
+   这是它比 shell 版**更严**的地方，不是它算错了 —— 已交叉验证：
+   对同样 9 个文件，它和系统 `patch` 的**产出逐字节一致**（9/9 `cmp` 相同）。
+
+#### ⚠️ 注意：macOS 的 `patch` 不是 GNU patch
+
+```sh
+patch --version     # macOS: patch 2.0-12u11-Apple   ← BSD 系（Apple 自带）
+                    # Linux / Git for Windows: GNU patch 2.7.x
+```
+
+这不是学术细节，**行为确实不同**：
+
+| | macOS（Apple patch 2.0） | GNU patch |
+|---|---|---|
+| 默认打印 hunk 偏移 | ❌ **只有 `--verbose` 才打印** | ✅ 默认打印 `Hunk #N succeeded at ... (offset ...)` |
+| 备份后缀 | `.orig`（`-z` 默认） | `.orig` |
+| 触发 `.orig` 的时机 | 用到 fuzz/offset，**或补丁失败**，或显式 `-b` | 同左（`--backup-if-mismatch`） |
+
+⇒ **同一个补丁在 macOS 上「安静地成功了」，在 Windows/Linux 上会刷出一屏 offset 提示。**
+两边看到的信息量不同，很容易得出不同结论 —— 这也是「双平台都跑一遍」的价值所在。
+
+**另外**：Apple patch 2.0 要求 hunk 是**标准 3 行上下文**的形式。
+自己手搓最小复现用例时如果只给 1 行前导上下文，它会直接判 hunk 失败（并留下 `.rej`），
+看起来像"补丁坏了"，其实是用例不合规。
+
+> **`.orig` 的判定含义（已实测确认）**：
+> 上下文全对 + `-F 0` 成功 → **不生成** `.orig`；
+> 上下文失配 + `-F 2` 被 fuzz 兜住且成功 → **生成** `.orig`。
+> 所以「有 `.orig`」确实等价于「那一次用上了 fuzz/offset」。
+> 但要注意**补丁失败时也会生成 `.orig`（并伴随 `.rej`）**，
+> 所以看到 `.orig` 不能直接断定"套用是成功的但模糊的"，得连 `.rej` 一起看。
+
+> **待办（不影响使用）**：用 `diff -u` 从「官方原版 → 打过补丁」重新生成一次补丁，
+> 让 `@@` 行号归零。那之后「`-F 0` + 零 offset」才是一个**真正的完整性校验**，
+> 可以在每次适配时用来抓上游漂移。当前状态只是「锚点还在」，行号是历史遗留。
+
+### ⚠️ 更正：macOS bash 3.2 下 `${#arr[@]}` 是**安全**的，危险的是展开
+
+`install-dsh-custom.sh` 里那段注释写的是：
+
+> 不用数组（macOS 自带 bash 3.2 在 set -u 下 `${#arr[@]}` 空数组会报未绑定）
+
+**这个理由说反了。** 实测（`/bin/bash` 3.2.57，`a=()`，`set -u`）：
+
+| 写法 | 结果 |
+|---|---|
+| `${#a[@]}` | ✅ `rc=0`，输出 `len=0` |
+| `"${a[@]}"` 展开 | ❌ `rc=127`，`a[@]: unbound variable` |
+| `${a[@]}` 裸展开 | ❌ `rc=127`，同上 |
+| `"${a[@]}"` 传参 | ❌ `rc=127`，同上 |
+| `"${a[@]:-}"` | ✅ `rc=0` |
+| `"${!a[@]}"` | ✅ `rc=0` |
+
+⇒ 数长度**安全**，**展开**空数组才炸。代码本身没问题（定位那段确实不需要数组，
+且脚本里 `"${FILES[@]}"` / `"${APPLY[@]}"` 展开时都保证非空），
+但**注释给的理由是错的**，会误导后人 —— 比如误以为 `${#arr[@]}` 不能用，
+或者反过来以为 `"${arr[@]}"` 可以放心展开。已按实测改正。
+
+### ⚠️ 判定文件是否存在，别用「多 glob 拼一条命令」
+
+同一天还踩了一个**让检查结果完全反掉**的坑，两个平台都会中：
+
+```sh
+ls -1 "$NM"/*/lib/*.bak "$NM"/*/lib/*.orig 2>/dev/null || echo "(无任何备份文件)"
+```
+
+zsh 只要**任意一个** glob 无匹配，就整体报 `no matches found` 并**中止整条命令**；
+`2>/dev/null` **拦不住**（那是 shell 自己的错误，不是命令的 stderr）。
+⇒ `ls` 根本没执行，直接落到 `||` 分支，于是打印「无任何备份文件」——
+**实际 9 个 `.bak` 一个不少。** 详见下文「更正：本机 `.bak` 是齐全且干净的」。
+
+```sh
+# ✅ 正确：不匹配就安静返回空
+find <dir> -name '*.bak'
+```
+
+### ⚠️ 用 BSD grep 时，`\|` 不是「或」
+
+同一天第三次被同一族问题绊到。macOS 的 grep 是 **BSD grep**，BRE 里**不支持** `\|` 交替：
+
+```sh
+grep -n 'LOCALAPPDATA\|APPDATA' file      # ❌ 被当成字面量 "LOCALAPPDATA|APPDATA"，永远无输出
+grep -nE 'LOCALAPPDATA|APPDATA' file      # ✅ 用 -E 走 ERE
+```
+
+它**不报错、不警告，只是静默返回空**。危害在于：一旦拿它做判断
+（`grep -q ... || echo "没有"`、或 `diff <(grep A) <(grep B)`），
+就会得到「文件里没有 X」或「两边一样」这类**看起来很确定的错误结论** ——
+本次就因此一度误判 `install-dsh-custom.sh` 里没有 `${APPDATA:-}` 兜底（其实有）。
+同族的还有 **BSD grep 不支持 `\s`**：`grep -E '^\s+id:'` 恒无输出，
+`diff <(grep ...) <(grep ...)` 于是变成「空 vs 空」→ 假 ✅。
+**对策：用 `grep -E`，或直接改用带类型的搜索工具。**
 
 ---
 
@@ -703,40 +948,141 @@ node tools/dsh-patch.mjs -y           # 重新套用修好的补丁
 > 由 launchd `com.csl.dsh-web` 拉起；DSH 版本 **`0.2.0-rc.1`**（与 `TARGET_VERSION` 一致）。
 > 改完必须重启才生效：`launchctl kickstart -k gui/$(id -u)/com.csl.dsh-web`。
 
-### 🐞 顺带发现：本机安装**没有 `.bak`**，还原路径是断的
+### ⚠️ 更正：本机 `.bak` 是**齐全且干净**的（此前一次误判）
 
-`@deepseek-ai/` 下备份文件的实际情况：
+> ⛔ **2026-09-29 更正。** 本文档早前版本写过「本机安装**没有 `.bak`**，还原路径是断的」——
+> **那是错的**，根因是一条不可靠的检查命令，见下方「为什么会被骗」。
 
-| 备份形态 | 文件 |
+实测（`find "$NM" -name '*.bak'`）：
+
+| 备份形态 | 实际数量 |
 |---|---|
-| **`.bak`**（脚本自己 `cp` 出来的） | **0 个** |
-| `.orig`（`patch` 在**需要模糊匹配时**自动生成的） | 4 个：`dsh-agent-loop/lib/index.js`、`dsh-api-remotes/lib/client.js`、`dsh-client-ui-chat/lib/client.js`、`dsh-client-ui-conversation/lib/client.js` |
-| 无任何备份 | 5 个：`dsh-api-session-controller` 的 4 个文件 + `dsh-compaction-basic/lib/index.js` |
+| **`.bak`**（脚本自己 `cp` 出来的，`--restore` 的依据） | **9 / 9，齐全** |
+| `.orig` | 0 个 |
+| `.rej` | 0 个 |
 
-两个后果：
+且 9 个 `.bak` **全部是干净的官方原版** —— 逐个 grep 三个功能标记，命中数**全为 0**：
 
-1. **`.bak` 是脚本的还原依据**（`--restore`、以及失败提示里的 `cp "$full_path.bak" "$full_path"`）。
-   本机一个都没有 ⇒ 那 5 个文件**无法还原成官方原版**，只能重装官方包。
-2. ⚠️ `.orig` 只在 `patch` **用了模糊匹配（fuzz）或偏移**时才生成
-   （GNU patch 的 `--backup-if-mismatch` 默认开启）。
-   这 4 个文件存在 `.orig`，说明**当时的套用不是零模糊的** ——
-   正好印证了「必须加 `-F 0`」这条铁律：旧脚本没有 `-F 0`，允许 fuzz=2，
-   「套用成功」并不能证明锚点精确命中。
+```
+dsh-agent-loop/lib/index.js.bak                    editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-api-remotes/lib/client.js.bak                  editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-api-session-controller/lib/client.js.bak       editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-api-session-controller/lib/index.js.bak        editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-api-session-controller/lib/typert.host.js.bak  editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-api-session-controller/lib/typert.remote-client.js.bak  editLastPrompt=0  ...
+dsh-client-ui-chat/lib/client.js.bak               editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-client-ui-conversation/lib/client.js.bak       editLastPrompt=0  recallHistory=0  compactionBackoff=0
+dsh-compaction-basic/lib/index.js.bak              editLastPrompt=0  recallHistory=0  compactionBackoff=0
+```
 
-> 结论：**换机器/重装后，先确认 `.bak` 是否齐全，再相信还原路径。**
-> 重装官方包是唯一 100% 干净的基线：`npm install -g @deepseek-ai/dsh@0.2.0-rc.1`。
+⇒ **`node tools/dsh-patch.mjs --restore` 在本机是可用的。**
 
-### ⚠️ 仍未做的验证
+#### 为什么会被骗：zsh 的 glob 让整条命令没跑
 
-真机**功能级**验证（改动已落盘，但 DSH 尚未重启，且沙箱不可用无法自动化）：
+当时用的是：
+
+```sh
+ls -1 "$NM"/*/lib/*.bak "$NM"/*/lib/*.orig 2>/dev/null || echo "(无任何备份文件)"
+```
+
+zsh 遇到**任意一个** glob 无匹配，就整体报 `no matches found` 并**中止这条命令** ——
+`2>/dev/null` **拦不住**（这是 shell 自己的错误，不是命令的 stderr）⇒ `ls` **根本没执行** ⇒
+直接落到 `||` 分支，打印出「无任何备份文件」。**实际 9 个 `.bak` 一个不少。**
+
+> ⭐ **教训：判定文件是否存在，永远不要用「多个 glob 拼在一条 `ls` 里 + `||` 兜底」。**
+> 用 `find <dir> -name '*.bak'`（不匹配就安静返回空），或分开写、每条单独判。
+> 同理适用于 `ls *.a *.b`、`cat *.x *.y` 这类多 glob 命令。
+
+（`.orig` 当时确实存在 4 个，说明**那一次**套用用过模糊匹配；现已被后续的重装/重打清理掉。
+「必须加 `-F 0`」这条铁律依然成立，但**不能再用 `.orig` 的有无来反推历史**。）
+
+### ✅ 真机适配状态：已完成并验证（2026-09-29 01:15）
+
+| 检查项 | 结果 |
+|---|---|
+| 仓库 HEAD vs `origin/main` | `68e9204` = `68e9204`，**0 领先 0 落后**，工作区干净 |
+| 真机 DSH 版本 | **`0.2.0-rc.1`**（= npm `next`；`latest` 仍是 `0.1.7-rc.2`） |
+| 9 个补丁的落地状态 | **9/9 APPLIED** —— `patch --dry-run -N -f -F 0 -p1 --reverse` 全部干净命中 |
+| `.bak` / `.rej` | 9 个干净 `.bak`；**0 个 `.rej`** |
+| 供应商配置 | 5 个模型 id、5 个错误码（含 `QUOTA`）、compat 两项、backoff 三参数 **全部与模板一致** |
+| 服务 | `127.0.0.1:3080` 返回 401（正常鉴权），PID 30469 |
+
+#### ⭐ 零副作用的契约测试（仓库内自带，可直接复现）
+
+用**官方自己的代码**证明修复有效 —— **不起 DSH、不落盘、不碰任何真实会话**：
+
+```sh
+node tools/contract-test-surface-op.mjs
+# 找不到安装位置时可显式指定 @deepseek-ai 目录：
+node tools/contract-test-surface-op.mjs /path/to/@deepseek-ai
+```
+
+分两层：
+
+| 阶段 | 做什么 | 证明什么 |
+|---|---|---|
+| **1 校验层** | 把两种形状直接喂给官方 `validateSurfaceMetadata` | 字段名对不对 |
+| **2 端到端** | 真实 `new Session(...)` + `session.append(..., { surfaceOp })` | **服务端那条唯一会失败的路径真的通了**，且替换语义正确 |
+
+实测输出：
+
+```
+── 阶段 1：官方校验函数 ──
+  [OK  ] 修复后  { op, startSeq, endSeq } -> 通过官方校验  返回 {"op":"replace","startSeq":1,"endSeq":2}
+  [OK  ] 修复前  { op, start, end }       -> 被拒  session event "user/message" carries an invalid replace surfaceOp
+
+── 阶段 2：真实 Session.append（内存，不落盘）──
+  [OK  ] 修复后形状 append 成功，且被替换的事件已从 surface 移除  [0,1] -> [0,2]
+  [OK  ] 修复前形状被拒，文案与真机一致: session event "user/message" carries an invalid replace surfaceOp
+
+[OK] 契约全部符合预期 —— startSeq/endSeq 可用，start/end 被拒，替换语义正确。
+```
+
+三点说明：
+
+- **报错文案与用户真机报的逐字一致** ⇒ 根因确认闭环。
+- **阶段 2 的 `[0,1] -> [0,2]` 是关键**：`[0,1]` 是「提问 + 回复」两个节点；
+  用 replace 指向 seq 1 之后变成 `[0,2]` —— **旧回复确实被从 surface 移除了**，
+  新消息接在其位置。这正是「编辑重发」该有的行为（若只修字段名而没修消费端，这里会看出问题）。
+- 退出码 **0 = 全部符合预期**；**1 = 有不符合预期项**（可用于 CI / 每次升级后回归）。
+  已做**反向自检**：把 `GOOD` 故意改成坏形状，脚本确实返回 1 —— 它不会"永远绿"。
+
+> `isReplaceOp` 本身**没有导出**（`dsh-session/lib/types/surface.js` 只导出
+> `SurfaceManager` / `foldSurface` / `isSurfaceEvent` / `isAppendSurfaceEvent` /
+> `isReplacementSurfaceEvent` / `isSurfaceEligibleType` / `validateSessionEventData` /
+> `validateSurfaceMetadata` / `deriveEventMessage`）。
+> 但 `validateSurfaceMetadata` 会走 `surfaceOpOf` → `isReplaceOp`，
+> **正是抛这条错的那条路径**，所以它是等价且可用的验证入口。
+
+### ⚠️ 仍未做的：**界面**上的一次点击
+
+服务端已由阶段 2 端到端证明通过。剩下的只是**浏览器里的一次人工确认**：
 
 ```bash
-# 重启 DSH 后：打开一个会话，hover 最后一条用户消息 → 点 ✏️ → 改文字 → 保存并重新生成
+# 打开一个会话，hover 最后一条用户消息 → 点 ✏️ → 改文字 → 保存并重新生成
 # 期望：旧回复消失，用新文字重新生成；旧消息不再与新的并列显示
 ```
+
+时间线：补丁落盘 `00:45:17`（9 个文件同一批）→ 最后一次启动 `00:45:31`，
+所以运行中的实例**应当**已带修复。稳妥起见再重启一次：
+
+```sh
+launchctl kickstart -k gui/$(id -u)/com.csl.dsh-web
+```
+
+> 为什么这次可以放心：**当初报错的正是服务端**（`session/edit-rejected` 来自 host 侧），
+> 而阶段 2 跑的 `Session.append` 就是服务端那条路径。
+> 客户端侧（`op.startSeq` / `op.endSeq`）也已用反向 dry-run 验证在真机上。
+
 ---
 
 ## 桌面版（DeepSeek Harness Desktop）app.asar 适配与重装（2026-09-29）
+
+> 📁 **本节的脚本路径已随模块化调整**：桌面版适配现独立在 `desktop/` 目录下，分
+> `desktop/macos/`（macOS 模块，已实测）与 `desktop/windows/`（Windows 模块，他人贡献）两个模块。
+> 下文保留当时的原始路径记录（`desktop/windows/apply-desktop-asar-patches.js`）——该脚本位置不变，
+> 且**其 macOS 分支已于 2026-09-29 在真机实测通过**（修掉了一处 BSD `patch` 无 `-N` 会交互式挂起的 bug）。
+> 模块划分理由与合并判据见 `desktop/README.md`。
 
 桌面版是 Electron 应用，**不走 npm 全局安装**：`dsh` 命令的安装目录、进程、端口（桌面 `127.0.0.1:19387`、网页 `8080`）、
 profile（桌面 `~/.dsh/profiles/desktop`）全部与 npm 版独立，**只有 `~/.dsh` 根目录共享**（`.credentials.yaml` /

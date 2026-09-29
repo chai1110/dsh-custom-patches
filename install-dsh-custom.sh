@@ -114,8 +114,11 @@ else
   # ⚠️ 本脚本是 set -u：$APPDATA / $LOCALAPPDATA 在 macOS / Linux 上**未定义**，
   # 直接引用会让脚本以「unbound variable」中止（用户看到的是 shell 报错，
   # 而不是下面那句友好提示）。故一律用 ${VAR:-} 先判空。
-  # 同时不用数组（macOS 自带 bash 3.2 在 set -u 下 ${#arr[@]} 空数组会报未绑定），
-  # 改为逐目录探测 + 命中即 break，POSIX 安全。
+  # 同时不用数组，改为逐目录探测 + 命中即 break，POSIX 安全。
+  # （更正 2026-09-29：此前注释写的理由是「bash 3.2 下 ${#arr[@]} 空数组会报未绑定」，
+  #  实测**说反了** —— /bin/bash 3.2.57 + set -u 下 ${#arr[@]} 是安全的（输出 0）；
+  #  真正会报 unbound variable 的是**展开**空数组，即 "${arr[@]}" / ${arr[@]}。
+  #  代码没问题，是理由写错了，故此处只保留「不用数组」的结论。）
   if [ -z "$DSH_DIR" ]; then
     for _base in /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
                  "${APPDATA:-/nonexistent}/npm/node_modules" \
@@ -239,14 +242,20 @@ for entry in "${APPLY[@]}"; do
   # 注意 -F 0：patch 默认 fuzz=2，会容忍上下文行不匹配（＝可能在错误的锚点上"成功"）。
   # 零模糊才能真正证明锚点未被上游改动（见 ADAPTING.md 铁律 3）。
   # 本脚本是推荐入口，必须与 apply-dsh-patches.sh 保持同一严格度。
-  if patch --dry-run -N -F 0 -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
+  #
+  # ⚠️⚠️ 顺序不能反：**反向 dry-run 必须放第一位**（理由详见 apply-dsh-patches.sh 同处注释）。
+  # 纯插入型补丁套用后正向 dry-run 仍会成功，`patch -N` 挡不住，会重复套用。
+  # 本脚本另有一层「功能标记」预筛（上面 built-in detection），通常到不了这里；
+  # 但标记判据只覆盖「标记字符串在不在」，一旦标记缺失而补丁其实已套用，
+  # 就会落到这里 —— 所以这里同样必须反向优先。
+  if patch --dry-run -N -F 0 -p1 --reverse "$full_path" < "$patch_file" >/dev/null 2>&1; then
+    info "already in patched state, skip: $rel"; OK=$((OK+1))
+  elif patch --dry-run -N -F 0 -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
     if patch -N -F 0 -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
       ok "applied: $rel"; OK=$((OK+1))
     else
       err "apply failed: $rel (try: cp '$full_path.bak' '$full_path'; then rerun)"; FAIL=$((FAIL+1))
     fi
-  elif patch --dry-run -N -F 0 -p1 --reverse "$full_path" < "$patch_file" >/dev/null 2>&1; then
-    info "already in patched state, skip: $rel"; OK=$((OK+1))
   else
     err "patch cannot apply (official may have changed the code): $rel"; FAIL=$((FAIL+1))
   fi

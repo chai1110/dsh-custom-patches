@@ -29,11 +29,16 @@ and **do not assume every doc is up to date**.
 
 | File | Status | Notes |
 |---|---|---|
-| `tools/dsh-patch.mjs` | ✅ Adapted to 0.2.0-rc.1 | **Recommended installer (all platforms)**; dependency-free Node — no `patch`/`cp`/`find`/`pgrep`, exact (zero-fuzz) matching + `node --check` validation + auto-rollback |
-| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | shell-based main installer; `TARGET_VERSION=0.2.0-rc.1`, 9 patches |
-| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | shell-based alternative installer (no version diagnosis / no built-in detection) |
-| `desktop/windows/apply-desktop-asar-patches.js` | ✅ Verified on 0.2.0-rc.1 / 0.2.0-rc.2 | **Desktop (Electron) installer**: rewrites `resources/app.asar`, reverse dry-run for idempotency + full byte-for-byte verification — see "🖥️ Desktop App Support" below |
-| `check-update.sh` | ✅ Adapted to 0.2.0-rc.1 | Checks whether official has a newer version |
+| `tools/dsh-patch.mjs` | ✅ Adapted to 0.2.0-rc.1 | **Recommended installer (all platforms)**; dependency-free Node — no `patch`/`cp`/`find`/`pgrep`, exact (zero-fuzz) matching + `node --check` validation + auto-rollback; **checks "already applied" in reverse before applying** (prevents double-application) |
+| `tools/contract-test-surface-op.mjs` | ✅ Actually run on a real machine | `surfaceOp` contract test (zero side effects — writes nothing, touches no real session); use it as a regression check after upgrades; exit code 0 = as expected, 1 = deviation |
+| `tools/patch-markers.tsv` | ✅ Measured | **Single source of truth for feature markers** (9 entries). `patch-all.sh` / the desktop scripts / `check-update.sh` all read the same file, so the markers cannot drift apart |
+| `patch-all.sh` | ✅ Adapted to 0.2.0-rc.1 | **Patches both surfaces in one command**: the CLI side (browser + VS Code) and the desktop app, then prints a **feature-marker cross-check matrix**; `--check` verifies without modifying anything |
+| `desktop/**` | ✅ macOS verified | **Desktop (Electron) adaptation** — asar surgery on a signed `app.asar`. macOS and Windows are **two separate modules for now** (`desktop/macos/`, `desktop/windows/`); the rationale and merge criterion live in `desktop/README.md` |
+| `desktop/macos/**` | ✅ Verified on 0.2.0-rc.2 | macOS module: clone → extract → patch → rewrite asar → verify → **re-sign**. 9/9 targets hit, 12,964/12,964 non-target entries byte-identical |
+| `desktop/windows/**` | ✅ Verified on 0.2.0-rc.1 / 0.2.0-rc.2 | Windows module (**contributed by someone else**): cross-platform `apply-desktop-asar-patches.js` with reverse dry-run idempotency + full byte-for-byte verification. **Its macOS branch was verified on real hardware on 2026-09-29** (see "🖥️ Desktop App Support" below) |
+| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | shell one-click install (**alternative**); `TARGET_VERSION=0.2.0-rc.1`, 9 patches; the "pure-insertion patch applied twice" bug is fixed |
+| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | shell minimal installer (**alternative**, no version diagnosis / no built-in detection); the "pure-insertion patch applied twice" bug is fixed; accepts an externally supplied `DSH_DIR` |
+| `check-update.sh` | ✅ Adapted to 0.2.0-rc.1 | Checks whether official has a newer version, **and whether the desktop patches have been overwritten by an official nightly update** (source fingerprint + feature markers) |
 | `patches/**` | ✅ Re-adapted | 11 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore). Against the previous release `v0.1.5-rc.1` (12 items) it is **12 → 9** (`client-connection` was retired early in the 0.1.7-rc.2 adaptation, 12→11; `workspace` + `client-ui-workspace` were retired on 2026-09-28, 11→9) |
 | `README.md` / `README.en.md` | ✅ Adapted to 0.2.0-rc.1 | This file |
 | `versions.md` | ✅ Adapted to 0.2.0-rc.1 | Version tracking table |
@@ -97,9 +102,21 @@ node tools/dsh-patch.mjs -y
 
 | Platform | Supported | Notes |
 |---|---|---|
-| **macOS** | ✅ Native | Built-in `bash`/`patch` (`pgrep` also built-in) |
+| **macOS** | ✅ Native | Built-in `/bin/bash` (**still 3.2.57**) and `patch` are enough; `pgrep` is built-in too. **Both shell scripts were actually run on this machine under bash 3.2** |
 | **Linux** | ✅ Native | `patch` built-in; some minimal distros need `sudo apt install patch` |
 | **Windows** | ✅ Use the Node installer above | Pure Node — no `patch`/`pgrep`/`cp`/`find`, **no path-separator problems**. If you still use the shell version: Git for Windows supplies `bash`; restart with `taskkill /F /IM node.exe` (`pgrep` does not exist on Windows) |
+
+**Why the Node installer is the first choice on *every* platform** (not just Windows) — it does four things the shell version does not:
+
+1. **Zero fuzz**: `patch` defaults to fuzz=2 and silently tolerates context lines that no longer match; the Node version requires every line to match exactly.
+2. **It reports hunk offsets**: `patch -F 0` disables fuzz but **not offset**, and normal output hides offsets anyway. The Node version prints `N hunk(s) matched at a different line than declared` — the key signal for catching upstream drift.
+3. **`node --check` after applying**: if the result no longer parses, it rolls back from `.bak` automatically.
+4. **It checks "already applied" (in reverse) before applying**: this prevents a pure-insertion patch from being **applied twice** (the shell version had exactly this incident — see "Critical bug: the shell version double-applies pure-insertion patches" in [`ADAPTING.md`](ADAPTING.md)).
+
+> **Verification status (2026-09-29)**: on macOS (Apple Silicon) + DSH `0.2.0-rc.1`, all six steps of
+> `tools/dsh-patch.mjs` passed — `--check` / `--list` / `--dry-run` / `-y` / idempotent `-y` / `--restore`;
+> both shell scripts also ran successfully under `/bin/bash` 3.2.57. **The Windows side had already been
+> adapted and pushed**, so this patch set is now verified on **two platforms**.
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed
@@ -131,7 +148,7 @@ pkill -f 'dsh web'; dsh web
 
 > **Windows restart**: replace step 4 with `taskkill /F /IM node.exe` (or kill the node process) then `dsh web`.
 > **Source build (monorepo) users**: replace step 3 with `DSH_SOURCE=/path/to/deepseek-harness node tools/dsh-patch.mjs -y`, then rebuild/restart your dev server (see "Source Build (monorepo) Users" below).
-> **The shell version still works**: `bash install-dsh-custom.sh -y` (main installer) and `bash apply-dsh-patches.sh` (alternative). Both apply the same patch set — pick whichever you prefer.
+> **The shell versions still work**: `bash install-dsh-custom.sh -y` (with version diagnosis + built-in detection) and `bash apply-dsh-patches.sh` (minimal). Both apply the same patch set — pick whichever you prefer; **but the Node version is the recommended entry point** (stricter: it reports hunk offsets, has `node --check` rollback, and prevents double-application).
 
 Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 - Press **↑** in the composer to recall history
@@ -298,6 +315,36 @@ done
 
 ---
 
+## 🖥 Desktop (Electron)
+
+Everything above concerns the **CLI side** (`node_modules/@deepseek-ai/**`, used by the **browser**
+and **VS Code**). **The desktop app `DeepSeek Harness.app` is different** — its dsh runtime is sealed
+inside a **code-signed `app.asar`**. Profile dirs, environment variables, and client plugins are all
+dead ends (five approaches tried); **asar surgery is the only route**.
+
+**Full details in [`desktop/README.en.md`](desktop/README.en.md)** (why each approach fails, costs and
+limitations, rollback).
+
+```bash
+# Desktop only (produces ~/Applications/DeepSeek Harness Patched.app; the official app is never touched)
+bash desktop/macos/dsh-desktop-patch.sh
+
+# Both surfaces at once, with a feature-marker cross-check
+bash patch-all.sh
+```
+
+Key points:
+
+- **The patch files are the same set** (`patches/**`) — no duplicate maintenance; only the target differs.
+- The desktop app uses **nightly auto-update**, so an official update overwrites the patches —
+  `bash check-update.sh` detects this.
+- The output is a **separate app** that **shares one user-data directory** with the official build
+  (single-instance lock + fixed port `19387`), so the two cannot run at once; rollback is just deleting it.
+- The **Windows desktop build is a separate module**, to be contributed later — see
+  [`desktop/windows/README.md`](desktop/windows/README.md).
+
+---
+
 ## ↩️ How to Restore Original (uninstall patches)
 
 The install script backs up each modified file as `.bak`. To restore, copy those backups back (path is dynamically obtained via `npm root -g`, works with any global install layout; **the file list is derived from the script's `FILES`, so it always matches the current patch set**):
@@ -329,6 +376,11 @@ bash install-dsh-custom.sh -y
 
 - **Did official already bundle our features?** The one-click script auto-detects and skips built-in patches; you can also manually confirm using the grep method in [`versions.md`](versions.md).
 - **Patches broke?** Follow [`ADAPTING.md`](ADAPTING.md) to re-adapt and append a new version row in `versions.md`.
+- **Desktop patches overwritten?** The desktop app uses **nightly auto-update**, so an official update wipes them.
+  `bash check-update.sh` compares the recorded **source fingerprint** and re-checks the feature markers, and tells
+  you whether to re-run `bash desktop/macos/dsh-desktop-patch.sh`.
+- **Want to confirm both surfaces are alive at once?** `bash patch-all.sh --check` — verify only, modifies nothing;
+  exit code 0 means both are fully green.
 
 > ⚠️ If `patch` errors after upgrade, the new version changed the relevant code — re-adapt per `ADAPTING.md`.
 
@@ -338,21 +390,31 @@ bash install-dsh-custom.sh -y
 
 ```
 dsh-custom-patches/
-├── install-dsh-custom.sh         # One-click install (recommended)
-├── apply-dsh-patches.sh          # Alternative install (no version diagnosis/built-in detection)
-├── check-update.sh               # Check if official has a new version
-├── tools/dsh-patch.mjs           # Recommended installer (zero-dependency Node)
-├── desktop/                      # Desktop (Electron) adaptation
-│   ├── README.md                 #   Desktop guide (tutorial / platform differences / update checklist)
-│   └── windows/
-│       └── apply-desktop-asar-patches.js  #   app.asar installer (verified on Windows, macOS TBD)
-├── versions.md                   # Version tracking table
-├── ADAPTING.md                   # How to adapt to new official versions
-├── patches/                      # Patch files (organized by package)
-├── docs/SSH-REMOTE.md            # Pointer to the separate dsh-ssh-remote repo (maintenance paused)
-├── POSTMORTEM.md                 # Historical incident postmortem (rc.8 era)
-├── SECURITY.md                   # How to report vulnerabilities
-└── LICENSE                       # MIT
+├── tools/
+│   ├── dsh-patch.mjs                    # One-click install (recommended): cross-platform, zero deps, zero fuzz
+│   ├── contract-test-surface-op.mjs     # surfaceOp contract test (zero side effects; run after upgrades)
+│   └── patch-markers.tsv                # Single source of truth for feature markers (9 entries)
+├── desktop/                             # Desktop (Electron) adaptation — independent module
+│   ├── README.md / README.en.md         #   Entry point: why asar surgery, platform strategy, merge criterion
+│   ├── dsh-desktop-asar.mjs             #   [SHARED] asar read / surgical rewrite / per-entry verify (cross-platform)
+│   ├── macos/                           #   macOS module (verified)
+│   │   ├── README.md / README.en.md
+│   │   └── dsh-desktop-patch.sh         #     clone → extract → patch → rewrite asar → verify → re-sign
+│   └── windows/                         #   Windows module (contributed by someone else)
+│       ├── README.md                    #     Deliverables + merge criterion + pitfall list
+│       └── apply-desktop-asar-patches.js #    Cross-platform app.asar installer (macOS branch verified)
+├── patch-all.sh            # Patch both surfaces (CLI + desktop) and cross-check feature markers
+├── install-dsh-custom.sh   # shell one-click install (alternative; with version diagnosis + built-in detection)
+├── apply-dsh-patches.sh    # shell minimal install (no diagnosis, just applies patches)
+├── check-update.sh         # Check for a new official version + whether desktop patches were overwritten
+├── versions.md             # Version tracking table
+├── ADAPTING.md             # How to adapt to new official versions
+├── patches/                # Patch files (by package; shared by the CLI and desktop surfaces)
+├── docs/SSH-REMOTE.md      # Pointer to the separate dsh-ssh-remote repo (maintenance paused)
+├── POSTMORTEM.md           # Historical incident postmortem (rc.8 era)
+├── SECURITY.md             # How to report vulnerabilities
+├── README.md               # Chinese README
+└── LICENSE                 # MIT
 ```
 
 ---
@@ -362,8 +424,13 @@ dsh-custom-patches/
 Small project — **there is no separate contributing guide**. Just open an [Issue](https://github.com/chai1110/dsh-custom-patches/issues) or send a PR.
 
 - **Reporting a problem**: include the symptom, your environment (`dsh --version` / OS / Node version), reproduction steps, and the expected result; the `patch` output (`Hunk #N failed`) helps most.
-- **Pull requests**: new feature patches and adaptation fixes are welcome. Only three hard rules — ① **keep patches minimal** (change only what's necessary); ② leave a greppable **feature marker**; ③ keep the `FILES` arrays in `install-dsh-custom.sh` and `apply-dsh-patches.sh` in sync.
-- **Doc changes**: always refer to the main entry script as `install-dsh-custom.sh` (`apply-dsh-patches.sh` is the alternative — note that when mentioning it); examples must run directly after a fresh clone.
+- **Pull requests**: new feature patches and adaptation fixes are welcome. Only four hard rules — ① **keep patches minimal** (change only what's necessary); ② leave a greppable **feature marker**; ③ **keep all three `FILES` tables in sync**: `tools/dsh-patch.mjs`, `install-dsh-custom.sh`, and `apply-dsh-patches.sh` (the Node one is the recommended entry point; the other two are the shell versions — their fields differ, so don't update just one); ④ **update `tools/patch-markers.tsv`** — the single source of truth for feature markers, read by `patch-all.sh`, `desktop/macos/dsh-desktop-patch.sh`, and `check-update.sh`. Iron rule for picking a marker: it must have **zero** occurrences in the official build (counter-example: `surfaceOp: "append"` already appears 8 times upstream and cannot discriminate).
+- **Desktop-related changes**: see [`desktop/README.en.md`](desktop/README.en.md) and
+  [`desktop/windows/README.md`](desktop/windows/README.md) (Windows contribution checklist).
+- **Doc changes**: always refer to the main entry point as `node tools/dsh-patch.mjs` (the shell versions are alternatives — note that when mentioning them); examples must run directly after a fresh clone.
+- **After editing a patch body**: run `node tools/dsh-patch.mjs --dry-run` once and confirm there is no
+  `N hunk(s) matched at a different line than declared` — ideally it should be **0**
+  (see the `-F 0` vs. offset correction in [`ADAPTING.md`](ADAPTING.md)).
 - The full re-adaptation workflow lives in [`ADAPTING.md`](ADAPTING.md).
 
 ---
