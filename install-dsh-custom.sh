@@ -137,7 +137,8 @@ else
     echo "  Windows 用户：npm root -g 应输出您的全局 node_modules 路径；若在上面找不到，请检查 %APPDATA%\\npm"
     exit 1
   fi
-  ok "Found DSH: $DSH_DIR"
+  # Windows 的 npm root -g 是反斜杠路径：直接交给 echo -e 会被当成转义符（\n 变换行）
+  ok "Found DSH: ${DSH_DIR//\\//}"
 fi
 
 # Compute the real target path for one entry under the active layout.
@@ -153,7 +154,8 @@ target_for() {
 
 # ---------- 2. version diagnosis ----------
 if [ "$LAYOUT" = "npm" ]; then
-  VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
+  # argv 传路径：反斜杠路径拼进 require('...') 会被 JS 吞掉转义 → 版本读成空 → 误报版本不匹配
+  VERSION=$(node -e "console.log(require(process.argv[1]).version)" "$DSH_DIR/package.json" 2>/dev/null || echo "")
   echo -e "    local version: ${YELLOW}${VERSION:-unknown}${NC}"
   # 两个频道都要看：RC 常常只发在 next 上，而 `npm view <pkg> version` 只返回 latest。
   # 只看 latest 会把「官方 next 比本地新」误报成「官方有更新版本 0.1.7-rc.2」，方向完全反了。
@@ -274,8 +276,9 @@ echo -e "Next steps:"
 echo -e "  1. Restart DSH:"
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*)
-    echo -e "     ${YELLOW}taskkill //F //IM node.exe${NC}   # 然后重新运行 dsh web"
-    echo -e "     （taskkill 会结束所有 node 进程；请先关闭其他 node 程序）"
+    echo -e "     ${YELLOW}只停 dsh web，别用 taskkill //F //IM node.exe —— 那会连网关/插件一起杀掉：${NC}"
+    echo -e "       PowerShell: ${YELLOW}Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id \$_.OwningProcess }${NC}"
+    echo -e "     然后重新运行 dsh web"
     ;;
   *)
     echo -e "     npm layout:    ${YELLOW}pkill -f 'dsh web'; dsh web${NC}"

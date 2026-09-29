@@ -42,7 +42,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 #    方法 C：常见全局目录扫描兜底（含 Windows %APPDATA%/%LOCALAPPDATA%）
 DSH_DIR="${DSH_DIR:-}"
 if [ -n "$DSH_DIR" ] && [ -d "$DSH_DIR/node_modules/@deepseek-ai" ]; then
-  echo -e "${GREEN}✅ 使用调用方指定的 DSH: $DSH_DIR${NC}"
+  echo -e "${GREEN}✅ 使用调用方指定的 DSH: ${DSH_DIR//\\//}${NC}"
 else
   DSH_DIR=""
   GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
@@ -84,10 +84,11 @@ if [ -z "$DSH_DIR" ]; then
   echo -e "   （Windows 请确认 npm 全局目录：npm root -g 应输出您的全局 node_modules 路径）"
   exit 1
 fi
-echo -e "${GREEN}✅ 找到 DSH: $DSH_DIR${NC}"
+# Windows 的反斜杠路径：交给 echo -e 会被当转义符（\n → 换行），故显示时统一成正斜杠
+echo -e "${GREEN}✅ 找到 DSH: ${DSH_DIR//\\//}${NC}"
 
-# 2. 校验版本
-VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
+# 2. 校验版本（argv 传路径：拼进 require('...') 会被 JS 吞掉转义 → 读成空 → 误报不匹配）
+VERSION=$(node -e "console.log(require(process.argv[1]).version)" "$DSH_DIR/package.json" 2>/dev/null || echo "")
 echo -e "   当前版本: ${YELLOW}$VERSION${NC}（补丁目标: ${YELLOW}$TARGET_VERSION${NC}）"
 if [ "$VERSION" != "$TARGET_VERSION" ]; then
   echo -e "${RED}❌ 版本不匹配：本补丁集按 $TARGET_VERSION 适配，当前是 $VERSION${NC}"

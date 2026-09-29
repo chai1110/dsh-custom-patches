@@ -25,7 +25,8 @@
 #
 # 退出码：0 = 两面标记全绿；1 = 有标记缺失（说明某面没打上或已被覆盖）。
 #
-# ⚠️ 只支持 macOS 桌面版。Windows 桌面版是独立模块，见 desktop/windows/README.md。
+# ⚠️ 施加补丁只支持 macOS 桌面版；Windows 桌面版走独立模块，见 desktop/windows/README.md。
+#    但 --check 的「交叉核对」两平台都可用：Windows 下默认读安装目录里的 resources/app.asar。
 
 set -uo pipefail
 
@@ -40,6 +41,11 @@ CLI_PATCH="$REPO/apply-dsh-patches.sh"
 
 DO_CLI=1; DO_DESKTOP=1; CHECK_ONLY=0
 DESKTOP_APP="$HOME/Applications/DeepSeek Harness Patched.app"
+# Windows：桌面版**就地**打补丁，没有 ~/Applications 副本 —— 默认改看安装目录
+# （--desktop-app 在参数解析里仍可覆盖这个默认值）
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) DESKTOP_APP="${LOCALAPPDATA:-}/Programs/DeepSeek Harness" ;;
+esac
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -47,7 +53,7 @@ while [ $# -gt 0 ]; do
     --cli-only)     DO_DESKTOP=0 ;;
     --desktop-only) DO_CLI=0 ;;
     --desktop-app)  shift; DESKTOP_APP="${1:-}" ;;
-    -h|--help)      sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)      sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) say "${RED}未知参数: $1${NC}（用 --help 看用法）"; exit 2 ;;
   esac
   shift
@@ -134,27 +140,35 @@ else
 fi
 
 # ───────────────────── 3. 交叉核对：两面各算一遍标记 ─────────────────────
-DESKTOP_ASAR="$DESKTOP_APP/Contents/Resources/app.asar"
+# app.asar 在两个平台的相对位置不同：macOS 是 .app/Contents/Resources/，Windows 是安装目录/resources/
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) DESKTOP_ASAR="$DESKTOP_APP/resources/app.asar" ;;
+  *)                    DESKTOP_ASAR="$DESKTOP_APP/Contents/Resources/app.asar" ;;
+esac
 have_cli=0; [ -n "$CLI_PLUGIN_ROOT" ] && [ -d "$CLI_PLUGIN_ROOT" ] && have_cli=1
 have_desktop=0; [ -f "$DESKTOP_ASAR" ] && [ -f "$ASAR_TOOL" ] && have_desktop=1
 
 count_cli() {
   [ "$have_cli" -eq 1 ] || { printf 'n/a'; return; }
-  local f="$CLI_PLUGIN_ROOT/$1"
+  local f="$CLI_PLUGIN_ROOT/$1" n
   [ -f "$f" ] || { printf 'missing'; return; }
-  grep -cF -- "$2" "$f" 2>/dev/null || printf '0'
+  # grep -c 无命中时既打印 0 又返回 1：直接 || printf '0' 会输出「0」+「0」两行
+  n=$(grep -cF -- "$2" "$f" 2>/dev/null || true)
+  printf '%s' "${n:-0}"
 }
 count_desktop() {
   [ "$have_desktop" -eq 1 ] || { printf 'n/a'; return; }
   local n
-  n=$(node "$ASAR_TOOL" cat "$DESKTOP_ASAR" "dsh/node_modules/@deepseek-ai/$1" 2>/dev/null | grep -cF -- "$2" 2>/dev/null || printf '0')
-  printf '%s' "$n"
+  n=$(node "$ASAR_TOOL" cat "$DESKTOP_ASAR" "dsh/node_modules/@deepseek-ai/$1" 2>/dev/null | grep -cF -- "$2" 2>/dev/null || true)
+  printf '%s' "${n:-0}"
 }
 
 say ""
 say "${YELLOW}════════ C. 功能标记交叉核对 ════════${NC}"
-say "  CLI 侧目标: ${CLI_PLUGIN_ROOT:-（未找到 DSH 安装）}"
-say "  桌面版目标: ${DESKTOP_ASAR}"
+# say() 底层是 printf %b，Windows 反斜杠路径里的 \n \U 会被当转义符 → 显示前统一成正斜杠
+_cli_disp="${CLI_PLUGIN_ROOT//\\//}"
+say "  CLI 侧目标: ${_cli_disp:-（未找到 DSH 安装）}"
+say "  桌面版目标: ${DESKTOP_ASAR//\\//}"
 say "  标记来源  : tools/patch-markers.tsv"
 say ""
 printf '  %-46s %-10s %-10s %s\n' "目标文件" "CLI 侧" "桌面版" "判定"
@@ -162,6 +176,8 @@ printf '  %s\n' "─────────────────────
 
 fails=0; rows=0
 while IFS=$'\t' read -r rel marker; do
+  # Windows 上 git 常把 tsv 检出成 CRLF，行尾 \r 会粘进文件名/标记 → 文件找不到、grep 不命中
+  rel="${rel%$'\r'}"; marker="${marker%$'\r'}"
   case "$rel" in ''|\#*) continue ;; esac
   [ -n "${marker:-}" ] || continue
   rows=$((rows+1))
@@ -196,8 +212,16 @@ if [ "$fails" -eq 0 ]; then
   say "${GREEN}✅ 全部通过。${NC}"
   if [ "$CHECK_ONLY" -eq 0 ]; then
     say "   下一步："
-    say "     • CLI 侧（浏览器）：${YELLOW}pkill -f 'dsh web'; dsh web${NC} 然后硬刷新页面"
-    say "     • 桌面版：${YELLOW}open \"$DESKTOP_APP\"${NC}（先退出官方版，二者共用 user-data + 端口 19387）"
+    case "$(uname -s 2>/dev/null)" in
+      MINGW*|MSYS*|CYGWIN*)
+        say "     • CLI 侧（浏览器）：停掉 8080 上的 dsh web（${YELLOW}Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id \$_.OwningProcess }${NC}），重跑 ${YELLOW}dsh web${NC} 后硬刷新"
+        say "     • 桌面版：${YELLOW}node desktop/windows/apply-desktop-asar-patches.js${NC}（先完全退出桌面应用）"
+        ;;
+      *)
+        say "     • CLI 侧（浏览器）：${YELLOW}pkill -f 'dsh web'; dsh web${NC} 然后硬刷新页面"
+        say "     • 桌面版：${YELLOW}open \"$DESKTOP_APP\"${NC}（先退出官方版，二者共用 user-data + 端口 19387）"
+        ;;
+    esac
   fi
   exit 0
 else
