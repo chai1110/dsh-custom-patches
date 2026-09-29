@@ -107,12 +107,28 @@ Windows 不需要签名，所以脚本没有这段逻辑。在 macOS 上：
   xattr -dr com.apple.quarantine "/Applications/DeepSeek Harness.app"
   ```
 
-### 3. 没有写「来源指纹」
+### 3. 来源指纹 ✅ 已支持（2026-09-29 补上）
 
-macOS 模块会在目标 app 里落一个 `.dsh-desktop-patch.json`（记录来源 asar 的 sha256），
-供 `check-update.sh` 判断「官方是否已更新、补丁是否被覆盖」。
-本脚本目前**不写这个文件** —— 用本脚本安装后，`check-update.sh` 会报「没有来源指纹」，
-只能靠功能标记核对。若需要该能力，可在脚本的替换步骤后补写（欢迎 PR）。
+脚本会在替换完成后，往 asar 同目录写一份 `.dsh-desktop-patch.json`，供 `check-update.sh`
+判断「官方是否已更新、补丁是否被覆盖」：
+
+```json
+{ "patchedAt": "...", "platform": "macos",
+  "sourceApp": "/Users/…/DSH FpProbe.app",
+  "sourceAsarSha256": "18d5036b…", "sourceAsarSize": 121387457,
+  "patchedAsarSha256": "5360c9e5…", "patchedAsarSize": 121441457,
+  "targets": [ "dsh-api-session-controller/lib/index.js", … ] }
+```
+
+> ⚠️ 指纹**必须在重签名之前**写入（往已签名的 app 里加文件会让签名失效）。
+> 本脚本不做重签；若你在 macOS 上要补重签，请放在替换之后。
+
+### 4. 两种打包策略：产出**不**与 macOS 模块逐字节相同（但等价）
+
+见 [`../README.md`](../README.md) 的「两种打包策略」。摘要：本脚本**就地紧凑重排**数据区
+（产出 121,441,457 字节 / `5360c9e5…`），macOS 脚本**追加到数据区末尾**
+（123,850,535 字节 / `4286629a…`）。实测从两份产出各抽 9 个目标文件比对，**9/9 逐字节相同**，
+两份都通过全量校验与功能标记核对 ⇒ 等价。判断「有没有被改坏」请看目标文件内容，不要看整包 sha256。
 
 ---
 
@@ -172,7 +188,8 @@ dsh-client-ui-chat/lib/client.js
 
 **Status: ✅ Verified.** The driver script `apply-desktop-asar-patches.js` is verified on the
 **Windows desktop build `0.2.0-rc.1` / `0.2.0-rc.2`**, and **its macOS branch was verified on real
-hardware on 2026-09-29** (see "Running this script on macOS").
+hardware on 2026-09-29** (see "Running this script on macOS"). It now also writes the
+`.dsh-desktop-patch.json` source fingerprint, so `check-update.sh` works for installs made with it.
 
 Relationship to the macOS module: **the two modules coexist and never overwrite each other**, following
 a "separate first, merge later" strategy (merge criterion below). `../dsh-desktop-asar.mjs` is the
@@ -234,7 +251,8 @@ Do not modify the macOS module before merging.
   `@electron/asar` reject the archive. `dsh-desktop-asar.mjs` already handles this.
 - **`integrity` must be recomputed** per entry (chunked sha256, 4 MiB blocks) after replacing content.
 - **Do not use a `.asar` suffix for temporary files** — some environments refuse to create new `.asar`
-  files. Write `.app.asar.new` and `mv` it over. On Windows, make sure no process holds the file open.
+  files. Write `.app.asar.new` and `mv` it over. *(2026-09-29: this script used `app.patched.asar`
+  and failed on macOS with `Brokered file token refused`; fixed to `app.patched.asar.new`.)* On Windows, make sure no process holds the file open.
 - **Zero fuzz is the only trustworthy check** — `patch -F 0`.
 - **Markers must have 0 occurrences upstream.** Counter-example: `surfaceOp: "append"` already appears
   8 times in the official `dsh-agent-loop`. Markers live in `tools/patch-markers.tsv` — a single source

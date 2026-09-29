@@ -156,11 +156,14 @@ patch --dry-run -N -p1 < 补丁文件.patch
 | 项 | 值 |
 |---|---|
 | 官方 asar | `18d5036b…` · 121,387,457 字节 |
-| 补丁版 asar | `4286629a…` · 123,850,535 字节 |
+| 补丁版 asar（macOS 模块） | `4286629a…` · 123,850,535 字节（保留原数据区 + 把 9 个新文件追加到末尾） |
+| 补丁版 asar（Windows 模块，macOS 分支） | `5360c9e5…` · 121,441,457 字节（就地紧凑重排数据区） |
+| 两套实现的等价性 | 从两份产出各抽 9 个目标文件比对，**9/9 逐字节相同** ⇒ 等价（整包 sha256 不同，属打包策略差异，非缺陷） |
 | 未改动条目 | **12,964 / 12,964 逐字节一致** |
 | 替换条目 | 9 / 9，缺失 0，意外变化 0 |
 | 功能标记 | 9 / 9 命中 |
-| 可复现性 | 脚本两次运行产出的 asar **逐字节相同** |
+| 可复现性 | 同一脚本两次运行产出的 asar **逐字节相同**（跨脚本不适用，见上） |
+| 来源指纹 | 两套实现**都会**写 `.dsh-desktop-patch.json`（`sourceAsarSha256` / `patchedAsarSha256` / `targets`），供 `check-update.sh` 判覆盖 |
 | 重签名 | ad-hoc，`valid on disk` + `satisfies its Designated Requirement` |
 | 两面一致性 | CLI 侧与桌面版标记计数**逐项相等**（2/2、2/2、1/1、1/1、1/1、1/1、2/2、3/3、11/11） |
 
@@ -171,8 +174,9 @@ patch --dry-run -N -p1 < 补丁文件.patch
 2. **与官方版共用 user-data** —— 单实例锁 + 固定端口 `19387`，两者不能同时运行。
    补丁版是**独立的一份 app**（默认 `~/Applications/DeepSeek Harness Patched.app`），回滚就是删掉它。
 
-> **Windows 桌面版是独立模块**，待他人贡献 —— 交付清单与「合并判据」见
-> [`desktop/windows/README.md`](desktop/windows/README.md)。
+> **Windows 桌面版是独立模块** —— 源码 `desktop/windows/apply-desktop-asar-patches.js`（跨平台，纯 Node），
+> 已在 Windows `0.2.0-rc.1` / `0.2.0-rc.2` 实测；**其 macOS 分支 2026-09-29 也已在本机跑通**。
+> 交付清单与「合并判据」见 [`desktop/windows/README.md`](desktop/windows/README.md)。
 
 ---
 
