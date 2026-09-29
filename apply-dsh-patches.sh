@@ -58,7 +58,7 @@ fi
 echo -e "${GREEN}✅ 找到 DSH: $DSH_DIR${NC}"
 
 # 2. 校验版本
-VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
+VERSION=$(node -e "console.log(require(process.argv[1]).version)" "$DSH_DIR/package.json" 2>/dev/null)
 echo -e "   当前版本: ${YELLOW}$VERSION${NC}（补丁目标: ${YELLOW}$TARGET_VERSION${NC}）"
 if [ "$VERSION" != "$TARGET_VERSION" ]; then
   echo -e "${RED}❌ 版本不匹配：本补丁集按 $TARGET_VERSION 适配，当前是 $VERSION${NC}"

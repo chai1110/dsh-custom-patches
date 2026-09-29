@@ -36,7 +36,7 @@
 +          codec: {
 +            mode: 'strict',
 +            typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptRequest',
-+            schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema,
++            create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema,
 +          },
 +        },
 +      ],
@@ -44,7 +44,7 @@
 +      result: {
 +        mode: 'strict',
 +        typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptValue',
-+        schema: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema,
++        create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema,
 +      },
 +      sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":340,"column":3},
      },
