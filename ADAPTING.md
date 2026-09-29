@@ -707,3 +707,71 @@ node tools/dsh-patch.mjs -y           # 重新套用修好的补丁
 # 重启 DSH 后：打开一个会话，hover 最后一条用户消息 → 点 ✏️ → 改文字 → 保存并重新生成
 # 期望：旧回复消失，用新文字重新生成；旧消息不再与新的并列显示
 ```
+---
+
+## 桌面版（DeepSeek Harness Desktop）app.asar 适配与重装（2026-09-29）
+
+桌面版是 Electron 应用，**不走 npm 全局安装**：`dsh` 命令的安装目录、进程、端口（桌面 `127.0.0.1:19387`、网页 `8080`）、
+profile（桌面 `~/.dsh/profiles/desktop`）全部与 npm 版独立，**只有 `~/.dsh` 根目录共享**（`.credentials.yaml` /
+`settings.yaml` / `sessions` / `storages`）。9 个补丁目标全部打包在 `resources/app.asar` 内，
+因此需要 `apply-desktop-asar-patches.js` 单独处理。首次手工走通后已脚本化。
+
+### 1. asar 文件格式（实测，脚本按此读写）
+
+```
+[0..7]      uint32(4) + uint32(headerSize=hs)
+[8..8+hs]   header pickle: uint32(strLen+4) + uint32(strLen) + JSON(strLen 字节, UTF-8)
+[8+hs...]   文件内容区；某条目的绝对偏移 = 8 + hs + Number(entry.offset)
+```
+
+- `entry.offset` 是**字符串**，必须 `Number()`（字符串拼接会算错）；
+- `entry.integrity` = `{algorithm:"SHA256", hash, blockSize:4194304, blocks[]}`，即整体哈希 + 4 MiB 分块哈希；
+- `unpacked: true` 的条目（本机 1497 个）内容在 `app.asar.unpacked/` 目录里，**不在 asar 内**，重建时只更新它的
+  `offset`（写到当前 body 位置），不写内容；
+- 本机实测：12967 条目 / 包内文件 11470 个 / body 117,979,532 字节；
+- 重写前必须断言「按 header 深度优先遍历的 offset 单调递增」—— 成立才说明 header 顺序 == body 写入顺序，
+  可以按该顺序顺序重写。
+
+### 2. ⚠️ asar 内容 ≠ npm tarball 内容（构建产物级差异）
+
+**不能拿 npm 包内容推断 asar 内容**：`dsh-client-ui-chat/lib/client.js` 两边差 208 行、
+`dsh-client-ui-conversation/lib/client.js` 差 152 行，差异全在构建产物上 ——
+CSS 模块类名哈希（asar 是 `cJsG2q_…`，npm 是 `Sixlwa_…`）与构建机绝对路径注释
+（asar 来自 `D:\develop\dsh-harness-windows-x64\...`，npm 来自 GitHub Actions `/home/runner/work/...`）。
+其余 7 个目标文件两边逐字节一致。
+**结论：补丁必须对「asar 里抽出来的文件」试套**，npm tarball 只能当参考。本机实测对 asar 内容 9/9 dry-run 通过。
+
+### 3. ⚠️ 幂等判断必须用反向 dry-run（正向判断会重复叠加）
+
+`patch --dry-run -N` 对**已打过补丁**的文件仍可能报告成功（本仓库 `dsh-api-session-controller/lib/client.js` 就是），
+此时再 apply 会二次叠加：144754 字节 → 145128 字节（静默损坏）。可靠做法是先**反向**试套：
+
+| 目标状态 | `patch --dry-run -R -p1` 结果 |
+|---|---|
+| 已打补丁 | exit 0，无 `Unreversed` → 判「已应用」，跳过 |
+| 原始文件 | exit 1，输出 `Unreversed patch detected!` → 判「待应用」，再正向套 |
+
+脚本据此做到重复运行不叠加；对已打补丁的 asar 跑 `--dry-run` 会输出「9 个补丁全部已应用，无需重复」。
+
+### 4. 替换前的校验清单（脚本内置，任一不过就不替换）
+
+1. header 可解析、条目数不变、`unpacked` 条目数不变、按 header 遍历的 offset 单调；
+2. 桌面版版本（`dsh/node_modules/@deepseek-ai/dsh/package.json`）在支持列表 `0.2.0-rc.1` / `0.2.0-rc.2` 内（否则要 `--force`）；
+3. 9 个目标 dry-run 全部可套（失败即报版本不匹配）；
+4. 补丁后目标文件命中功能标记：`editLastPrompt`（session-controller）、`recallHistory`（ui-conversation）、`compactionBackoffDelay`（compaction-basic）；
+5. **全量逐字节比对**：新旧 asar 中除 9 个目标外的全部包内文件必须完全一致（本机 11461/11461 通过），
+   9 个目标必须等于补丁后内容；
+6. 新 asar 再解析一次，功能标记仍在。
+
+> 关于 0 字节文件：asar 里有若干 `size: 0` 的文件，官方 header 的 `integrity.blocks` 是 1 个块而按内容算是 0 个块，
+> 这是**原包自带的口径差异**，不是损坏 —— 这些文件我们不改，`integrity` 原样保留即可。
+
+### 5. 操作记录（2026-09-29）
+
+- 手工流程跑通后固化成 `apply-desktop-asar-patches.js`；脚本从 pristine 备份重建出的 asar 与手工安装到线上的
+  asar **SHA256 完全一致**（`F24882B0…`），证明流程可复现；
+- 自动化验收：`--dry-run`（已应用 9/9）、`--out`（pristine → 9 个补丁套用 + 全量校验通过）、
+  线上 asar 重启后 `editLastPrompt` 命中 63 次、端口 19387 监听、会话文件正常写入；
+- **桌面版带自动更新**（`resources/app-update.yml` 存在），更新会覆盖 `app.asar`：
+  每次更新后必须重跑 `node apply-desktop-asar-patches.js --dry-run` 确认，再正式安装；
+- 回滚：`resources/app.asar.bak-<时间戳>` 改名回 `app.asar` 即可（本次备份 `app.asar.bak-20260929-211542`）。

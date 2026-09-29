@@ -31,6 +31,7 @@
 | `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.1 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚 |
 | `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版主安装器；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁 |
 | `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版备选安装器（无版本诊断 / 无内置检测） |
+| `apply-desktop-asar-patches.js` | ✅ 已验证 0.2.0-rc.1 / 0.2.0-rc.2 | **桌面版（Electron）安装器**：改写 `resources/app.asar`，反向试套判幂等 + 全量逐字节校验，详见下方「🖥️ 桌面版支持」 |
 | `check-update.sh` | ✅ 已适配 0.2.0-rc.1 | 检测官方是否有新版 |
 | `patches/**` | ✅ 已重适配 | 11 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复）。相对上一发布版 `v0.1.5-rc.1` 的 12 项为 **12 → 9**（`client-connection` 在 0.1.7-rc.2 适配早期退役，12→11；`workspace` + `client-ui-workspace` 于 2026-09-28 退役，11→9） |
 | `README.md` / `README.en.md` | ✅ 已适配 0.2.0-rc.1 | 本文件 |
@@ -159,6 +160,38 @@ pkill -f 'dsh web'; dsh web
 > **为什么用 tag 而不是参数？** 官方每个版本的补丁内容不同（尤其 0.1.2-rc.1 是架构重构版），
 > 用 tag 把「补丁文件 + 安装脚本」打包成该版本专用快照，最干净也最不容易出错。
 > checkout 对应 tag 后，脚本会校验本机 DSH 版本与 tag 一致；不一致会明确报错并提示 checkout 正确的 tag。
+
+---
+
+## 🖥️ 桌面版支持（DeepSeek Harness Desktop）
+
+**桌面版是 Electron 应用，不走 npm 全局安装** —— 9 个补丁目标全部打包在 `resources/app.asar` 里，
+所以要用本仓库的 `apply-desktop-asar-patches.js`（纯 Node，无第三方依赖）单独安装：
+
+```bash
+# 1) 先试套：只看补丁能否套上，不改动任何文件
+node apply-desktop-asar-patches.js --dry-run
+
+# 2) 正式安装：退出应用 → 备份 app.asar → 打补丁 → 全量校验 → 替换 → 重启
+node apply-desktop-asar-patches.js
+
+# 只生成新 asar 到指定路径、不替换原文件（应用可继续运行，适合先验证）
+node apply-desktop-asar-patches.js --out new.asar
+```
+
+- **依赖**：Node（读写 asar 由脚本自带）+ `patch` 命令 —— Windows 装 Git for Windows 即有，
+  也可用环境变量 `PATCH_BIN` 指定可执行文件路径。
+- **路径自动探测**：Windows `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\app.asar`、
+  macOS `/Applications/DeepSeek Harness.app/Contents/Resources/app.asar`、Linux `/opt/DeepSeek Harness/resources/app.asar`；
+  不在这些位置就用 `--asar <path>`（或环境变量 `DSH_DESKTOP_ASAR`）。
+- **幂等**：重复运行会先反向试套识别「已应用」并跳过，**不会重复叠加**（可放心重跑）。
+- **每次替换前都会全量校验**：新 asar 必须可解析、路径顺序一致、**除 9 个补丁目标外的全部文件逐字节一致**、
+  目标文件命中功能标记；任一项不过则不替换原文件（出错时自动回滚）。
+- **⚠️ 桌面版带自动更新**：更新会覆盖 `app.asar`，届时 9 个补丁需要**重跑本脚本**（先 `--dry-run` 确认）。
+- **回滚**：把 `resources/app.asar.bak-<时间戳>` 改名回 `app.asar` 即可。
+- **已验证**：桌面版 `0.2.0-rc.2`（npm 版 `0.2.0-rc.1` 同一套补丁零改动可用，`0.2.0-rc.1` 亦在支持列表）。
+  与 npm 版共享 `~/.dsh` 根目录（凭据、`settings.yaml`、会话数据），但插件配置按 profile 独立，
+  桌面版默认 profile 是 `~/.dsh/profiles/desktop` —— 配置不能直接照抄 web 版的 profile 文件，见 `dsh-provider-config`。
 
 ---
 
@@ -303,16 +336,18 @@ bash install-dsh-custom.sh -y
 
 ```
 dsh-custom-patches/
-├── install-dsh-custom.sh   # 一键安装（推荐）
-├── apply-dsh-patches.sh    # 备选安装（无版本诊断/内置检测）
-├── check-update.sh         # 检测官方是否有新版本
-├── versions.md             # 版本追踪表
-├── ADAPTING.md             # 适配官方新版的操作手册
-├── patches/                # 补丁文件（按包分目录）
-├── docs/SSH-REMOTE.md      # 指向独立仓库 dsh-ssh-remote（已暂停维护）
-├── POSTMORTEM.md           # 历史事故复盘（rc.8 时期）
-├── SECURITY.md             # 漏洞上报方式
-└── LICENSE                 # MIT
+├── install-dsh-custom.sh         # 一键安装（推荐）
+├── apply-dsh-patches.sh          # 备选安装（无版本诊断/内置检测）
+├── apply-desktop-asar-patches.js # 桌面版（Electron）app.asar 安装脚本
+├── check-update.sh               # 检测官方是否有新版本
+├── tools/dsh-patch.mjs           # 推荐安装器（零依赖 Node）
+├── versions.md                   # 版本追踪表
+├── ADAPTING.md                   # 适配官方新版的操作手册
+├── patches/                      # 补丁文件（按包分目录）
+├── docs/SSH-REMOTE.md            # 指向独立仓库 dsh-ssh-remote（已暂停维护）
+├── POSTMORTEM.md                 # 历史事故复盘（rc.8 时期）
+├── SECURITY.md                   # 漏洞上报方式
+└── LICENSE                       # MIT
 ```
 
 ---

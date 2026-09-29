@@ -46,6 +46,13 @@
 | **0.2.0-rc.1** | ✅ **补丁集零改动，9/9 直接可用** | ❌ | ❌ | ⭐ **当前基准（`main` 分支）**；官方 `next` 频道首个 `0.2.0` 候选版。**官方这次没碰我们任何一个锚点区** —— 实测 `patch -F 0`（**零模糊**）9/9 干净套用，实套 + `node --check` 9/9 通过，端到端跑 `install-dsh-custom.sh -y` 9/9 成功且幂等（二次运行正确识别 9 个标记并跳过）。**无需重打任何补丁。** 依赖闭包只新增 `dsh-experimental-schedule-bundle`（对应「自动化任务改由可选插件包提供」），我们打补丁的 6 个包**全部仍在**。官方在 `dsh-agent-loop` 新增的 `ToolCallRecovery`（修「工具调度异常后对话无法继续」）与本补丁的 `__stack` 诊断 + `user/message` 去重**不是同一件事**，故保留。补丁依赖的运行时 API（`ctx.llm.providerRetryPolicy`、`session.surface.nodes`、`session.eventAt`、`isReplacementSurfaceEvent`）在新版**全部仍存在**。真机运行时验证原记为「尚未做」，2026-09-29 补齐 ✅ **真机运行时验证通过（2026-09-29）**：真机暴露 4 个静态校验查不出的 bug 并已全部修复 —— typert codec `schema:`→`create:`、`surfaceOp` `start/end`→`startSeq/endSeq`、ui-conversation `scanShadowed` 键名（导致重发后旧轮次残留）、安装脚本 Windows 版本检测转义；详见 ADAPTING.md 文末小节。 |
 | 0.1.7-rc.2 | ✅ 全部可用（11→9 项） | ❌ | ❌ | **上一基准**，已被 0.2.0-rc.1 取代；官方 `latest` 仍是本版。归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）已全部退役：`client-connection` 在 0.1.7-rc.2 适配早期退役（12→11），`workspace` + `client-ui-workspace` 于 2026-09-28 退役（11→9）—— 官方已提供完整链路（归档 + 取消归档 + 侧边栏三态筛选 + 行内恢复 + 搜索恢复 + 归档提示的 undo），我们不再重复实现。适配要点：0.1.7 schema 全面改 lazy `??=` 风格、api-remotes codec 的 `schema:` 改名 `create:`、chat 组件签名重构（ChatNodeSeat/ChatView 新 props、inbox projection）、composer keymap 经 `installDraftKeymap` 薄封装（history recall 需直调 `registerComposerKeymap` 覆盖 arbitrate）。三道校验通过（dry-run 9/9 零失败 + 全新副本套用 + node --check）；运行时验证已通过（2026-09-26：套用后 launchd 服务干净启动、契约探针全绿、session/editLastPrompt 方法存在且形状被接受），并已修复 2 处真机运行时 bug（2026-09-27） |
 
+> **桌面版（DeepSeek Harness Desktop）**：桌面版是 Electron 应用，**不走 npm 安装**，9 个补丁目标全部打包在
+> `resources/app.asar` 里。本机实测桌面版 `0.2.0-rc.2` 与 npm `0.2.0-rc.1` 的补丁集**零改动兼容**（对 asar 内容
+> 9/9 dry-run 通过，2026-09-29 已打上并真机验证）。安装方式不同：`node apply-desktop-asar-patches.js`
+> （详见 README「🖥️ 桌面版支持」与 `ADAPTING.md` 末节）。两个要点：① asar 内容与 npm tarball 存在**构建产物级
+> 差异**（CSS 模块类名哈希、构建机绝对路径），试套必须对 asar 抽出的文件做，不能拿 npm 包推断；
+> ② 桌面版**自带自动更新**，更新会覆盖 `app.asar`，届时需重跑脚本（先 `--dry-run`）。
+
 > **0.1.5-rc.1 适配要点（详见 `ADAPTING.md` 末节）**：
 > - 6 个补丁的锚点需重打（agent-loop / api-remotes / api-session-controller typert.remote-client /
 >   client-ui-chat / client-ui-conversation / client-ui-workspace），本质是官方行号漂移与
