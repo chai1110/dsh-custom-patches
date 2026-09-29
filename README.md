@@ -28,8 +28,9 @@
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | 主安装器；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁 |
-| `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | 备选安装器（无版本诊断 / 无内置检测） |
+| `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.1 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚 |
+| `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版主安装器；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁 |
+| `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版备选安装器（无版本诊断 / 无内置检测） |
 | `check-update.sh` | ✅ 已适配 0.2.0-rc.1 | 检测官方是否有新版 |
 | `patches/**` | ✅ 已重适配 | 11 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复）。相对上一发布版 `v0.1.5-rc.1` 的 12 项为 **12 → 9**（`client-connection` 在 0.1.7-rc.2 适配早期退役，12→11；`workspace` + `client-ui-workspace` 于 2026-09-28 退役，11→9） |
 | `README.md` / `README.en.md` | ✅ 已适配 0.2.0-rc.1 | 本文件 |
@@ -81,13 +82,23 @@
 
 ## ⚠️ 平台与前置要求（先看这里）
 
-安装脚本是用 **bash 编写、依赖 Unix 命令行工具** 的，因此：
+### 推荐：用 Node 安装器（全平台一致，无斜杠/工具依赖）
+
+```bash
+node tools/dsh-patch.mjs -y
+```
+
+`tools/dsh-patch.mjs` 是**零依赖的 Node 脚本**，Node 本来就是装 DSH 的硬前置，所以它不需要 `patch` / `cp` / `find` / `pgrep` 中的任何一个，
+路径一律用 `path.join` 拼装 —— **Windows 的反斜杠问题从根上不存在**。它还比 shell 版多做两件事：
+
+- **零模糊匹配**：`patch` 默认 fuzz=2，会容忍上下文行不匹配（＝可能在错误的锚点上「成功」）。本安装器要求每一行上下文都精确命中，上游改动了就**大声报错**而不是静默错补。
+- **套用后 `node --check` 语法校验**：语法炸了就自动从 `.bak` 回滚。
 
 | 平台 | 是否支持 | 说明 |
 |---|---|---|
 | **macOS** | ✅ 原生支持 | 自带的 `bash`/`patch` 即可（`pgrep` 也已内置） |
 | **Linux** | ✅ 原生支持 | 自带 `patch`；部分精简发行版需 `sudo apt install patch` |
-| **Windows** | ✅ 装完 Git for Windows 即可 | **Git for Windows 已自带** `bash`、`diff`、`patch` 与 `git`，无需再装。唯一用到的 `pgrep` 只在「重启」那一条命令里出现，Windows 用 `taskkill` 替代即可（见下）。安装脚本现已**优先用 `npm root -g` 定位 DSH**（跨平台可靠），失败再兜底扫描常见全局目录（含 `%APPDATA%\npm`）——无需手动设置 `NODE_PATH` |
+| **Windows** | ✅ 推荐用上面的 Node 安装器 | 纯 Node 实现，不依赖 `patch`/`pgrep`/`cp`/`find`，**没有路径分隔符问题**。若仍用 shell 版：Git for Windows 提供 `bash`；重启请用 `taskkill //F //IM node.exe`（`pgrep` 在 Windows 不存在） |
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
@@ -111,14 +122,15 @@ git clone https://github.com/chai1110/dsh-custom-patches.git
 cd dsh-custom-patches
 
 # 3) 一键安装（-y 跳过交互确认；脚本会自动定位 DSH、校验版本、检测官方是否已内置、备份并应用）
-bash install-dsh-custom.sh -y
+node tools/dsh-patch.mjs -y
 
-# 4) 重启 DSH（macOS / Linux）
-kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
+# 4) 重启 DSH —— macOS / Linux
+pkill -f 'dsh web'; dsh web
 ```
 
-> **Windows 重启**：把上一步换成 `taskkill //F //IM node.exe`（或结束对应 node 进程）后重新 `dsh web` 即可；`pgrep` 只在重启这里用到。
-> **源码构建（monorepo）用户**：把第 3 步换成 `DSH_SOURCE=/path/to/deepseek-harness bash install-dsh-custom.sh -y`，只需重建/重启你的开发服务（详见「源码构建（monorepo）用户」一节）。
+> **Windows 重启**：把第 4 步换成 `taskkill /F /IM node.exe`（或结束对应 node 进程）后重新 `dsh web` 即可。
+> **源码构建（monorepo）用户**：把第 3 步换成 `DSH_SOURCE=/path/to/deepseek-harness node tools/dsh-patch.mjs -y`，只需重建/重启你的开发服务（详见「源码构建（monorepo）用户」一节）。
+> **shell 版仍然可用**：`bash install-dsh-custom.sh -y`（主安装器）、`bash apply-dsh-patches.sh`（备选）。二者与 Node 版套用同一套补丁，按需选用。
 
 然后**硬刷新**浏览器页面（`Cmd+Shift+R` / `Ctrl+Shift+R`）：
 - 输入框按 **↑** 即可翻历史

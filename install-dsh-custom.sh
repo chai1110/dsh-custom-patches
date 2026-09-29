@@ -111,10 +111,20 @@ else
     DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json$/,''))}catch(e){console.log('')}" 2>/dev/null)
   fi
   # 方法 C：常见全局目录扫描兜底（含 Windows %APPDATA%/%LOCALAPPDATA%）
+  # ⚠️ 本脚本是 set -u：$APPDATA / $LOCALAPPDATA 在 macOS / Linux 上**未定义**，
+  # 直接引用会让脚本以「unbound variable」中止（用户看到的是 shell 报错，
+  # 而不是下面那句友好提示）。故一律用 ${VAR:-} 先判空。
+  # 同时不用数组（macOS 自带 bash 3.2 在 set -u 下 ${#arr[@]} 空数组会报未绑定），
+  # 改为逐目录探测 + 命中即 break，POSIX 安全。
   if [ -z "$DSH_DIR" ]; then
-    DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
-      "$LOCALAPPDATA"/*/node_modules "$APPDATA"/*/node_modules \
-      -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+    for _base in /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
+                 "${APPDATA:-/nonexistent}/npm/node_modules" \
+                 "${LOCALAPPDATA:-/nonexistent}/npm/node_modules"; do
+      if [ -d "$_base" ]; then
+        DSH_DIR=$(find "$_base" -maxdepth 4 -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+        if [ -n "$DSH_DIR" ]; then break; fi
+      fi
+    done
   fi
   if [ -z "$DSH_DIR" ]; then
     err "Cannot find DSH global install dir."
@@ -142,26 +152,30 @@ target_for() {
 if [ "$LAYOUT" = "npm" ]; then
   VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
   echo -e "    local version: ${YELLOW}${VERSION:-unknown}${NC}"
-  LATEST=$(npm view @deepseek-ai/dsh version 2>/dev/null || echo "")
-  if [ -n "$LATEST" ]; then
-    echo -e "    npm latest:    ${YELLOW}$LATEST${NC}"
+  # 两个频道都要看：RC 常常只发在 next 上，而 `npm view <pkg> version` 只返回 latest。
+  # 只看 latest 会把「官方 next 比本地新」误报成「官方有更新版本 0.1.7-rc.2」，方向完全反了。
+  LATEST=$(npm view @deepseek-ai/dsh dist-tags.latest 2>/dev/null || echo "")
+  NEXT=$(npm view @deepseek-ai/dsh dist-tags.next 2>/dev/null || echo "")
+  if [ -n "$LATEST" ] || [ -n "$NEXT" ]; then
+    echo -e "    npm latest:    ${YELLOW}${LATEST:-（无）}${NC}"
+    echo -e "    npm next:      ${YELLOW}${NEXT:-（无）}${NC}"
   else
-    warn "Cannot query npm latest (network/npm source). Continuing."
+    warn "Cannot query npm dist-tags (network/npm source). Continuing."
   fi
   if [ "$VERSION" != "$TARGET_VERSION" ]; then
     err "Version mismatch: patches target $TARGET_VERSION, current is $VERSION"
     echo ""
     echo "  Choose one:"
-    echo "    a) Old-version user: rerun with your version as argument, e.g."
-    echo "       bash install-dsh-custom.sh -y $VERSION"
+    echo "    a) Old-version user: check out the matching release of THIS repo, then rerun:"
+    echo "       git checkout v$VERSION && bash install-dsh-custom.sh -y"
     echo "    b) Upgrade to the target version:"
     echo "       npm install -g @deepseek-ai/dsh@$TARGET_VERSION"
     echo "    c) If official upgraded beyond this repo, re-adapt per ADAPTING.md first."
     exit 1
   fi
-  if [ -n "$LATEST" ] && [ "$LATEST" != "$TARGET_VERSION" ]; then
-    warn "Official has newer version $LATEST (patches target $TARGET_VERSION)."
-    warn "Patches may still apply; if official now bundles these features, check versions.md."
+  if [ -n "$NEXT" ] && [ "$NEXT" = "$TARGET_VERSION" ] && [ "$LATEST" != "$TARGET_VERSION" ]; then
+    info "This build tracks the official \"next\" channel (latest is $LATEST)."
+    info "Plain \"npm i -g @deepseek-ai/dsh\" installs $LATEST, not $TARGET_VERSION."
   fi
 else
   echo -e "    source layout: skip npm version check"
@@ -222,13 +236,16 @@ for entry in "${APPLY[@]}"; do
   fi
 
   # if already applied -> skip
-  if patch --dry-run -N -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
-    if patch -N -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
+  # 注意 -F 0：patch 默认 fuzz=2，会容忍上下文行不匹配（＝可能在错误的锚点上"成功"）。
+  # 零模糊才能真正证明锚点未被上游改动（见 ADAPTING.md 铁律 3）。
+  # 本脚本是推荐入口，必须与 apply-dsh-patches.sh 保持同一严格度。
+  if patch --dry-run -N -F 0 -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
+    if patch -N -F 0 -p1 "$full_path" < "$patch_file" >/dev/null 2>&1; then
       ok "applied: $rel"; OK=$((OK+1))
     else
       err "apply failed: $rel (try: cp '$full_path.bak' '$full_path'; then rerun)"; FAIL=$((FAIL+1))
     fi
-  elif patch --dry-run -N -p1 --reverse "$full_path" < "$patch_file" >/dev/null 2>&1; then
+  elif patch --dry-run -N -F 0 -p1 --reverse "$full_path" < "$patch_file" >/dev/null 2>&1; then
     info "already in patched state, skip: $rel"; OK=$((OK+1))
   else
     err "patch cannot apply (official may have changed the code): $rel"; FAIL=$((FAIL+1))
@@ -246,9 +263,21 @@ echo -e "${CYAN}============================================================${NC
 echo ""
 echo -e "Next steps:"
 echo -e "  1. Restart DSH:"
-echo -e "     npm layout:    ${YELLOW}kill $(pgrep -f 'dsh web') 2>/dev/null; dsh web${NC}"
-echo -e "     source layout: restart your dev server / rebuild as you normally do"
-echo -e "  2. Hard-refresh the browser page (Cmd+Shift+R) to use the new features."
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*)
+    echo -e "     ${YELLOW}taskkill //F //IM node.exe${NC}   # 然后重新运行 dsh web"
+    echo -e "     （taskkill 会结束所有 node 进程；请先关闭其他 node 程序）"
+    ;;
+  *)
+    echo -e "     npm layout:    ${YELLOW}pkill -f 'dsh web'; dsh web${NC}"
+    echo -e "     source layout: restart your dev server / rebuild as you normally do"
+    ;;
+esac
+case "$(uname -s 2>/dev/null)" in
+  Darwin) echo -e "  2. Hard-refresh the browser page (Cmd+Shift+R) to use the new features." ;;
+  MINGW*|MSYS*|CYGWIN*) echo -e "  2. Hard-refresh the browser page (Ctrl+Shift+R) to use the new features." ;;
+  *) echo -e "  2. Hard-refresh the browser page (Ctrl+Shift+R) to use the new features." ;;
+esac
 if [ "$FAIL" -gt 0 ]; then
   echo ""
   echo -e "${RED}Some patches failed. Re-adapt per ADAPTING.md, or restore first:${NC}"
@@ -259,9 +288,10 @@ if [ "$FAIL" -gt 0 ]; then
     NPM_LIST="$NPM_LIST $rel"
     SRC_LIST="$SRC_LIST $srel"
   done
-  echo "    npm layout:"
+  echo "    推荐：直接跑 ${YELLOW}node tools/dsh-patch.mjs --restore${NC}（跨平台，无需 cp/patch）"
+  echo "    手工恢复（npm layout，路径分隔符随平台）："
   echo "      for e in$NPM_LIST; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
-  echo "    source layout (DSH_SOURCE set):"
+  echo "    手工恢复（source layout，DSH_SOURCE 已设置）："
   echo "      for e in$SRC_LIST; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
 fi
 echo ""

@@ -29,8 +29,9 @@ and **do not assume every doc is up to date**.
 
 | File | Status | Notes |
 |---|---|---|
-| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | Main installer; `TARGET_VERSION=0.2.0-rc.1`, 9 patches |
-| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | Alternative installer (no version diagnosis / no built-in detection) |
+| `tools/dsh-patch.mjs` | ✅ Adapted to 0.2.0-rc.1 | **Recommended installer (all platforms)**; dependency-free Node — no `patch`/`cp`/`find`/`pgrep`, exact (zero-fuzz) matching + `node --check` validation + auto-rollback |
+| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | shell-based main installer; `TARGET_VERSION=0.2.0-rc.1`, 9 patches |
+| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | shell-based alternative installer (no version diagnosis / no built-in detection) |
 | `check-update.sh` | ✅ Adapted to 0.2.0-rc.1 | Checks whether official has a newer version |
 | `patches/**` | ✅ Re-adapted | 11 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore). Against the previous release `v0.1.5-rc.1` (12 items) it is **12 → 9** (`client-connection` was retired early in the 0.1.7-rc.2 adaptation, 12→11; `workspace` + `client-ui-workspace` were retired on 2026-09-28, 11→9) |
 | `README.md` / `README.en.md` | ✅ Adapted to 0.2.0-rc.1 | This file |
@@ -82,13 +83,22 @@ This repo only commits to the versions marked 「✅」 above.
 
 ## ⚠️ Platform & Prerequisites
 
-The install script is written in **bash** and depends on **Unix command-line tools**:
+### Recommended: the Node installer (identical on every platform, no separator or tool dependencies)
+
+```bash
+node tools/dsh-patch.mjs -y
+```
+
+`tools/dsh-patch.mjs` is a **zero-dependency Node script**. Node is already a hard prerequisite for DSH (you installed DSH with npm), so it needs **none** of `patch` / `cp` / `find` / `pgrep`, and every path is built with `path.join` — so **Windows backslash problems cannot occur in the first place**. It also does two things the shell version does not:
+
+- **Zero-fuzz matching**: `patch` defaults to a fuzz factor of 2, silently tolerating context lines that no longer match (i.e. it can "succeed" onto the wrong anchor). This installer requires every context line to match exactly — if upstream moved the code you get a **loud failure** instead of a silent mis-patch.
+- **`node --check` validation after applying**: if the result does not parse, it automatically rolls back from the `.bak` copy.
 
 | Platform | Supported | Notes |
 |---|---|---|
 | **macOS** | ✅ Native | Built-in `bash`/`patch` (`pgrep` also built-in) |
 | **Linux** | ✅ Native | `patch` built-in; some minimal distros need `sudo apt install patch` |
-| **Windows** | ✅ After Git for Windows | **Git for Windows includes** `bash`, `diff`, `patch`, and `git`. The only `pgrep` usage is in the restart command; Windows uses `taskkill` instead (see below). The install scripts now locate DSH via `npm root -g` first (cross-platform), then fall back to common global dirs including `%APPDATA%\npm` — no `NODE_PATH` needed |
+| **Windows** | ✅ Use the Node installer above | Pure Node — no `patch`/`pgrep`/`cp`/`find`, **no path-separator problems**. If you still use the shell version: Git for Windows supplies `bash`; restart with `taskkill /F /IM node.exe` (`pgrep` does not exist on Windows) |
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed
@@ -112,14 +122,15 @@ git clone https://github.com/chai1110/dsh-custom-patches.git
 cd dsh-custom-patches
 
 # 3) One-click install (-y skips interactive confirm; script auto-locates DSH, validates version, detects built-ins, backs up, and applies)
-bash install-dsh-custom.sh -y
+node tools/dsh-patch.mjs -y
 
-# 4) Restart DSH (macOS / Linux)
-kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
+# 4) Restart DSH — macOS / Linux
+pkill -f 'dsh web'; dsh web
 ```
 
-> **Windows restart**: replace step 4 with `taskkill //F //IM node.exe` (or kill the node process) then `dsh web`. `pgrep` is only used in the restart command.
-> **Source build (monorepo) users**: replace step 3 with `DSH_SOURCE=/path/to/deepseek-harness bash install-dsh-custom.sh -y`, then rebuild/restart your dev server (see "Source Build (monorepo) Users" below).
+> **Windows restart**: replace step 4 with `taskkill /F /IM node.exe` (or kill the node process) then `dsh web`.
+> **Source build (monorepo) users**: replace step 3 with `DSH_SOURCE=/path/to/deepseek-harness node tools/dsh-patch.mjs -y`, then rebuild/restart your dev server (see "Source Build (monorepo) Users" below).
+> **The shell version still works**: `bash install-dsh-custom.sh -y` (main installer) and `bash apply-dsh-patches.sh` (alternative). Both apply the same patch set — pick whichever you prefer.
 
 Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 - Press **↑** in the composer to recall history

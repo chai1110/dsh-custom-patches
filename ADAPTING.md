@@ -20,8 +20,11 @@
 
 ### 第 1 步：装好新版本官方包
 ```bash
-# 查最新版
-npm view @deepseek-ai/dsh version
+# 查最新版 —— ⚠️ 必须同时看两个频道！
+# `npm view @deepseek-ai/dsh version` 只返回 latest；官方的大版本 RC 常常只发在 next 上，
+# 只看 latest 会得出「官方版本比我们适配的还旧」的荒谬结论（曾真实踩过，见铁律 4）。
+npm view @deepseek-ai/dsh dist-tags.latest
+npm view @deepseek-ai/dsh dist-tags.next
 
 # 装新版（可装全局，或用临时目录隔离，避免干扰工作环境）
 npm install -g @deepseek-ai/dsh@<新版本>
@@ -53,7 +56,10 @@ diff -u lib/client.js.bak lib/client.js > /path/to/dsh-custom-patches/patches/cl
 > **技巧**：新版通常只是少数几行上下文变了。可先看旧补丁哪个 hunk 失败（`patch` 会输出 `Hunk #N failed`），只修正那一处，其余沿用。
 
 ### 第 4 步：更新脚本与追踪表
-- 把新补丁文件名更新到 `install-dsh-custom.sh` 与 `apply-dsh-patches.sh` 的 `FILES` 数组（两者都改，保持一致）
+- ⚠️ **补丁表有 3 处，必须同时改**（格式不同，别只改一处）：
+  - `tools/dsh-patch.mjs` —— `FILES` 数组，对象形式（`rel` / `patch` / `marker` / `sourceRel`）**（推荐安装器）**
+  - `install-dsh-custom.sh` —— `FILES` 数组，`rel|patch|marker|source_rel` 竖线分隔
+  - `apply-dsh-patches.sh` —— `FILES` 数组，`rel|patch` 两段式（无 marker / 无 source_rel）
 - 在 `versions.md` 追加新版本一行
 - 提交：
 ```bash
@@ -502,3 +508,202 @@ Linux npm 安装）**均不涉及我们打补丁的 6 个包**。
 - `node --check` 通过；
 - 9 个补丁在 pristine `0.2.0-rc.1` 上仍 **9/9 可套用**（4 处修复只动 `+` 新增行，不碰上下文锚点）；
 - 真机功能验证：编辑重发 → 旧轮次即刻从会话消失，只留下替换后的新一轮。
+
+---
+
+**补丁文件（`patches/**`）零改动。**
+
+---
+
+## 跨平台修复（2026-09-28/29）—— 消除 Windows 的斜杠与工具依赖问题
+
+### 起因
+
+此前所有安装器都是 bash 脚本，隐含依赖 `patch` / `cp` / `find` / `pgrep`，并假定 POSIX 路径。
+在 Windows（Git for Windows / PowerShell）上这会产生三类问题：
+
+1. **`pgrep` 根本不存在** —— 重启提示那一条命令直接报 `command not found`。
+2. **路径分隔符** —— `$DSH_DIR/...` 这类拼法在 Windows 上得到反斜杠路径，
+   打印出来的 `cp` 命令无法直接执行。
+3. **`Cmd+Shift+R` 是 macOS 专属** —— Windows 用户看到的刷新快捷键是错的。
+
+另外还有两个与平台无关、但确实存在的**真 bug**：
+
+- `install-dsh-custom.sh` 用 `npm view @deepseek-ai/dsh version`（＝只取 `latest`）做「官方是否有新版」判断。
+  在 0.2.0-rc.1 上 `latest` 是 `0.1.7-rc.2`，于是它会警告「官方有更新的版本 0.1.7-rc.2」——**方向完全反了**。
+- 版本不匹配时它建议 `bash install-dsh-custom.sh -y $VERSION`，但参数解析器只接受 `-y`，
+  任何其他参数都会 `exit 1` —— 这条建议是**死的**。
+
+### 做法：新增零依赖的 Node 安装器 `tools/dsh-patch.mjs`
+
+Node 本来就是装 DSH 的硬前置，因此把套用逻辑搬进 Node 可以一次性消灭整类问题：
+
+| 维度 | shell 版 | `tools/dsh-patch.mjs` |
+|---|---|---|
+| 外部工具依赖 | `patch`、`cp`、`find`、`pgrep`、`grep` | **无**（纯 Node 内置模块） |
+| 路径拼装 | 字符串拼接 `/` | `path.join` / `path.resolve` → 平台原生分隔符 |
+| 匹配容差 | `patch` 默认 **fuzz=2**（可静默错补） | **零模糊**，每行上下文必须精确命中 |
+| 套用后校验 | 无 | `node --check`，语法炸了自动从 `.bak` 回滚 |
+| 恢复 | 手写 `for` + `cp` | `--restore` |
+| 重启提示 | 写死 macOS | 按 `process.platform` 分支 |
+
+补丁正文长度用 `@@` 头里的 `oldCount` / `newCount` 界定（与 `patch` 本身一致），
+这样能避开两个坑：① `split('\n')` 的尾部空串被误当上下文行；② 删除行内容以 `--` 开头时
+渲染成 `---...`，被「跳过 `---` 开头行」的朴素规则吞掉。
+
+### 同时修掉的 shell 缺陷
+
+- `install-dsh-custom.sh`：`npm view ... version` → `dist-tags.latest` + `dist-tags.next`；
+  版本不匹配的建议改为 `git checkout v$VERSION`；重启/刷新提示按 `uname -s` 分支；
+  失败时的恢复指引改为推荐 `node tools/dsh-patch.mjs --restore`。
+- `apply-dsh-patches.sh`：dry-run 加 **`-F 0`**（零模糊，落实铁律 3）；
+  新增「已是补丁态」的 reverse 检测；重启/刷新提示按平台分支。
+- `ADAPTING.md` 第 1 步：查版本改为同时看 `latest` 与 `next`。
+
+### ⚠️ 验证状态
+
+**`tools/dsh-patch.mjs` 尚未实际运行过。** 本机 shell 在写入该文件后即不可用
+（所有命令返回 exit 137 / SIGTERM，子代理同样如此），因此**没有跑过任何一次执行验证**。
+下次可执行时，必须补做：
+
+```bash
+node --check tools/dsh-patch.mjs                       # 语法
+node tools/dsh-patch.mjs --dry-run                     # 应 9/9 干净
+node tools/dsh-patch.mjs -y                            # 实套 + node --check
+node tools/dsh-patch.mjs -y                            # 幂等：应全部跳过
+node tools/dsh-patch.mjs --restore                     # 恢复
+```
+
+**在这四步跑通之前，不要把本文件标为已验证。**
+
+---
+
+## ⭐⭐ 重大修复：`surfaceOp` 字段名写错 —— 「编辑最后一条消息」一直是被拒的
+
+**发现时间**：2026-09-29，由用户真机报错触发。
+
+```
+editLastPrompt failed: session/edit-rejected: unable to rewrite the last message:
+Error: session event "user/message" carries an invalid replace surfaceOp
+```
+
+### 根因
+
+官方 `@deepseek-ai/dsh-session` 的 surface 替换操作，形状是**恰好三个键**：
+
+```ts
+export type SurfaceOp = 'append' | {
+    op: 'replace';
+    startSeq: SessionSeq;
+    endSeq: SessionSeq;
+};
+```
+
+运行时由 `lib/types/surface.js` 的 `isReplaceOp` 强校验：
+
+```js
+function isReplaceOp(value) {
+    const op = value;
+    return Object.keys(op).length === 3
+        && Object.hasOwn(op, 'op')
+        && Object.hasOwn(op, 'startSeq')     // ← 必须叫 startSeq
+        && Object.hasOwn(op, 'endSeq')       // ← 必须叫 endSeq
+        && op['op'] === 'replace'
+        && isEventSeq(op['startSeq'])
+        && isEventSeq(op['endSeq']);
+}
+```
+
+而我们的补丁传的是 **`{ op: "replace", start, end }`** —— 键名不对，
+`Object.hasOwn(op, 'startSeq')` 直接 false ⇒ 抛 `invalid replace surfaceOp`。
+
+> ⚠️ 容易混淆的地方：官方内部**折叠计划**（`planSurfaceEvent` 的返回值）确实用 `start` / `end`，
+> 但那是从 `surfaceOp.startSeq` / `surfaceOp.endSeq` **派生**出来的实现细节。
+> 事件自身 `surfaceOp` 上的字段名**只能是 `startSeq` / `endSeq`**。
+
+### 这不是官方改的 —— 我们一直就写错了
+
+对三个版本的 `isReplaceOp` 逐一核对，**完全相同**：
+
+| 官方版本 | 要求的字段名 |
+|---|---|
+| `0.1.5-rc.1` | `startSeq` / `endSeq` |
+| `0.1.7-rc.2` | `startSeq` / `endSeq` |
+| `0.2.0-rc.1` | `startSeq` / `endSeq` |
+
+也就是说，**这个功能从写出来那天起就没成功过**，只是此前没人真正点过那个「✏️ 编辑」按钮走完全程。
+⭐ 教训：**「补丁干净套用」≠「功能可用」**。锚点匹配只证明文本落位，
+运行时契约（字段名、枚举值、必填项）必须在真机上跑一遍才算数。
+
+### 一共两处，必须一起修
+
+| 文件 | 位置 | 原来 | 现在 | 后果 |
+|---|---|---|---|---|
+| `patches/api-session-controller/…-lib-index.js.patch` | `editLastPromptOnce` 的 `session.append(...)` | `start: startSeq, end: endSeq` | `startSeq, endSeq` | **直接报错**，编辑功能完全不可用 |
+| `patches/client-ui-conversation/…-lib-client.js.patch` | `scanShadowed()` + `append()` 两处 | `op.start` / `op.end` | `op.startSeq` / `op.endSeq` | **静默失效**：`op.start` 是 `undefined`，`for` 循环一次都不跑，被替换的旧消息不会被标记隐藏 → 改完之后旧消息和新消息会**同时出现在对话里** |
+
+> 第二处被第一处**掩盖**了：编辑从来就没成功过，所以「影子集合」永远是空的，bug 不显形。
+> **只修第一处会让第二处立刻暴露。两处必须一起修。**
+
+### 已应用的旧补丁怎么升级
+
+补丁的内置检测标记是 `async editLastPrompt`，所以**已经打过旧补丁的机器会被判为「已打过」而跳过**，
+不会自动拿到修复。必须**先还原再重打**：
+
+```bash
+node tools/dsh-patch.mjs --restore    # 用 .bak 还原成官方原文件
+node tools/dsh-patch.mjs -y           # 重新套用修好的补丁
+# 然后重启 DSH + 硬刷新浏览器
+```
+
+若没有 `.bak`，就重装官方包：`npm install -g @deepseek-ai/dsh@0.2.0-rc.1`。
+
+### ✅ 真机已直接修复（2026-09-29，绕过沙箱）
+
+本机沙箱仍然不可用（所有 shell 调用 fail-closed），因此**没有走安装脚本**，
+而是直接用编辑器改了**正在运行的那份安装**里的两个文件：
+
+```
+~/.local/node-v24/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/
+  dsh-api-session-controller/lib/index.js        991-992 行  start/end → startSeq/endSeq
+  dsh-client-ui-conversation/lib/client.js       1969 / 1982 行  op.start/op.end → op.startSeq/op.endSeq
+```
+
+改法与补丁内容**逐字一致**，所以后续再跑 `install-dsh-custom.sh` 时，
+`patch --dry-run --reverse -F 0` 会命中 ⇒ 正确判定为「已打过补丁」并跳过，不会重复套用。
+
+> 本机运行体：`~/.local/dsh-web/dsh-web-run.sh` → `~/.local/bin/dsh web --port 3082`，
+> 由 launchd `com.csl.dsh-web` 拉起；DSH 版本 **`0.2.0-rc.1`**（与 `TARGET_VERSION` 一致）。
+> 改完必须重启才生效：`launchctl kickstart -k gui/$(id -u)/com.csl.dsh-web`。
+
+### 🐞 顺带发现：本机安装**没有 `.bak`**，还原路径是断的
+
+`@deepseek-ai/` 下备份文件的实际情况：
+
+| 备份形态 | 文件 |
+|---|---|
+| **`.bak`**（脚本自己 `cp` 出来的） | **0 个** |
+| `.orig`（`patch` 在**需要模糊匹配时**自动生成的） | 4 个：`dsh-agent-loop/lib/index.js`、`dsh-api-remotes/lib/client.js`、`dsh-client-ui-chat/lib/client.js`、`dsh-client-ui-conversation/lib/client.js` |
+| 无任何备份 | 5 个：`dsh-api-session-controller` 的 4 个文件 + `dsh-compaction-basic/lib/index.js` |
+
+两个后果：
+
+1. **`.bak` 是脚本的还原依据**（`--restore`、以及失败提示里的 `cp "$full_path.bak" "$full_path"`）。
+   本机一个都没有 ⇒ 那 5 个文件**无法还原成官方原版**，只能重装官方包。
+2. ⚠️ `.orig` 只在 `patch` **用了模糊匹配（fuzz）或偏移**时才生成
+   （GNU patch 的 `--backup-if-mismatch` 默认开启）。
+   这 4 个文件存在 `.orig`，说明**当时的套用不是零模糊的** ——
+   正好印证了「必须加 `-F 0`」这条铁律：旧脚本没有 `-F 0`，允许 fuzz=2，
+   「套用成功」并不能证明锚点精确命中。
+
+> 结论：**换机器/重装后，先确认 `.bak` 是否齐全，再相信还原路径。**
+> 重装官方包是唯一 100% 干净的基线：`npm install -g @deepseek-ai/dsh@0.2.0-rc.1`。
+
+### ⚠️ 仍未做的验证
+
+真机**功能级**验证（改动已落盘，但 DSH 尚未重启，且沙箱不可用无法自动化）：
+
+```bash
+# 重启 DSH 后：打开一个会话，hover 最后一条用户消息 → 点 ✏️ → 改文字 → 保存并重新生成
+# 期望：旧回复消失，用新文字重新生成；旧消息不再与新的并列显示
+```

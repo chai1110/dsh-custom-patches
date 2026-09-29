@@ -45,10 +45,18 @@ fi
 if [ -z "$DSH_DIR" ]; then
   DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace(/[\\\\/]package\.json$/,''))}catch(e){console.log('')}" 2>/dev/null)
 fi
+# ⚠️ $APPDATA / $LOCALAPPDATA 在 macOS / Linux 上未定义：旧写法 "$LOCALAPPDATA"/*/node_modules
+# 会展开成 /*/node_modules，让 find 去扫根目录下的每一层（慢且可能命中无关目录）。
+# 改为 ${VAR:-} 判空 + 逐目录探测，POSIX 安全，且不依赖数组。
 if [ -z "$DSH_DIR" ]; then
-  DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
-    "$LOCALAPPDATA"/*/node_modules "$APPDATA"/*/node_modules \
-    -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+  for _base in /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" \
+               "${APPDATA:-/nonexistent}/npm/node_modules" \
+               "${LOCALAPPDATA:-/nonexistent}/npm/node_modules"; do
+    if [ -d "$_base" ]; then
+      DSH_DIR=$(find "$_base" -maxdepth 4 -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+      if [ -n "$DSH_DIR" ]; then break; fi
+    fi
+  done
 fi
 if [ -z "$DSH_DIR" ]; then
   echo -e "${RED}❌ 未找到 DSH 安装目录，请先安装 @deepseek-ai/dsh@$TARGET_VERSION${NC}"
@@ -58,7 +66,7 @@ fi
 echo -e "${GREEN}✅ 找到 DSH: $DSH_DIR${NC}"
 
 # 2. 校验版本
-VERSION=$(node -e "console.log(require(process.argv[1]).version)" "$DSH_DIR/package.json" 2>/dev/null)
+VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
 echo -e "   当前版本: ${YELLOW}$VERSION${NC}（补丁目标: ${YELLOW}$TARGET_VERSION${NC}）"
 if [ "$VERSION" != "$TARGET_VERSION" ]; then
   echo -e "${RED}❌ 版本不匹配：本补丁集按 $TARGET_VERSION 适配，当前是 $VERSION${NC}"
@@ -101,12 +109,17 @@ for entry in "${FILES[@]}"; do
   fi
 
   # 应用
-  if patch --dry-run -N -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
-    patch -N -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1
+  # 注意 -F 0：patch 默认 fuzz=2，会容忍上下文行不匹配（＝可能在错误的锚点上"成功"）。
+  # 零模糊才能真正证明锚点未被上游改动（见 ADAPTING.md 铁律 3）。
+  if patch --dry-run -N -F 0 -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
+    patch -N -F 0 -p1 "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1
     echo -e "  ${GREEN}✅ 已应用: $rel_path${NC}"
+  elif patch --dry-run -N -F 0 -p1 --reverse "$full_path" < "$SCRIPT_DIR/$patch_file" >/dev/null 2>&1; then
+    echo -e "  ${YELLOW}ℹ️  已是打过补丁的状态，跳过: $rel_path${NC}"
   else
     echo -e "  ${RED}❌ 应用失败: $rel_path${NC}"
     echo -e "    可能是补丁已应用或文件已被改动。可尝试：cp '$full_path.bak' '$full_path' 后重跑。"
+    echo -e "    跨平台推荐：node tools/dsh-patch.mjs --restore"
   fi
 done
 
@@ -116,11 +129,24 @@ echo -e "${GREEN}  补丁应用完成（适配 ${TARGET_VERSION}）！${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "下一步:"
-echo -e "  1. ${YELLOW}重启 DSH: kill $(pgrep -f 'dsh web') 2>/dev/null; dsh web${NC}"
-echo -e "  2. 刷新浏览器页面使用新的功能"
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*)
+    echo -e "  1. ${YELLOW}重启 DSH: taskkill //F //IM node.exe${NC}，然后重新运行 ${YELLOW}dsh web${NC}"
+    echo -e "  2. 硬刷新浏览器页面（${YELLOW}Ctrl+Shift+R${NC}）使用新功能"
+    ;;
+  Darwin)
+    echo -e "  1. ${YELLOW}重启 DSH: pkill -f 'dsh web'; dsh web${NC}"
+    echo -e "  2. 硬刷新浏览器页面（${YELLOW}Cmd+Shift+R${NC}）使用新功能"
+    ;;
+  *)
+    echo -e "  1. ${YELLOW}重启 DSH: pkill -f 'dsh web'; dsh web${NC}"
+    echo -e "  2. 硬刷新浏览器页面（${YELLOW}Ctrl+Shift+R${NC}）使用新功能"
+    ;;
+esac
 echo ""
 echo -e "如需恢复原版（仅当前设备）:"
+echo -e "  ${YELLOW}node tools/dsh-patch.mjs --restore${NC}   # 跨平台，推荐"
 # 恢复清单从 FILES 动态生成 —— 避免与补丁集脱节（历史上曾硬编码已退役的补丁）
 RESTORE_LIST=""
 for entry in "${FILES[@]}"; do RESTORE_LIST="$RESTORE_LIST ${entry%%|*}"; done
-echo -e "  ${YELLOW}for e in${RESTORE_LIST}; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
+echo -e "  ${YELLOW}或手工: for e in${RESTORE_LIST}; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done${NC}"
