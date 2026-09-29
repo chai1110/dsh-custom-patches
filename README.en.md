@@ -32,7 +32,7 @@ and **do not assume every doc is up to date**.
 | `tools/dsh-patch.mjs` | ✅ Adapted to 0.2.0-rc.1 | **Recommended installer (all platforms)**; dependency-free Node — no `patch`/`cp`/`find`/`pgrep`, exact (zero-fuzz) matching + `node --check` validation + auto-rollback |
 | `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | shell-based main installer; `TARGET_VERSION=0.2.0-rc.1`, 9 patches |
 | `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | shell-based alternative installer (no version diagnosis / no built-in detection) |
-| `apply-desktop-asar-patches.js` | ✅ Verified on 0.2.0-rc.1 / 0.2.0-rc.2 | **Desktop (Electron) installer**: rewrites `resources/app.asar`, reverse dry-run for idempotency + full byte-for-byte verification — see "🖥️ Desktop App Support" below |
+| `desktop/windows/apply-desktop-asar-patches.js` | ✅ Verified on 0.2.0-rc.1 / 0.2.0-rc.2 | **Desktop (Electron) installer**: rewrites `resources/app.asar`, reverse dry-run for idempotency + full byte-for-byte verification — see "🖥️ Desktop App Support" below |
 | `check-update.sh` | ✅ Adapted to 0.2.0-rc.1 | Checks whether official has a newer version |
 | `patches/**` | ✅ Re-adapted | 11 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore). Against the previous release `v0.1.5-rc.1` (12 items) it is **12 → 9** (`client-connection` was retired early in the 0.1.7-rc.2 adaptation, 12→11; `workspace` + `client-ui-workspace` were retired on 2026-09-28, 11→9) |
 | `README.md` / `README.en.md` | ✅ Adapted to 0.2.0-rc.1 | This file |
@@ -165,17 +165,18 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 ## 🖥️ Desktop App Support (DeepSeek Harness Desktop)
 
 **The desktop app is an Electron application — it is NOT installed via npm**, so all 9 patch targets live inside
-`resources/app.asar`. Use `apply-desktop-asar-patches.js` (pure Node, no third-party dependencies):
+`resources/app.asar`. Use `desktop/windows/apply-desktop-asar-patches.js` (pure Node, no third-party dependencies).
+**Full tutorial, platform differences and the macOS plan: [`desktop/README.md`](desktop/README.md)**:
 
 ```bash
 # 1) Dry-run first: check whether the patches fit, changes nothing
-node apply-desktop-asar-patches.js --dry-run
+node desktop/windows/apply-desktop-asar-patches.js --dry-run
 
 # 2) Install: quit app -> back up app.asar -> patch -> full verify -> swap -> relaunch
-node apply-desktop-asar-patches.js
+node desktop/windows/apply-desktop-asar-patches.js
 
 # Only produce a new asar at a given path (original untouched; app keeps running)
-node apply-desktop-asar-patches.js --out new.asar
+node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 ```
 
 - **Requirements**: Node (asar read/write is built into the script) + the `patch` command — on Windows that comes
@@ -339,9 +340,12 @@ bash install-dsh-custom.sh -y
 dsh-custom-patches/
 ├── install-dsh-custom.sh         # One-click install (recommended)
 ├── apply-dsh-patches.sh          # Alternative install (no version diagnosis/built-in detection)
-├── apply-desktop-asar-patches.js # Desktop (Electron) app.asar installer
 ├── check-update.sh               # Check if official has a new version
 ├── tools/dsh-patch.mjs           # Recommended installer (zero-dependency Node)
+├── desktop/                      # Desktop (Electron) adaptation
+│   ├── README.md                 #   Desktop guide (tutorial / platform differences / update checklist)
+│   └── windows/
+│       └── apply-desktop-asar-patches.js  #   app.asar installer (verified on Windows, macOS TBD)
 ├── versions.md                   # Version tracking table
 ├── ADAPTING.md                   # How to adapt to new official versions
 ├── patches/                      # Patch files (organized by package)

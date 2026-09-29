@@ -48,7 +48,7 @@
 
 > **桌面版（DeepSeek Harness Desktop）**：桌面版是 Electron 应用，**不走 npm 安装**，9 个补丁目标全部打包在
 > `resources/app.asar` 里。本机实测桌面版 `0.2.0-rc.2` 与 npm `0.2.0-rc.1` 的补丁集**零改动兼容**（对 asar 内容
-> 9/9 dry-run 通过，2026-09-29 已打上并真机验证）。安装方式不同：`node apply-desktop-asar-patches.js`
+> 9/9 dry-run 通过，2026-09-29 已打上并真机验证）。安装方式不同：`node desktop/windows/apply-desktop-asar-patches.js`
 > （详见 README「🖥️ 桌面版支持」与 `ADAPTING.md` 末节）。两个要点：① asar 内容与 npm tarball 存在**构建产物级
 > 差异**（CSS 模块类名哈希、构建机绝对路径），试套必须对 asar 抽出的文件做，不能拿 npm 包推断；
 > ② 桌面版**自带自动更新**，更新会覆盖 `app.asar`，届时需重跑脚本（先 `--dry-run`）。

@@ -31,7 +31,7 @@
 | `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.1 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚 |
 | `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版主安装器；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁 |
 | `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版备选安装器（无版本诊断 / 无内置检测） |
-| `apply-desktop-asar-patches.js` | ✅ 已验证 0.2.0-rc.1 / 0.2.0-rc.2 | **桌面版（Electron）安装器**：改写 `resources/app.asar`，反向试套判幂等 + 全量逐字节校验，详见下方「🖥️ 桌面版支持」 |
+| `desktop/windows/apply-desktop-asar-patches.js` | ✅ 已验证 0.2.0-rc.1 / 0.2.0-rc.2 | **桌面版（Electron）安装器**：改写 `resources/app.asar`，反向试套判幂等 + 全量逐字节校验，详见下方「🖥️ 桌面版支持」 |
 | `check-update.sh` | ✅ 已适配 0.2.0-rc.1 | 检测官方是否有新版 |
 | `patches/**` | ✅ 已重适配 | 11 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复）。相对上一发布版 `v0.1.5-rc.1` 的 12 项为 **12 → 9**（`client-connection` 在 0.1.7-rc.2 适配早期退役，12→11；`workspace` + `client-ui-workspace` 于 2026-09-28 退役，11→9） |
 | `README.md` / `README.en.md` | ✅ 已适配 0.2.0-rc.1 | 本文件 |
@@ -166,17 +166,18 @@ pkill -f 'dsh web'; dsh web
 ## 🖥️ 桌面版支持（DeepSeek Harness Desktop）
 
 **桌面版是 Electron 应用，不走 npm 全局安装** —— 9 个补丁目标全部打包在 `resources/app.asar` 里，
-所以要用本仓库的 `apply-desktop-asar-patches.js`（纯 Node，无第三方依赖）单独安装：
+所以要用本仓库的 `desktop/windows/apply-desktop-asar-patches.js`（纯 Node，无第三方依赖）单独安装。
+**完整教程、平台差异、macOS 计划见 [`desktop/README.md`](desktop/README.md)**：
 
 ```bash
 # 1) 先试套：只看补丁能否套上，不改动任何文件
-node apply-desktop-asar-patches.js --dry-run
+node desktop/windows/apply-desktop-asar-patches.js --dry-run
 
 # 2) 正式安装：退出应用 → 备份 app.asar → 打补丁 → 全量校验 → 替换 → 重启
-node apply-desktop-asar-patches.js
+node desktop/windows/apply-desktop-asar-patches.js
 
 # 只生成新 asar 到指定路径、不替换原文件（应用可继续运行，适合先验证）
-node apply-desktop-asar-patches.js --out new.asar
+node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 ```
 
 - **依赖**：Node（读写 asar 由脚本自带）+ `patch` 命令 —— Windows 装 Git for Windows 即有，
@@ -338,9 +339,12 @@ bash install-dsh-custom.sh -y
 dsh-custom-patches/
 ├── install-dsh-custom.sh         # 一键安装（推荐）
 ├── apply-dsh-patches.sh          # 备选安装（无版本诊断/内置检测）
-├── apply-desktop-asar-patches.js # 桌面版（Electron）app.asar 安装脚本
 ├── check-update.sh               # 检测官方是否有新版本
 ├── tools/dsh-patch.mjs           # 推荐安装器（零依赖 Node）
+├── desktop/                      # 桌面版（Electron）适配
+│   ├── README.md                 #   桌面版适配指南（教程 / 平台差异 / 更新清单）
+│   └── windows/
+│       └── apply-desktop-asar-patches.js  #   app.asar 安装脚本（Windows 已实测，macOS 待补）
 ├── versions.md                   # 版本追踪表
 ├── ADAPTING.md                   # 适配官方新版的操作手册
 ├── patches/                      # 补丁文件（按包分目录）

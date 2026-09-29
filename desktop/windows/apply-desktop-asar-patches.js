@@ -5,15 +5,15 @@
  * 桌面版不走 npm 全局安装：补丁目标 9 个包都打在 Electron 的 resources/app.asar 里。
  * 本脚本把仓库 patches/ 下的 .patch 直接套到 asar 内的文件上，重建 asar，全量校验后替换。
  *
- * 用法:
- *   node apply-desktop-asar-patches.js                # 自动探测 app.asar，打补丁并替换（会先退出应用）
- *   node apply-desktop-asar-patches.js --dry-run      # 只试套补丁，不生成、不替换
- *   node apply-desktop-asar-patches.js --out new.asar # 生成新 asar 到指定路径，不替换原文件（应用可继续运行）
- *   node apply-desktop-asar-patches.js --asar /path/to/app.asar --force
+ * 用法（在仓库根目录执行）:
+ *   node desktop/windows/apply-desktop-asar-patches.js                # 自动探测 app.asar，打补丁并替换（会先退出应用）
+ *   node desktop/windows/apply-desktop-asar-patches.js --dry-run      # 只试套补丁，不生成、不替换
+ *   node desktop/windows/apply-desktop-asar-patches.js --out new.asar # 生成新 asar 到指定路径，不替换原文件（应用可继续运行）
+ *   node desktop/windows/apply-desktop-asar-patches.js --asar /path/to/app.asar --force
  *
  * 选项:
  *   --asar <path>    app.asar 路径（默认按平台自动探测，也可用环境变量 DSH_DESKTOP_ASAR）
- *   --patches <dir>  补丁目录（默认仓库内 patches/）
+ *   --patches <dir>  补丁目录（默认仓库根的 patches/，自动向上定位）
  *   --out <path>     输出新 asar 到该路径，跳过 退出/备份/替换/重启
  *   --dry-run        只做补丁试套（已应用的补丁会报「已应用」）
  *   --force          桌面版版本不在支持列表时仍继续
@@ -47,6 +47,9 @@ const MARKERS = [
 
 const PKG_PREFIX = '/dsh/node_modules/@deepseek-ai/';
 
+// 本脚本位于 <repo>/desktop/windows/，补丁集在仓库根的 patches/
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
 /* ---------------- 小工具 ---------------- */
 const RED = '\x1b[0;31m', GREEN = '\x1b[0;32m', YELLOW = '\x1b[1;33m', NC = '\x1b[0m';
 const ok = m => console.log(`${GREEN}[ok]${NC} ${m}`);
@@ -63,7 +66,7 @@ function integrityOf(buf) {
 }
 
 function parseArgs(argv) {
-  const opts = { patches: path.join(__dirname, 'patches'), dryRun: false, force: false,
+  const opts = { patches: path.join(REPO_ROOT, 'patches'), dryRun: false, force: false,
                  backup: true, restart: true, quit: true, out: null, asar: null };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -182,8 +185,12 @@ function startApp(asarPath) {
     const exe = path.join(root, `${APP_NAME}.exe`);
     if (fs.existsSync(exe)) { spawn(exe, [], { detached: true, stdio: 'ignore' }).unref(); return; }
   } else if (process.platform === 'darwin') {
-    const app = path.join(path.dirname(path.dirname(path.dirname(root))), `${APP_NAME}.app`);
-    if (fs.existsSync(app)) { spawn('open', ['-a', app], { stdio: 'ignore' }); return; }
+    // resources = <Foo>.app/Contents/Resources → 向上找到 .app 本身
+    let p = resources;
+    while (p && path.dirname(p) !== p) {
+      if (p.endsWith('.app')) { spawn('open', ['-a', p], { stdio: 'ignore' }); return; }
+      p = path.dirname(p);
+    }
   }
   warn('未能自动定位可执行文件，请手动启动应用');
 }

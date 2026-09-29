@@ -74,6 +74,33 @@ git push
 
 ---
 
+## ⚙️ 一次新版更新的总清单（npm 版 + 桌面版 + 配置 + 插件）
+
+> 上面「适配流程」讲的是**补丁怎么改**，这里讲**一次更新到底要跑哪些命令**。
+>
+> 原则：**补丁只有一套**（`patches/**`，npm 与桌面共用 —— 锚点只修一次，两边受益）；
+> **但安装两条、配置两份** —— 因为 asar 内容 ≠ npm tarball，两边必须各自 `--dry-run`，
+> 不能一边通过就默认另一边也通过。npm 与桌面的**版本号可以不同步**
+> （当前 npm `0.2.0-rc.1` / 桌面 `0.2.0-rc.2`），支持列表要同时覆盖两个。
+
+| # | 步骤 | npm 版（网页 / VSCode 插件用） | 桌面版（Electron，Windows） |
+|---|---|---|---|
+| 1 | 装/升级官方本体 | `npm install -g @deepseek-ai/dsh@<版本>` | 等自动更新（会覆盖 asar、清掉补丁）或手动装安装包 |
+| 2 | **试套**（两边各跑各的） | `node tools/dsh-patch.mjs --dry-run` | `node desktop/windows/apply-desktop-asar-patches.js --dry-run` |
+| 3 | 有补丁失败 → 修 `patches/**` 锚点 | 修一次，两边共用（见上「适配流程」第 3 步） | 同左 |
+| 4 | 正式安装 | `node tools/dsh-patch.mjs -y` | `node desktop/windows/apply-desktop-asar-patches.js` |
+| 5 | 补丁表 / 版本列表同步 | `tools/dsh-patch.mjs` + `install-dsh-custom.sh` + `apply-dsh-patches.sh` 的 `FILES`（3 处）+ `versions.md` | 脚本顶部 `SUPPORTED` 数组 |
+| 6 | 配置（模型 / 重试 / 主题） | `~/.dsh/profiles/web/cordis.patch.yml` | `~/.dsh/profiles/desktop/cordis.patch.yml` —— **两边独立，改一边不影响另一边** |
+| 7 | profile 内插件 / bundle | `dsh --profile web ...` | `dsh --profile desktop ...`（同一个 `dsh` CLI，只是 profile 不同） |
+| 8 | 验证 | 网页开一次 + VSCode 插件（自起 `3080`）试一次 | `--dry-run` 显示 9/9「已应用」+ 桌面 UI 实测 |
+
+- **回滚**：npm 侧重装官方包；桌面侧把 `resources/app.asar.bak-<时间戳>` 改名回 `app.asar`。
+- **谁必须保留 npm 版**：VSCode 插件硬编码 `dsh web` + `profiles/web`，且外部鉴权实例它**无法 attach**
+  （`err.authRequired`），所以**桌面版替代不了 npm 版**，两套安装要一直并存。
+- 桌面版教程、平台差异（Windows 已实测 / macOS 待实测）与 macOS 合并计划：[`desktop/README.md`](desktop/README.md)。
+
+---
+
 ## 常见问题
 
 | 现象 | 处理 |
@@ -714,7 +741,7 @@ node tools/dsh-patch.mjs -y           # 重新套用修好的补丁
 桌面版是 Electron 应用，**不走 npm 全局安装**：`dsh` 命令的安装目录、进程、端口（桌面 `127.0.0.1:19387`、网页 `8080`）、
 profile（桌面 `~/.dsh/profiles/desktop`）全部与 npm 版独立，**只有 `~/.dsh` 根目录共享**（`.credentials.yaml` /
 `settings.yaml` / `sessions` / `storages`）。9 个补丁目标全部打包在 `resources/app.asar` 内，
-因此需要 `apply-desktop-asar-patches.js` 单独处理。首次手工走通后已脚本化。
+因此需要 `desktop/windows/apply-desktop-asar-patches.js` 单独处理。首次手工走通后已脚本化。
 
 ### 1. asar 文件格式（实测，脚本按此读写）
 
@@ -768,10 +795,10 @@ CSS 模块类名哈希（asar 是 `cJsG2q_…`，npm 是 `Sixlwa_…`）与构�
 
 ### 5. 操作记录（2026-09-29）
 
-- 手工流程跑通后固化成 `apply-desktop-asar-patches.js`；脚本从 pristine 备份重建出的 asar 与手工安装到线上的
+- 手工流程跑通后固化成 `desktop/windows/apply-desktop-asar-patches.js`；脚本从 pristine 备份重建出的 asar 与手工安装到线上的
   asar **SHA256 完全一致**（`F24882B0…`），证明流程可复现；
 - 自动化验收：`--dry-run`（已应用 9/9）、`--out`（pristine → 9 个补丁套用 + 全量校验通过）、
   线上 asar 重启后 `editLastPrompt` 命中 63 次、端口 19387 监听、会话文件正常写入；
 - **桌面版带自动更新**（`resources/app-update.yml` 存在），更新会覆盖 `app.asar`：
-  每次更新后必须重跑 `node apply-desktop-asar-patches.js --dry-run` 确认，再正式安装；
+  每次更新后必须重跑 `node desktop/windows/apply-desktop-asar-patches.js --dry-run` 确认，再正式安装；
 - 回滚：`resources/app.asar.bak-<时间戳>` 改名回 `app.asar` 即可（本次备份 `app.asar.bak-20260929-211542`）。
