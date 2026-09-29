@@ -104,7 +104,7 @@ bash patch-all.sh --check  # 只核对（推荐先用这个看现状）
 > 原则：**补丁只有一套**（`patches/**`，npm 与桌面共用 —— 锚点只修一次，两边受益）；
 > **但安装两条、配置两份** —— 因为 asar 内容 ≠ npm tarball，两边必须各自 `--dry-run`，
 > 不能一边通过就默认另一边也通过。npm 与桌面的**版本号可以不同步**
-> （当前 npm `0.2.0-rc.1` / 桌面 `0.2.0-rc.2`），支持列表要同时覆盖两个。
+> （当前两边均为 `0.2.0-rc.2`；2026-09-29 曾出现 npm rc.1 / 桌面 rc.2 并存），支持列表要同时覆盖。
 
 | # | 步骤 | npm 版（网页 / VSCode 插件用） | 桌面版（Electron，Windows） |
 |---|---|---|---|
@@ -1148,3 +1148,19 @@ CSS 模块类名哈希（asar 是 `cJsG2q_…`，npm 是 `Sixlwa_…`）与构�
 - **桌面版带自动更新**（`resources/app-update.yml` 存在），更新会覆盖 `app.asar`：
   每次更新后必须重跑 `node desktop/windows/apply-desktop-asar-patches.js --dry-run` 确认，再正式安装；
 - 回滚：`resources/app.asar.bak-<时间戳>` 改名回 `app.asar` 即可（本次备份 `app.asar.bak-20260929-211542`）。
+
+---
+
+## 0.2.0-rc.2 适配记录（2026-09-29）—— 第二个「零改动」适配
+
+官方 v0.2.0-rc.2（2026-09-29 发布）发布即同时占据 npm `latest` 与 `next`。本轮结论：
+
+- **补丁内容零改动**：`patches/**` 与 rc.1 完全同一套。npm 树（rc.2）`patch -F 0` **9/9 零模糊**通过；
+  桌面版 rc.2 asar 侧此前已 9/9 通过（见上方桌面小节）。仅版本常量随基线更新
+  （`tools/dsh-patch.mjs` / `install-dsh-custom.sh` / `apply-dsh-patches.sh` 的 `TARGET_VERSION` → `0.2.0-rc.2`）。
+- **依赖变化**：pi-ai 0.85.1 → **0.87.1**。官方注「部分旧模型 ID 被移除」——那只影响**内置**模型目录；
+  我们的自定义 sensenova 模型块（`cordis.patch.yml` 里自备 ID/名称/上下文窗口）不受影响，
+  `dsh --profile web --dump-config` 组装校验通过（sensenova 块正常出现，无校验报错）。
+- **真机升级验证（2026-09-29）**：`npm i -g @deepseek-ai/dsh@0.2.0-rc.2` → `node tools/dsh-patch.mjs -y`
+  **9/9 应用**（23 处 hunk 行号平移、锚点精确命中）→ `node --check` 9/9 → launchd 服务干净重启 →
+  dsh-vscode 0.5.4 与 dsh-lite 0.1.0 双 smoke **PASS**（令牌兑换 → 代理 200+boot → bridge/隐藏设置注入 → WS 升级 101）。

@@ -5,7 +5,7 @@
 Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
 **① Composer ↑/↓ key send history**, **② Edit last message and regenerate**, and **③ Automatic retry for failed compaction (context summarization)**.
 
-- Target version: **`@deepseek-ai/dsh@0.2.0-rc.1`** (official `next`; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
+- Target version: **`@deepseek-ai/dsh@0.2.0-rc.2`** (official `latest` & `next`; versions are managed by git tags — users on other DSH versions should checkout the matching tag, see "Multiple Version Support")
 - License: **MIT** (see [LICENSE](LICENSE))
 - Maintainer: chai1110 (<chai011379@gmail.com>)
 
@@ -17,11 +17,11 @@ Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github
 
 ## 📌 Current support scope (which docs are "latest")
 
-**Target version of this repo's `main` branch: `@deepseek-ai/dsh@0.2.0-rc.1` (official `next` channel).**
+**Target version of this repo's `main` branch: `@deepseek-ai/dsh@0.2.0-rc.2` (official `latest` & `next` channel, since 2026-09-29).**
 
-> ⚠️ `0.2.0-rc.1` is on the official **`next`** channel — **`latest` is still `0.1.7-rc.2`**.
-> A plain `npm install -g @deepseek-ai/dsh` gives you `0.1.7-rc.2`; in that case **checkout `v0.1.7-rc.2`**,
-> or install the new version explicitly: `npm install -g @deepseek-ai/dsh@0.2.0-rc.1`.
+> ✅ `0.2.0-rc.2` now holds both official **`latest` and `next`** — a plain `npm install -g @deepseek-ai/dsh` works.
+> Environments still on `0.2.0-rc.1`: **checkout `v0.2.0-rc.1`**. The patch content is identical for rc.1 / rc.2
+> (both the rc.2 npm tree and the desktop asar pass 9/9 zero-fuzz, verified 2026-09-29); only the version constants track the baseline.
 
 ⚠️ This is a **multi-version repo**, and **not every document has been rewritten alongside the latest version**.
 The table below states each file's actual status — judge reliability by the "Status" column,
@@ -29,20 +29,20 @@ and **do not assume every doc is up to date**.
 
 | File | Status | Notes |
 |---|---|---|
-| `tools/dsh-patch.mjs` | ✅ Adapted to 0.2.0-rc.1 | **Recommended installer (all platforms)**; dependency-free Node — no `patch`/`cp`/`find`/`pgrep`, exact (zero-fuzz) matching + `node --check` validation + auto-rollback; **checks "already applied" in reverse before applying** (prevents double-application) |
+| `tools/dsh-patch.mjs` | ✅ Adapted to 0.2.0-rc.2 | **Recommended installer (all platforms)**; dependency-free Node — no `patch`/`cp`/`find`/`pgrep`, exact (zero-fuzz) matching + `node --check` validation + auto-rollback; **checks "already applied" in reverse before applying** (prevents double-application) |
 | `tools/contract-test-surface-op.mjs` | ✅ Actually run on a real machine | `surfaceOp` contract test (zero side effects — writes nothing, touches no real session); use it as a regression check after upgrades; exit code 0 = as expected, 1 = deviation |
 | `tools/patch-markers.tsv` | ✅ Measured | **Single source of truth for feature markers** (9 entries). `patch-all.sh` / the desktop scripts / `check-update.sh` all read the same file, so the markers cannot drift apart |
-| `patch-all.sh` | ✅ Adapted to 0.2.0-rc.1 | **Patches both surfaces in one command**: the CLI side (browser + VS Code) and the desktop app, then prints a **feature-marker cross-check matrix**; `--check` verifies without modifying anything |
+| `patch-all.sh` | ✅ Adapted to 0.2.0-rc.2 | **Patches both surfaces in one command**: the CLI side (browser + VS Code) and the desktop app, then prints a **feature-marker cross-check matrix**; `--check` verifies without modifying anything |
 | `desktop/**` | ✅ macOS verified | **Desktop (Electron) adaptation** — asar surgery on a signed `app.asar`. macOS and Windows are **two separate modules for now** (`desktop/macos/`, `desktop/windows/`); the rationale and merge criterion live in `desktop/README.md` |
 | `desktop/macos/**` | ✅ Verified on 0.2.0-rc.2 | macOS module: clone → extract → patch → rewrite asar → verify → **re-sign**. 9/9 targets hit, 12,964/12,964 non-target entries byte-identical |
 | `desktop/windows/**` | ✅ Verified on 0.2.0-rc.1 / 0.2.0-rc.2 | Windows module (**contributed by someone else**): cross-platform `apply-desktop-asar-patches.js` with reverse dry-run idempotency + full byte-for-byte verification. **Its macOS branch was verified on real hardware on 2026-09-29** (see "🖥️ Desktop App Support" below) |
-| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.1 | shell one-click install (**alternative**); `TARGET_VERSION=0.2.0-rc.1`, 9 patches; the "pure-insertion patch applied twice" bug is fixed |
-| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.1 | shell minimal installer (**alternative**, no version diagnosis / no built-in detection); the "pure-insertion patch applied twice" bug is fixed; accepts an externally supplied `DSH_DIR` |
-| `check-update.sh` | ✅ Adapted to 0.2.0-rc.1 | Checks whether official has a newer version, **and whether the desktop patches have been overwritten by an official nightly update** (source fingerprint + feature markers) |
+| `install-dsh-custom.sh` | ✅ Adapted to 0.2.0-rc.2 | shell one-click install (**alternative**); `TARGET_VERSION=0.2.0-rc.2`, 9 patches; the "pure-insertion patch applied twice" bug is fixed |
+| `apply-dsh-patches.sh` | ✅ Adapted to 0.2.0-rc.2 | shell minimal installer (**alternative**, no version diagnosis / no built-in detection); the "pure-insertion patch applied twice" bug is fixed; accepts an externally supplied `DSH_DIR` |
+| `check-update.sh` | ✅ Adapted to 0.2.0-rc.2 | Checks whether official has a newer version, **and whether the desktop patches have been overwritten by an official nightly update** (source fingerprint + feature markers) |
 | `patches/**` | ✅ Re-adapted | 11 → 9 items; all archive-related patches (`client-connection` / `workspace` / `client-ui-workspace`) **retired** — official now ships the complete chain (archive + unarchive + sidebar filter + inline restore + search restore). Against the previous release `v0.1.5-rc.1` (12 items) it is **12 → 9** (`client-connection` was retired early in the 0.1.7-rc.2 adaptation, 12→11; `workspace` + `client-ui-workspace` were retired on 2026-09-28, 11→9) |
-| `README.md` / `README.en.md` | ✅ Adapted to 0.2.0-rc.1 | This file |
-| `versions.md` | ✅ Adapted to 0.2.0-rc.1 | Version tracking table |
-| `ADAPTING.md` | ✅ Includes the 0.2.0-rc.1 record | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
+| `README.md` / `README.en.md` | ✅ Adapted to 0.2.0-rc.2 | This file |
+| `versions.md` | ✅ Adapted to 0.2.0-rc.2 | Version tracking table |
+| `ADAPTING.md` | ✅ Includes the 0.2.0-rc.1/rc.2 records | Also keeps historical records (`0.1.2-alpha.2` pre-study / `0.1.2-rc.1` / `0.1.5-rc.1`) — **intentionally preserved as archive** |
 | `POSTMORTEM.md` | 🕘 Historical (2026-08-19, rc.8 era) | Incident postmortem; **not updated for newer versions, and it doesn't need to be** |
 | `docs/SSH-REMOTE.md` | 🕘 Pointer only | The SSH plugin itself lives in the separate repo [dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote); **maintenance is paused and it no longer follows 0.1.5+** |
 | `SECURITY.md` | ➖ Version-independent | How to report vulnerabilities |
@@ -113,14 +113,14 @@ node tools/dsh-patch.mjs -y
 3. **`node --check` after applying**: if the result no longer parses, it rolls back from `.bak` automatically.
 4. **It checks "already applied" (in reverse) before applying**: this prevents a pure-insertion patch from being **applied twice** (the shell version had exactly this incident — see "Critical bug: the shell version double-applies pure-insertion patches" in [`ADAPTING.md`](ADAPTING.md)).
 
-> **Verification status (2026-09-29)**: on macOS (Apple Silicon) + DSH `0.2.0-rc.1`, all six steps of
+> **Verification status (2026-09-29)**: on macOS (Apple Silicon) + DSH `0.2.0-rc.1` / `0.2.0-rc.2`, all six steps of
 > `tools/dsh-patch.mjs` passed — `--check` / `--list` / `--dry-run` / `-y` / idempotent `-y` / `--restore`;
 > both shell scripts also ran successfully under `/bin/bash` 3.2.57. **The Windows side had already been
 > adapted and pushed**, so this patch set is now verified on **two platforms**.
 
 **Universal prerequisites** (any platform):
 - **Node.js** (with `npm`) installed
-- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.2.0-rc.1`; users on other DSH versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
+- **`@deepseek-ai/dsh`** installed globally via npm (this repo's main targets `0.2.0-rc.2`; users on other DSH versions checkout the matching tag, see "Multiple Version Support" below); or built from source (see "Source Build (monorepo) Users" below)
 
 > **No CLI tools needed**: The easiest path is to send this repo link (`https://github.com/chai1110/dsh-custom-patches`) to your AI assistant and let it follow the "Quick Start" section to install and configure on your machine — it will handle Windows `taskkill` differences automatically.
 
@@ -132,8 +132,8 @@ Four steps total, **HTTPS clone recommended** (no SSH key needed). You can paste
 
 ```bash
 # 1) Install matching DSH version (skip if already installed and correct version)
-npm install -g @deepseek-ai/dsh@0.2.0-rc.1
-dsh --version          # should output 0.2.0-rc.1
+npm install -g @deepseek-ai/dsh@0.2.0-rc.2
+dsh --version          # should output 0.2.0-rc.2
 
 # 2) Clone this repo (HTTPS, works for everyone)
 git clone https://github.com/chai1110/dsh-custom-patches.git
@@ -164,8 +164,9 @@ Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
 
 | Your DSH Version | Support | One-click Command |
 |---|---|---|
-| **0.2.0-rc.1** (official `next`) | `v0.2.0-rc.1` (default main) | `git clone` then `bash install-dsh-custom.sh -y` |
-| 0.1.7-rc.2 (official `latest`) | `v0.1.7-rc.2` | `git checkout v0.1.7-rc.2` then `bash install-dsh-custom.sh -y` |
+| **0.2.0-rc.2** (official `latest` & `next`) | `main` (default) | `git clone` then `bash install-dsh-custom.sh -y` |
+| 0.2.0-rc.1 | `v0.2.0-rc.1` | `git checkout v0.2.0-rc.1` then `bash install-dsh-custom.sh -y` |
+| 0.1.7-rc.2 (former `latest`) | `v0.1.7-rc.2` | `git checkout v0.1.7-rc.2` then `bash install-dsh-custom.sh -y` |
 | 0.1.5-rc.1 | `v0.1.5-rc.1` | `git checkout v0.1.5-rc.1` then `bash install-dsh-custom.sh -y` |
 | 0.1.2-rc.1 | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` then `bash install-dsh-custom.sh -y` |
 | 0.1.1-rc.2 | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` then `bash install-dsh-custom.sh -y` |
@@ -208,8 +209,7 @@ node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 - **⚠️ The desktop app auto-updates**, which overwrites `app.asar` — rerun the script afterwards
   (`--dry-run` first to confirm).
 - **Rollback**: rename `resources/app.asar.bak-<timestamp>` back to `app.asar`.
-- **Verified on**: desktop `0.2.0-rc.2` (the same patch set works unchanged on npm `0.2.0-rc.1`;
-  `0.2.0-rc.1` is accepted too). The desktop app shares the `~/.dsh` root (credentials, `settings.yaml`,
+- **Verified on**: desktop `0.2.0-rc.2` (the same patch set works unchanged on npm `0.2.0-rc.1` / `0.2.0-rc.2`; both are supported). The desktop app shares the `~/.dsh` root (credentials, `settings.yaml`,
   sessions) with the npm version, but plugin config is **per profile** — the desktop default profile is
   `~/.dsh/profiles/desktop`, so settings cannot be copied verbatim from the web profile (see `dsh-provider-config`).
 
@@ -219,8 +219,8 @@ node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 
 ### Step 1: Confirm DSH Version
 ```bash
-npm install -g @deepseek-ai/dsh@0.2.0-rc.1   # install matching version
-dsh --version                                 # confirm it's 0.2.0-rc.1
+npm install -g @deepseek-ai/dsh@0.2.0-rc.2   # install matching version
+dsh --version                                 # confirm it's 0.2.0-rc.2
 ```
 
 ### Step 2: Clone the Repo
@@ -243,7 +243,7 @@ bash install-dsh-custom.sh -y
 The script will automatically:
 1. Locate DSH install dir (probes both system-level and user-level global paths)
 2. Read local version and query npm for latest, giving a version diagnosis
-3. **Validate version** (main expects `0.2.0-rc.1`; mismatch aborts and tells you to checkout the correct tag)
+3. **Validate version** (main expects `0.2.0-rc.2`; mismatch aborts and tells you to checkout the correct tag)
 4. **Detect if official already has the feature** — if the target file already contains feature markers (e.g. official bundled them), automatically skip that patch
 5. For patches that need applying: **backup each file (`.bak`) and apply**
 6. Summary report + restart hint
@@ -282,7 +282,7 @@ bash install-dsh-custom.sh -y
 ```
 When the script detects `DSH_SOURCE`, it automatically switches to source layout:
 - Locates target files under `<DSH_SOURCE>/packages/**/lib/`, backs up, and applies
-- **Skips npm version validation** (source doesn't have `0.2.0-rc.1` version strings), but please ensure your source checkout matches the latest rc-era code
+- **Skips npm version validation** (source doesn't have `0.2.0-rc.2` version strings), but please ensure your source checkout matches the latest rc-era code
 - After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
 ### Source Layout Target File Mapping

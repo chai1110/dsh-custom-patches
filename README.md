@@ -5,7 +5,7 @@
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加三个官方暂未提供的实用改进：
 **① 输入框 ↑/↓ 键发送历史**、**② 编辑最后一条消息并重新生成** 与 **③ 压缩（上下文总结）失败自动重试**。
 
-- 适配版本：**`@deepseek-ai/dsh@0.2.0-rc.1`**（官方 `next`；本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
+- 适配版本：**`@deepseek-ai/dsh@0.2.0-rc.2`**（官方 `latest` 与 `next`；本仓库按 tag 管理版本，其他 DSH 版本用户请 checkout 对应 tag，见「多版本支持」）
 - 许可证：**MIT**（详见 [LICENSE](LICENSE)）
 - 维护：chai1110（<chai011379@gmail.com>）
 
@@ -17,31 +17,31 @@
 
 ## 📌 当前适配范围（哪些文档是「最新」的）
 
-**本仓库 `main` 分支的目标版本：`@deepseek-ai/dsh@0.2.0-rc.1`（官方 `next` 频道）。**
+**本仓库 `main` 分支的目标版本：`@deepseek-ai/dsh@0.2.0-rc.2`（官方 `latest` 与 `next` 频道，2026-09-29 起）。**
 
-> ⚠️ `0.2.0-rc.1` 在官方 **`next`** 频道，**`latest` 仍是 `0.1.7-rc.2`**。
-> `npm install -g @deepseek-ai/dsh` 默认装到 `0.1.7-rc.2` —— 那种情况请 **checkout `v0.1.7-rc.2`**，
-> 或显式装新版：`npm install -g @deepseek-ai/dsh@0.2.0-rc.1`。
+> ✅ `0.2.0-rc.2` 已同时占据官方 **`latest` 与 `next`**，普通 `npm install -g @deepseek-ai/dsh` 即可。
+> 仍在 `0.2.0-rc.1` 的环境请 **checkout `v0.2.0-rc.1`**。补丁内容对 rc.1 / rc.2 完全相同
+> （rc.2 的 npm 树与桌面版 asar 均 9/9 零模糊通过，2026-09-29 实测），仅版本常量随基线更新。
 
 ⚠️ 本仓库是**多版本仓库**，而且**并非每个文档都随最新版同步重写过**。下表如实说明各文件的状态 ——
 请以「状态」列判断可信度，**不要默认所有文档都是最新的**。
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.1 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚；**先反向判「是否已套用」再套**（防重复套用） |
+| `tools/dsh-patch.mjs` | ✅ 已适配 0.2.0-rc.2 | **推荐安装器（全平台）**；零依赖 Node，无 `patch`/`cp`/`find`/`pgrep` 依赖，零模糊匹配 + `node --check` 校验 + 自动回滚；**先反向判「是否已套用」再套**（防重复套用） |
 | `tools/contract-test-surface-op.mjs` | ✅ 已在真机实跑 | `surfaceOp` 契约测试（零副作用，不落盘、不碰真实会话）；升级后回归用，退出码 0=符合预期、1=有偏差 |
 | `tools/patch-markers.tsv` | ✅ 已实测 | **功能标记的单一数据源**（9 项）。`patch-all.sh` / 桌面版脚本 / `check-update.sh` 读同一份，避免三处各写一套标记而漂移 |
-| `patch-all.sh` | ✅ 已适配 0.2.0-rc.1 | **一键打两面**：CLI 侧（浏览器 + VS Code）与桌面版，并输出**功能标记交叉核对矩阵**；`--check` 只核对不改动 |
+| `patch-all.sh` | ✅ 已适配 0.2.0-rc.2 | **一键打两面**：CLI 侧（浏览器 + VS Code）与桌面版，并输出**功能标记交叉核对矩阵**；`--check` 只核对不改动 |
 | `desktop/**` | ✅ macOS 已实测通过 | **桌面版（Electron）适配** —— 改签名过的 `app.asar` 的外科手术。macOS 与 Windows **暂分两个模块**（`desktop/macos/`、`desktop/windows/`），理由与合并判据见 `desktop/README.md` |
 | `desktop/macos/**` | ✅ 0.2.0-rc.2 已实测 | macOS 模块：克隆 → 抽文件 → 打补丁 → 改写 asar → 校验 → **重签名**。9/9 命中、12964/12964 未目标条目逐字节一致 |
 | `desktop/windows/**` | ✅ 0.2.0-rc.1 / 0.2.0-rc.2 已实测 | Windows 模块（**他人贡献**）：跨平台 `apply-desktop-asar-patches.js`，反向试套判幂等 + 全量逐字节校验。**其 macOS 分支已于 2026-09-29 在真机实测通过**（见下方「🖥️ 桌面版支持」） |
-| `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版一键安装（**备选**）；`TARGET_VERSION=0.2.0-rc.1`，9 项补丁；已修「纯插入型补丁被重复套用」的 bug |
-| `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.1 | shell 版最简安装（**备选**，无版本诊断 / 无内置检测）；已修「纯插入型补丁被重复套用」的 bug；支持外部传入 `DSH_DIR` |
-| `check-update.sh` | ✅ 已适配 0.2.0-rc.1 | 检测官方是否有新版，**并检查桌面版补丁是否已被官方 nightly 更新覆盖**（比对来源指纹 + 功能标记） |
+| `install-dsh-custom.sh` | ✅ 已适配 0.2.0-rc.2 | shell 版一键安装（**备选**）；`TARGET_VERSION=0.2.0-rc.2`，9 项补丁；已修「纯插入型补丁被重复套用」的 bug |
+| `apply-dsh-patches.sh` | ✅ 已适配 0.2.0-rc.2 | shell 版最简安装（**备选**，无版本诊断 / 无内置检测）；已修「纯插入型补丁被重复套用」的 bug；支持外部传入 `DSH_DIR` |
+| `check-update.sh` | ✅ 已适配 0.2.0-rc.2 | 检测官方是否有新版，**并检查桌面版补丁是否已被官方 nightly 更新覆盖**（比对来源指纹 + 功能标记） |
 | `patches/**` | ✅ 已重适配 | 11 → 9 项；归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）**全部退役** —— 官方已原生提供完整链路（归档 + 取消归档 + 侧边栏筛选 + 行内恢复 + 搜索恢复）。相对上一发布版 `v0.1.5-rc.1` 的 12 项为 **12 → 9**（`client-connection` 在 0.1.7-rc.2 适配早期退役，12→11；`workspace` + `client-ui-workspace` 于 2026-09-28 退役，11→9） |
-| `README.md` / `README.en.md` | ✅ 已适配 0.2.0-rc.1 | 本文件 |
-| `versions.md` | ✅ 已适配 0.2.0-rc.1 | 版本追踪表 |
-| `ADAPTING.md` | ✅ 含 0.2.0-rc.1 适配记录 | 另含历史各版实录（`0.1.2-alpha.2` 预研 / `0.1.2-rc.1` / `0.1.5-rc.1`），属**有意保留的历史档案** |
+| `README.md` / `README.en.md` | ✅ 已适配 0.2.0-rc.2 | 本文件 |
+| `versions.md` | ✅ 已适配 0.2.0-rc.2 | 版本追踪表 |
+| `ADAPTING.md` | ✅ 含 0.2.0-rc.1/rc.2 适配记录 | 另含历史各版实录（`0.1.2-alpha.2` 预研 / `0.1.2-rc.1` / `0.1.5-rc.1`），属**有意保留的历史档案** |
 | `POSTMORTEM.md` | 🕘 历史记录（2026-08-19，rc.8 时期） | 事故复盘；**未随新版更新，也不需要** |
 | `docs/SSH-REMOTE.md` | 🕘 仅作跳转说明 | SSH 插件本体在独立仓库 [dsh-ssh-remote](https://github.com/chai1110/dsh-ssh-remote)，**维护已暂停、不再跟进 0.1.5+** |
 | `SECURITY.md` | ➖ 与版本无关 | 漏洞上报联系方式 |
@@ -115,14 +115,14 @@ node tools/dsh-patch.mjs -y
 4. **先反向判「是否已套用」再套**：避免纯插入型补丁被**重复套用**（shell 版曾因此出过事故，
    见 [`ADAPTING.md`](ADAPTING.md) 的「严重 bug：shell 版会重复套用纯插入型补丁」）。
 
-> **实测状态（2026-09-29）**：macOS（Apple Silicon）+ DSH `0.2.0-rc.1` 上，
+> **实测状态（2026-09-29）**：macOS（Apple Silicon）+ DSH `0.2.0-rc.1` / `0.2.0-rc.2` 上，
 > `tools/dsh-patch.mjs` 的 `--check` / `--list` / `--dry-run` / `-y` / 幂等 `-y` / `--restore` 六步全过；
 > 两个 shell 脚本在 `/bin/bash` 3.2.57 下也实跑通过。**Windows 侧此前已适配并推送**，
 > 因此这套补丁集目前是**双平台实测**过的。
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh`**（本仓库 main 适配 `0.2.0-rc.1`；其他 DSH 版本用户 checkout 对应 tag，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
+- 已用 npm **全局安装 `@deepseek-ai/dsh`**（本仓库 main 适配 `0.2.0-rc.2`；其他 DSH 版本用户 checkout 对应 tag，见「多版本支持」）；或用源码构建（见「源码构建（monorepo）用户」）
 
 > **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/chai1110/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
 
@@ -134,8 +134,8 @@ node tools/dsh-patch.mjs -y
 
 ```bash
 # 1) 安装匹配版本的 DSH（已装且版本正确可跳过）
-npm install -g @deepseek-ai/dsh@0.2.0-rc.1
-dsh --version          # 应输出 0.2.0-rc.1
+npm install -g @deepseek-ai/dsh@0.2.0-rc.2
+dsh --version          # 应输出 0.2.0-rc.2
 
 # 2) 克隆本仓库（HTTPS，对所有人可用）
 git clone https://github.com/chai1110/dsh-custom-patches.git
@@ -167,8 +167,9 @@ pkill -f 'dsh web'; dsh web
 
 | 你的 DSH 版本 | 适配情况 | 一键安装命令 |
 |---|---|---|
-| **0.2.0-rc.1**（官方 `next`） | `v0.2.0-rc.1`（默认 main） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
-| 0.1.7-rc.2（官方 `latest`） | `v0.1.7-rc.2` | `git checkout v0.1.7-rc.2` 后 `bash install-dsh-custom.sh -y` |
+| **0.2.0-rc.2**（官方 `latest` 与 `next`） | `main`（默认） | `git clone` 后直接 `bash install-dsh-custom.sh -y` |
+| 0.2.0-rc.1 | `v0.2.0-rc.1` | `git checkout v0.2.0-rc.1` 后 `bash install-dsh-custom.sh -y` |
+| 0.1.7-rc.2（前一 `latest`） | `v0.1.7-rc.2` | `git checkout v0.1.7-rc.2` 后 `bash install-dsh-custom.sh -y` |
 | 0.1.5-rc.1 | `v0.1.5-rc.1` | `git checkout v0.1.5-rc.1` 后 `bash install-dsh-custom.sh -y` |
 | 0.1.2-rc.1 | `v0.1.2-rc.1` | `git checkout v0.1.2-rc.1` 后 `bash install-dsh-custom.sh -y` |
 | 0.1.1-rc.2 | `v0.1.1-rc.2` | `git checkout v0.1.1-rc.2` 后 `bash install-dsh-custom.sh -y` |
@@ -209,7 +210,7 @@ node desktop/windows/apply-desktop-asar-patches.js --out new.asar
   目标文件命中功能标记；任一项不过则不替换原文件（出错时自动回滚）。
 - **⚠️ 桌面版带自动更新**：更新会覆盖 `app.asar`，届时 9 个补丁需要**重跑本脚本**（先 `--dry-run` 确认）。
 - **回滚**：把 `resources/app.asar.bak-<时间戳>` 改名回 `app.asar` 即可。
-- **已验证**：桌面版 `0.2.0-rc.2`（npm 版 `0.2.0-rc.1` 同一套补丁零改动可用，`0.2.0-rc.1` 亦在支持列表）。
+- **已验证**：桌面版 `0.2.0-rc.2`（npm 版 `0.2.0-rc.1` / `0.2.0-rc.2` 同一套补丁零改动可用，均在支持列表）。
   与 npm 版共享 `~/.dsh` 根目录（凭据、`settings.yaml`、会话数据），但插件配置按 profile 独立，
   桌面版默认 profile 是 `~/.dsh/profiles/desktop` —— 配置不能直接照抄 web 版的 profile 文件，见 `dsh-provider-config`。
 
@@ -219,8 +220,8 @@ node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 
 ### 第 1 步：确认 DSH 版本
 ```bash
-npm install -g @deepseek-ai/dsh@0.2.0-rc.1   # 装到匹配版本（老版本用户装自己那版即可）
-dsh --version                                 # 确认是 0.2.0-rc.1
+npm install -g @deepseek-ai/dsh@0.2.0-rc.2   # 装到匹配版本（老版本用户装自己那版即可）
+dsh --version                                 # 确认是 0.2.0-rc.2
 ```
 
 ### 第 2 步：克隆仓库
@@ -243,7 +244,7 @@ bash install-dsh-custom.sh -y
 脚本会自动：
 1. 定位 DSH 安装目录（同时探测系统级与用户级全局路径）
 2. 读取本地版本并查询 npm 官方最新版，给出版本诊断
-3. **校验版本**（本仓库 main 期望 `0.2.0-rc.1`；不匹配会拒绝并提示 checkout 正确的 tag）
+3. **校验版本**（本仓库 main 期望 `0.2.0-rc.2`；不匹配会拒绝并提示 checkout 正确的 tag）
 4. **检测官方是否已内置功能**——若目标文件已含功能标记（例如官方新版把这些功能收编了），自动跳过对应补丁
 5. 对需要应用的补丁**逐一备份（生成 `.bak`）并应用**
 6. 汇总报告 + 提示重启
@@ -283,7 +284,7 @@ bash install-dsh-custom.sh -y
 ```
 脚本检测到 `DSH_SOURCE` 后会自动切换到源码布局：
 - 在 `<DSH_SOURCE>/packages/**/lib/` 下定位目标文件、备份、应用
-- **跳过 npm 版本校验**（源码没有 `0.2.0-rc.1` 这种版本号），但请确认你的源码 checkout 对应最新 rc 或对应版本时代的代码
+- **跳过 npm 版本校验**（源码没有 `0.2.0-rc.2` 这种版本号），但请确认你的源码 checkout 对应最新 rc 或对应版本时代的代码
 - 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
 
 ### 源码布局下的目标文件（对应关系）

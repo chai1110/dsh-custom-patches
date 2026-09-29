@@ -1,7 +1,7 @@
 #!/bin/bash
 # check-update.sh — 检查 DSH 官方是否有新版本，并评估本补丁集是否需要重新适配
 #
-# 用法: bash check-update.sh   （本分支固定适配 DSH 0.2.0-rc.1）
+# 用法: bash check-update.sh   （本分支固定适配 DSH 0.2.0-rc.2）
 # 说明:
 #   1. 读取本地已装 DSH 版本
 #   2. 查询 npm 官方的 latest 与 next 两个频道

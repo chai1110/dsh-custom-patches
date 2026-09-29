@@ -31,7 +31,7 @@
 //   Monorepo / source layout:
 //     DSH_SOURCE=/path/to/deepseek-harness node tools/dsh-patch.mjs -y
 //
-// Adapted version: 0.2.0-rc.1 (see versions.md for the full history)
+// Adapted version: 0.2.0-rc.2 (see versions.md for the full history)
 // =============================================================================
 
 import fs from 'node:fs';
@@ -48,7 +48,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const TARGET_VERSION = '0.2.0-rc.1';
+const TARGET_VERSION = '0.2.0-rc.2';
 
 // rel          = path under node_modules/@deepseek-ai/  (npm layout)
 // patch        = .patch file path inside this repo
