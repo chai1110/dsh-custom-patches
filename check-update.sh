@@ -15,8 +15,8 @@ set -e
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; DIM='\033[2m'; NC='\033[0m'
 
-# 本仓库（version/0.2.0-rc.1 分支）固定适配的 DSH 版本
-TARGET="0.2.0-rc.1"
+# 本仓库 main 分支固定适配的 DSH 版本（README「多版本支持」：其他版本 checkout 对应 tag）
+TARGET="0.2.0-rc.2"
 
 # 1. 本地已装版本（通过全局 npm root 找到 DSH）
 LOCAL=""
@@ -74,6 +74,17 @@ else
   echo ""
   echo "  4) 若失败，按 ADAPTING.md 重新适配，并更新 versions.md"
 fi
+
+# 分支 1/2 只比较了「补丁集 vs 官方频道」——本机停在旧版时那两支直接打绿灯，
+# 看不出本机已经落后于仓库基线，所以这里单独再报一次。
+case "$LOCAL" in
+  "$TARGET"|"(未找到本地 DSH)") ;;
+  *)
+    echo -e "${YELLOW}⚠️  本机已装 ${LOCAL}，仓库基线是 ${TARGET}${NC}"
+    echo -e "   跟进基线：${YELLOW}npm install -g @deepseek-ai/dsh@${TARGET}${NC}（补丁零改动可直接套）"
+    echo -e "   或留在本机版本：${YELLOW}git checkout v${LOCAL}${NC}"
+    ;;
+esac
 echo ""
 
 # ── 4. 桌面版（Electron）补丁状态 ────────────────────────────────────────────
