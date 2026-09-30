@@ -120,7 +120,7 @@ bash patch-all.sh --check  # 只核对（推荐先用这个看现状）
 - **回滚**：npm 侧重装官方包；桌面侧把 `resources/app.asar.bak-<时间戳>` 改名回 `app.asar`。
 - **谁必须保留 npm 版**：VSCode 插件硬编码 `dsh web` + `profiles/web`，且外部鉴权实例它**无法 attach**
   （`err.authRequired`），所以**桌面版替代不了 npm 版**，两套安装要一直并存。
-- 桌面版教程、平台差异（Windows 已实测 / macOS 待实测）与 macOS 合并计划：[`desktop/README.md`](desktop/README.md)。
+- 桌面版教程、平台差异（**Windows 与 macOS 均已实测**，Linux 待贡献者）与合并判据：[`desktop/README.md`](desktop/README.md)。
 
 ---
 
