@@ -121,11 +121,89 @@ ASAR="$HOME/Applications/DeepSeek Harness Patched.app/Contents/Resources/app.asa
 node desktop/dsh-desktop-asar.mjs cat "$ASAR" "dsh/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js" | grep -c recallHistory
 ```
 
+> This section is a **file-level** check (it proves the bytes inside the asar were changed).
+> To see whether the runtime actually serves those changes, use the next section.
+
 ---
 
-## Manual acceptance (independent of the script's self-check)
+## Headless runtime verification (recommended, scriptable)
 
-The script only proves "the files changed"; **whether the features actually work needs a human look**:
+The previous section only proves "the **files** inside the asar changed"; it does **not** prove
+the runtime actually serves them. The flow below extracts the patched asar, boots the desktop
+host for real against an isolated `DSH_HOME` and a spare port, then inspects the client bundles
+it **actually serves** — no GUI needed, and the running official app is never touched.
+
+### 1. Extract the asar
+
+The asar header layout is `[UInt32 4][UInt32 headerSize][UInt32 jsonSize][JSON…]`, and the data
+region starts at `8 + headerSize`. `dsh-desktop-asar.mjs cat` only reads one file at a time,
+while booting the host needs the whole tree, so you have to extract it yourself. Two traps:
+
+- **The JSON header starts at offset 16, not 12** (there is another Pickle length field before it)
+- Entries flagged `"unpacked": true` in the header are **not inside the asar** and must be copied
+  in separately from `app.asar.unpacked/`. All the native `.node` bindings live there; without them
+  boot fails with `No usable native binding found for node-addon-require-builtin-…`
+
+### 2. Run the host
+
+The Electron main process spawns it with fixed arguments (see `lib/main.js` inside the asar):
+
+```bash
+node --expose-internals \
+  <runtimeDir>/node_modules/@deepseek-ai/dsh-desktop-host/lib/index.js \
+  <runtimeDir> <profileDir> <app>/Contents/Resources/runtime/primary-runtime
+```
+
+- `runtimeDir` = the extracted `dsh/` directory; `profileDir` = `<DSH_HOME>/profiles/desktop`
+- The port is **hard-coded to 19387** inside the host, which collides with the running official
+  build — change that one spot in the extracted copy when accepting (the copy only, never the asar)
+- You **must** use an isolated `DSH_HOME`, otherwise it writes to your real desktop profile
+- ⚠️ The desktop profile is exclusive to Electron: `dsh --profile desktop` fails outright with
+  `profile "desktop" is managed exclusively by the Electron application`, so the host is the only way
+
+### 3. Inspect the served bundles
+
+On startup stdout prints `dsh web: http://127.0.0.1:<port>/?token=…`. The index HTML contains 73
+URLs shaped like `plugins/??<pkg>/client.js,…&rev=<hash>` — request them **verbatim**: the server
+looks up `pathname + search` exactly, so **adding any parameter at all (even just `&token=`) 404s**:
+
+```bash
+curl -s "http://127.0.0.1:<port>/plugins/??@deepseek-ai/dsh-client-ui-chat/client.js,…&rev=<hash>" \
+  | grep -c editLastPrompt
+```
+
+Measured (2026-10-16, DSH `0.2.0-rc.2`, patched asar, all 73 URLs HTTP 200):
+
+| Marker | Hits | Where |
+|---|---|---|
+| `recallHistory` | 9 | client bundle (`dsh-client-ui-conversation`) |
+| `editLastPrompt` | 72 | client bundle (`dsh-client-ui-chat` etc.) |
+| `session/editLastPrompt` | 3 | client bundle (`dsh-api-remotes` etc.) |
+| `editLastPromptOnce` | 0 | **host side** (`lib/index.js`), not in client bundles |
+| `compactionBackoffDelay` | 0 | **host side**, same as above |
+
+> The last two scoring 0 in the client bundles is **expected** — they only exist in host-side files.
+> Do not read those zeroes as a failed patch.
+
+### 4. Confirm the provider config takes effect
+
+Verify the SenseNova block in the desktop profile's `cordis.patch.yml` by dumping the composed config:
+
+```bash
+mkdir -p /tmp/probe/profiles/deskcheck
+cp ~/.dsh/profiles/desktop/package.json ~/.dsh/profiles/desktop/cordis.patch.yml /tmp/probe/profiles/deskcheck/
+DSH_HOME=/tmp/probe node <runtimeDir>/node_modules/@deepseek-ai/dsh/lib/bin.js \
+  --profile deskcheck --dump-config | grep -A12 'sensenova'
+```
+
+You should see `llm-pi-ai.providers.sensenova` (with the two `compat` corrections and `retryPolicy`),
+plus `agent-default-model` set to `provider: sensenova` / `model: deepseek-v4-flash`.
+
+---
+
+## Manual acceptance (GUI, the last line of defence)
+
+With the headless check green, one human pass over the interaction is still worth it:
 
 1. `open "$HOME/Applications/DeepSeek Harness Patched.app"`
 2. Send a message and let it finish replying
@@ -160,6 +238,7 @@ simply reinstall it.
 | The two apps cannot run at the same time | By design (shared user-data + single-instance lock + fixed port 19387) |
 | No edit button after patching | First confirm all 9 markers are green in step 5; then confirm you opened the **patched** build, not the official one |
 | Patches vanish after a nightly update | The desktop app uses nightly auto-update; **re-run this script after every official update**. `bash check-update.sh` detects this |
+| The `ElectronAsarIntegrity` hash in `Info.plist` does not match the actual asar | **Not a problem, nothing to fix** — that fuse measures `0`, so Electron does not validate. See "Re-signing details" above |
 
 ---
 

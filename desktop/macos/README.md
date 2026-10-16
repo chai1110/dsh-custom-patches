@@ -118,11 +118,86 @@ ASAR="$HOME/Applications/DeepSeek Harness Patched.app/Contents/Resources/app.asa
 node desktop/dsh-desktop-asar.mjs cat "$ASAR" "dsh/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js" | grep -c recallHistory
 ```
 
+> 这一节是**文件级**核对（证明 asar 里的字节被改了）。要看运行时是否真的下发这些改动，
+> 用下一节的「无头运行时验证」。
+
 ---
 
-## 手动验收（不依赖脚本自检）
+## 无头运行时验证（推荐，可脚本化）
 
-脚本只证明「文件被改了」，**功能是否真的可用要人工看一眼**：
+上一节只证明「asar 里的**文件**被改了」，**不证明运行时真的会把它下发出去**。
+下面这套流程把补丁版 asar 抽出来、用隔离的 `DSH_HOME` + 备用端口把桌面 host 真跑起来，
+再抓它**实际下发**的客户端 bundle 核对标记 —— 全程不需要 GUI，也不碰正在运行的官方版。
+
+### 1. 抽取 asar
+
+asar 头布局是 `[UInt32 4][UInt32 headerSize][UInt32 jsonSize][JSON…]`，数据区起点 = `8 + headerSize`。
+`dsh-desktop-asar.mjs cat` 只能取单个文件，跑 host 要整棵树，所以得自己抽。两个坑：
+
+- **JSON 头在偏移 16，不是 12**（前面还有一层 Pickle 长度字段）
+- 头部里标了 `"unpacked": true` 的条目**不在 asar 内**，必须另外从 `app.asar.unpacked/` 补过来。
+  原生 `.node` 绑定全在那里，缺了会在 boot 时报 `No usable native binding found for node-addon-require-builtin-…`
+
+### 2. 跑 host
+
+Electron 主进程按固定参数 spawn 它（见 asar 内 `lib/main.js`）：
+
+```bash
+node --expose-internals \
+  <runtimeDir>/node_modules/@deepseek-ai/dsh-desktop-host/lib/index.js \
+  <runtimeDir> <profileDir> <app>/Contents/Resources/runtime/primary-runtime
+```
+
+- `runtimeDir` = 抽出来的 `dsh/` 目录；`profileDir` = `<DSH_HOME>/profiles/desktop`
+- host 里端口是**硬编码 19387** 的，与在跑的官方版冲突 —— 验收时改抽取副本里那一处
+  （只改副本，不动 asar）
+- 必须用**隔离的 `DSH_HOME`**，否则会写到你真实的桌面 profile
+- ⚠️ 桌面 profile 被 Electron 独占：`dsh --profile desktop` 会直接报
+  `profile "desktop" is managed exclusively by the Electron application`，所以只能走 host
+
+### 3. 核对下发的 bundle
+
+启动后 stdout 会打印 `dsh web: http://127.0.0.1:<port>/?token=…`。首页 HTML 里有 73 条
+`plugins/??<pkg>/client.js,…&rev=<hash>` 形式的 URL，**原样**请求即可 ——
+服务端按 `pathname + search` 精确查表，**多带一个参数（哪怕只是 `&token=`）就会 404**：
+
+```bash
+curl -s "http://127.0.0.1:<port>/plugins/??@deepseek-ai/dsh-client-ui-chat/client.js,…&rev=<hash>" \
+  | grep -c editLastPrompt
+```
+
+实测结果（2026-10-16，DSH `0.2.0-rc.2`，补丁版 asar，73 条 URL 全部 HTTP 200）：
+
+| 标记 | 命中 | 所在 |
+|---|---|---|
+| `recallHistory` | 9 | 客户端 bundle（`dsh-client-ui-conversation`） |
+| `editLastPrompt` | 72 | 客户端 bundle（`dsh-client-ui-chat` 等） |
+| `session/editLastPrompt` | 3 | 客户端 bundle（`dsh-api-remotes` 等） |
+| `editLastPromptOnce` | 0 | **host 侧**（`lib/index.js`），不在客户端 bundle 里 |
+| `compactionBackoffDelay` | 0 | **host 侧**，同上 |
+
+> 后两个在客户端 bundle 里查不到是**正常的** —— 它们只存在于 host 侧文件。
+> 别因为它们是 0 就判定补丁失效。
+
+### 4. 确认供应商配置生效
+
+桌面 profile 的 `cordis.patch.yml` 里那份 SenseNova 配置，用组合配置导出验证：
+
+```bash
+mkdir -p /tmp/probe/profiles/deskcheck
+cp ~/.dsh/profiles/desktop/package.json ~/.dsh/profiles/desktop/cordis.patch.yml /tmp/probe/profiles/deskcheck/
+DSH_HOME=/tmp/probe node <runtimeDir>/node_modules/@deepseek-ai/dsh/lib/bin.js \
+  --profile deskcheck --dump-config | grep -A12 'sensenova'
+```
+
+应能看到 `llm-pi-ai.providers.sensenova`（含 `compat` 两项修正与 `retryPolicy`），
+以及 `agent-default-model` 的 `provider: sensenova` / `model: deepseek-v4-flash`。
+
+---
+
+## 手动验收（GUI，最后一道）
+
+无头验证过了，仍建议人眼确认一次交互：
 
 1. `open "$HOME/Applications/DeepSeek Harness Patched.app"`
 2. 随便发一条消息，等它回复完
@@ -156,6 +231,7 @@ rm -rf "$HOME/Applications/DeepSeek Harness Patched.app"
 | 两个 app 不能同时开 | 设计如此（共用 user-data + 单实例锁 + 固定端口 19387） |
 | 打完补丁没有编辑按钮 | 先确认第 5 步 9 个标记全绿；再确认打开的是**补丁版**而不是官方版 |
 | 夜间更新后补丁消失 | 桌面版走 nightly 自动更新，**官方包每次更新后重跑本脚本**；`bash check-update.sh` 会检测 |
+| `Info.plist` 里的 `ElectronAsarIntegrity` 哈希和实际 asar 对不上 | **不是问题，无需处理** —— 该保险丝实测为 `0`，Electron 不校验。见上面「重签名细节」 |
 
 ---
 
