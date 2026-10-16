@@ -157,7 +157,7 @@ node --expose-internals \
 
 ### 3. 核对下发的 bundle
 
-启动后 stdout 会打印 `dsh web: http://127.0.0.1:<port>/?token=…`。首页 HTML 里有 73 条
+启动后 stdout 会打印 `dsh web: http://127.0.0.1:<port>/?token=…`。首页 HTML 里有 **73 处**
 `plugins/??<pkg>/client.js,…&rev=<hash>` 形式的 URL，**原样**请求即可 ——
 服务端按 `pathname + search` 精确查表，**多带一个参数（哪怕只是 `&token=`）就会 404**：
 
@@ -166,18 +166,39 @@ curl -s "http://127.0.0.1:<port>/plugins/??@deepseek-ai/dsh-client-ui-chat/clien
   | grep -c editLastPrompt
 ```
 
-实测结果（2026-10-16，DSH `0.2.0-rc.2`，补丁版 asar，73 条 URL 全部 HTTP 200）：
+两个容易踩的坑：
 
-| 标记 | 命中 | 所在 |
+- **必须先把 HTML 实体 `&amp;` 还原成 `&`**。73 处里有 3 处是转义写法（`…client.js&amp;rev=…`），
+  直接拿去请求会 404；解码后这 3 处与另外 3 条**本来就是同一个 URL**，去重后是 **70 条**。
+- 首页要带 `?token=` 并**保留 cookie**（首次请求 303 跳到无 token 的路径，不带 cookie 就会 401）。
+
+实测结果（2026-10-16，DSH `0.2.0-rc.2`，补丁版 asar）：
+
+- **70 条不同 URL，70/70 HTTP 200，合并 22,887,506 字节**
+- 命中补丁标记的只有 6 条 bundle：
+
+| 序号 | 大小 | 含包数 | 首个包 | `recallHistory` | `editLastPrompt` | `session/editLastPrompt` |
+|---|---|---|---|---|---|---|
+| 1 | 10,472,541 | 57 | `dsh-client-product-analytics` | 3 | 16 | 0 |
+| 2 | 929,602 | 9 | `dsh-session-log-export` | 0 | 12 | 1 |
+| 33 | 721,911 | 1 | `dsh-client-ui-conversation` | 3 | 4 | 0 |
+| 35 | 570,299 | 1 | `dsh-client-ui-chat` | 0 | 12 | 0 |
+| 64 | 514,502 | 1 | `dsh-api-remotes` | 0 | 10 | 1 |
+| 67 | 144,815 | 1 | `dsh-api-session-controller` | 0 | 2 | 0 |
+| | | | **合计** | **6** | **56** | **2** |
+
+另两个标记在客户端 bundle 里是 0，这是**正常的**：
+
+| 标记 | 命中 | 为什么是 0 |
 |---|---|---|
-| `recallHistory` | 9 | 客户端 bundle（`dsh-client-ui-conversation`） |
-| `editLastPrompt` | 72 | 客户端 bundle（`dsh-client-ui-chat` 等） |
-| `session/editLastPrompt` | 3 | 客户端 bundle（`dsh-api-remotes` 等） |
-| `editLastPromptOnce` | 0 | **host 侧**（`lib/index.js`），不在客户端 bundle 里 |
-| `compactionBackoffDelay` | 0 | **host 侧**，同上 |
+| `editLastPromptOnce` | 0 | 只存在于 **host 侧** `dsh-api-session-controller/lib/index.js` |
+| `compactionBackoffDelay` | 0 | 只存在于 **host 侧** `dsh-compaction-basic/lib/index.js` |
 
-> 后两个在客户端 bundle 里查不到是**正常的** —— 它们只存在于 host 侧文件。
-> 别因为它们是 0 就判定补丁失效。
+> 别因为它们查不到就判定补丁失效 —— 客户端 bundle 里本来就不该有它们。
+
+> 📌 本节数字曾于首次记录时写成「73 条 / 34,329,979 字节 / 9 / 72 / 3」，那是把上面那 3 条
+> HTML 转义副本当成独立 URL **重复抓了一遍**（多出的正是 10,472,541 + 929,602 + 40,330 =
+> 11,442,473 字节）。上表是去重后的口径。
 
 ### 4. 确认供应商配置生效
 

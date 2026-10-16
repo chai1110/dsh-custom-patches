@@ -163,7 +163,7 @@ node --expose-internals \
 
 ### 3. Inspect the served bundles
 
-On startup stdout prints `dsh web: http://127.0.0.1:<port>/?token=…`. The index HTML contains 73
+On startup stdout prints `dsh web: http://127.0.0.1:<port>/?token=…`. The index HTML contains **73**
 URLs shaped like `plugins/??<pkg>/client.js,…&rev=<hash>` — request them **verbatim**: the server
 looks up `pathname + search` exactly, so **adding any parameter at all (even just `&token=`) 404s**:
 
@@ -172,18 +172,41 @@ curl -s "http://127.0.0.1:<port>/plugins/??@deepseek-ai/dsh-client-ui-chat/clien
   | grep -c editLastPrompt
 ```
 
-Measured (2026-10-16, DSH `0.2.0-rc.2`, patched asar, all 73 URLs HTTP 200):
+Two traps:
 
-| Marker | Hits | Where |
+- **Decode the HTML entity `&amp;` back to `&` first.** 3 of the 73 are written escaped
+  (`…client.js&amp;rev=…`) and 404 if requested as-is; once decoded those 3 turn out to be the
+  **same URLs** as 3 others, so the distinct count is **70**.
+- The index needs `?token=` **and a kept cookie** (the first request 303-redirects to a token-less
+  path; without the cookie you get 401).
+
+Measured (2026-10-16, DSH `0.2.0-rc.2`, patched asar):
+
+- **70 distinct URLs, 70/70 HTTP 200, 22,887,506 bytes combined**
+- Only 6 bundles carry patch markers:
+
+| # | Size | Packages | First package | `recallHistory` | `editLastPrompt` | `session/editLastPrompt` |
+|---|---|---|---|---|---|---|
+| 1 | 10,472,541 | 57 | `dsh-client-product-analytics` | 3 | 16 | 0 |
+| 2 | 929,602 | 9 | `dsh-session-log-export` | 0 | 12 | 1 |
+| 33 | 721,911 | 1 | `dsh-client-ui-conversation` | 3 | 4 | 0 |
+| 35 | 570,299 | 1 | `dsh-client-ui-chat` | 0 | 12 | 0 |
+| 64 | 514,502 | 1 | `dsh-api-remotes` | 0 | 10 | 1 |
+| 67 | 144,815 | 1 | `dsh-api-session-controller` | 0 | 2 | 0 |
+| | | | **Total** | **6** | **56** | **2** |
+
+The other two markers score 0 in client bundles — that is **expected**:
+
+| Marker | Hits | Why zero |
 |---|---|---|
-| `recallHistory` | 9 | client bundle (`dsh-client-ui-conversation`) |
-| `editLastPrompt` | 72 | client bundle (`dsh-client-ui-chat` etc.) |
-| `session/editLastPrompt` | 3 | client bundle (`dsh-api-remotes` etc.) |
-| `editLastPromptOnce` | 0 | **host side** (`lib/index.js`), not in client bundles |
-| `compactionBackoffDelay` | 0 | **host side**, same as above |
+| `editLastPromptOnce` | 0 | lives only in the **host-side** `dsh-api-session-controller/lib/index.js` |
+| `compactionBackoffDelay` | 0 | lives only in the **host-side** `dsh-compaction-basic/lib/index.js` |
 
-> The last two scoring 0 in the client bundles is **expected** — they only exist in host-side files.
-> Do not read those zeroes as a failed patch.
+> Do not read those zeroes as a failed patch — they are simply not supposed to be in client bundles.
+
+> 📌 This section first recorded "73 URLs / 34,329,979 bytes / 9 / 72 / 3". That counted the 3
+> HTML-escaped copies above as separate URLs and **fetched them twice** (the extra
+> 10,472,541 + 929,602 + 40,330 = 11,442,473 bytes). The table above is the deduplicated figure.
 
 ### 4. Confirm the provider config takes effect
 
