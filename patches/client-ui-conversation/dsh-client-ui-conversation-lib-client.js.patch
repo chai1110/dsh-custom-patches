@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-client-ui-conversation/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-conversation/lib/client.js
-@@ -1875,6 +1875,18 @@
+@@ -2521,6 +2521,18 @@
  		* Session-owned incremental engine that assembles business Contexts from a
  		* contiguous Event window and materializes registered view snapshots.
  		*/
@@ -19,7 +19,7 @@
  		var ConversationNodeAssembler = class {
  			eventDefinitions;
  			viewDefinitions;
-@@ -1884,6 +1896,8 @@
+@@ -2530,6 +2542,8 @@
  			contextsBySeq = /* @__PURE__ */ new Map();
  			contextsByTarget = /* @__PURE__ */ new Map();
  			inputs = /* @__PURE__ */ new Map();
@@ -28,7 +28,7 @@
  			locationIndex = new ConversationLocationIndex();
  			dirty = /* @__PURE__ */ new Set();
  			dirtyByTarget = /* @__PURE__ */ new Map();
-@@ -1936,6 +1950,7 @@
+@@ -2585,6 +2599,7 @@
  				this.hasMore = hasMore;
  				const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq);
  				for (const entry of sorted) this.inputs.set(entry.event.seq, entry);
@@ -36,7 +36,7 @@
  				this.locationIndex.rebuild(sorted);
  				this.timelineDirty = true;
  				for (const entry of sorted) this.matchInput(entry);
-@@ -1944,6 +1959,15 @@
+@@ -2593,6 +2608,15 @@
  				for (const context of this.contexts.values()) this.markDirty(context);
  				this.replacePending = true;
  				return "immediate";
@@ -52,7 +52,7 @@
  			}
  			/**
  			* Add one contiguous live tail event without scanning existing Contexts.
-@@ -1953,6 +1977,13 @@
+@@ -2602,6 +2626,13 @@
  			append(record) {
  				const event = record.event;
  				if (this.inputs.has(event.seq)) return "none";
@@ -63,10 +63,10 @@
 +					this.replaceWindow(this.sortedInputs(), this.hasMore);
 +					return "immediate";
 +				}
- 				this.revised.clear();
+ 				if (this.revised.size > 0) this.revised.clear();
  				this.inputs.set(event.seq, record);
  				let publication = "none";
-@@ -2018,6 +2049,7 @@
+@@ -2667,6 +2698,7 @@
  				for (const entry of fresh) this.inputs.set(entry.event.seq, entry);
  				this.hasMore = hasMore;
  				const previousTimeline = this.locationIndex.snapshot();
@@ -74,15 +74,15 @@
  				const changedLocations = this.locationIndex.rebuild(this.sortedInputs());
  				if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true;
  				const affected = this.refreshMatchLocations(changedLocations);
-@@ -2125,6 +2157,7 @@
+@@ -2774,6 +2806,7 @@
  				return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq);
  			}
  			matchInput(input) {
 +				if (this.shadowed.has(input.event.seq)) return "none";
- 				return this.dispatchInput(input, (definition, id, role) => this.acceptMatch(definition, id, role, input));
+ 				return this.dispatchInput(input, this.acceptMatch);
  			}
  			collectInput(input, pending) {
-@@ -3667,6 +3700,14 @@
+@@ -4941,6 +4974,14 @@
  				const result = await this.scopedSession("cancel").cancel();
  				if (!result.ok) throw new Error(`conversation.cancel failed: ${result.error.code}: ${result.error.message}`);
  			}
@@ -97,10 +97,10 @@
  			/** Pull one older history page for the scoped Session. */
  			async loadOlder() {
  				await this.scopedSession("loadOlder").loadOlder();
-@@ -13491,6 +13532,16 @@
- 			unregister;
+@@ -14946,6 +14987,16 @@
  			noticeSeq = 0;
- 			lastMirroredDraft = "";
+ 			lastPublishedDraft;
+ 			draftSnapshotCache;
 +			/** Sent-message history for ArrowUp recall in the composer (newest last, deduped).
 +			 *  持久化到 localStorage：页面重载后仍能 ↑ 召回之前发送过的消息（Lite 补丁增强）。 */
 +			sendHistory = (() => {
@@ -113,8 +113,8 @@
 +			})();
  			attachmentIds = [];
  			disposed = false;
- 			/** Draft persistence mirror (Conversation store write; receives the clipboard projection). */
-@@ -13651,6 +13702,14 @@
+ 			/** Conversation store writer for the current semantic document. */
+@@ -15203,6 +15254,14 @@
  				if (before.phase === "claimed" && this.attachmentIds.length > 0 && before.claim?.attachments !== true) {
  					this.notify("error", this.deps.commandAttachments.unsupportedNotice(before.claim?.token ?? before.draft));
  					return;
@@ -129,7 +129,7 @@
  				}
  				this.dispatchRun({
  					type: "enter",
-@@ -17167,6 +17226,8 @@
+@@ -18775,6 +18834,8 @@
  			const editor = keyboard?.editor ?? null;
  			const attachments = (0, react.useMemo)(() => input === void 0 || resolveDraftAttachments === void 0 ? [] : resolveDraftAttachments(input.attachmentIds), [resolveDraftAttachments, input?.attachmentIds]);
  			const empty = draft.trim() === "" && attachments.length === 0;
@@ -138,7 +138,7 @@
  			const uploads = useFileUploads((snapshot) => snapshot);
  			const uploadsPending = attachments.some((attachment) => attachment.kind === "file" && uploads[attachment.id]?.status !== "ready");
  			const [toast, setToast] = (0, react.useState)(null);
-@@ -17298,6 +17359,38 @@
+@@ -18910,6 +18971,38 @@
  				showToast,
  				t,
  				canAcceptDrop
@@ -177,7 +177,7 @@
  			};
  			(0, react.useEffect)(() => {
  				if (keyboard === void 0) return;
-@@ -17305,7 +17398,50 @@
+@@ -18917,7 +19010,50 @@
  			}, [keyboard]);
  			(0, react.useEffect)(() => {
  				if (editor === null || keyboard === void 0) return;

@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/index.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/index.js
-@@ -927,7 +927,77 @@
+@@ -994,7 +994,77 @@
  		} catch (error) {
  			if (error instanceof AttachmentError) throw new RemoteError("session/attachment-invalid", error.message, { reason: error.code });
  			throw new RemoteError("gateway/internal", "Unable to read image attachment.", {});
@@ -78,7 +78,7 @@
  	}
  	/**
  	* Mutate one pending Inbox occurrence, restoring an ordinary cold Agent when needed.
-@@ -2569,6 +2639,7 @@
+@@ -2664,6 +2734,7 @@
  	let _fork_decorators;
  	let _prompt_decorators;
  	let _attachment_decorators;
@@ -86,15 +86,15 @@
  	let _updateQueue_decorators;
  	let _cancel_decorators;
  	let _page_decorators;
-@@ -2591,6 +2662,7 @@
+@@ -2686,6 +2757,7 @@
  			_fork_decorators = [Remote("fork")];
  			_prompt_decorators = [Remote("prompt")];
  			_attachment_decorators = [Remote("attachment")];
 +			_editLastPrompt_decorators = [Remote("editLastPrompt")];
  			_updateQueue_decorators = [Remote("updateQueue")];
  			_cancel_decorators = [Remote("cancel")];
- 			_page_decorators = [Remote("page")];
-@@ -2737,6 +2809,17 @@
+ 			_page_decorators = [Remote({
+@@ -2838,6 +2910,17 @@
  				access: {
  					has: (obj) => "attachment" in obj,
  					get: (obj) => obj.attachment
@@ -112,7 +112,7 @@
  				},
  				metadata: _metadata
  			}, null, _instanceExtraInitializers);
-@@ -3104,6 +3187,15 @@
+@@ -3236,6 +3319,15 @@
  		*/
  		attachment(request) {
  			return this.commands.attachment(request);

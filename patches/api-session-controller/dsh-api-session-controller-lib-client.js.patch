@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/client.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/client.js
-@@ -1792,6 +1792,18 @@
+@@ -2417,6 +2417,18 @@
  					sessionId: this.sessionId,
  					itemId,
  					action

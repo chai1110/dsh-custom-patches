@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js
-@@ -681,6 +681,16 @@
+@@ -1143,6 +1143,22 @@
  }))
  let _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value
  const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value ??= z.object({
@@ -12,31 +12,41 @@
 +  'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
 +  'text': z.string().readonly(),
 +}))
++let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value
++const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value ??= z.strictObject({
++  'requestId': z.intersection(z.string(), z.unknown()).readonly(),
++  'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
++  'text': z.string().readonly(),
++}))
 +let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema$value
 +const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema$value ??= z.object({
    'accepted': z.literal(true).readonly(),
  }))
  let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value
-@@ -1128,6 +1138,32 @@
-         create: _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema,
+@@ -1812,6 +1828,39 @@
        },
-       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":426,"column":3},
-+    },
-+    {
-+      id: '@deepseek-ai/dsh-api-session-controller#session/editLastPrompt',
+       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":462,"column":9},
+     },
++    'session/editLastPrompt': {
 +      service: 'sessionController',
-+      namespace: 'session',
-+      method: 'editLastPrompt',
++      description: 'Rewrite the last user message of a Session and regenerate from it.',
 +      invocation: { kind: 'direct' },
 +      parameters: [
 +        {
 +          name: 'request',
-+          wire: 'request',
++          description: 'Session identity and the replacement plain text.',
 +          source: 'json',
 +          codec: {
 +            mode: 'strict',
 +            typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptRequest',
 +            create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema,
++            jsonSchema: {"type":"object","properties":{"requestId":{"type":"string"},"sessionId":{"type":"string"},"text":{"type":"string"}},"required":["requestId","sessionId","text"],"additionalProperties":true},
++          },
++          strictCodec: {
++            mode: 'strict',
++            typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptRequest',
++            create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema,
++            jsonSchema: {"type":"object","properties":{"requestId":{"type":"string"},"sessionId":{"type":"string"},"text":{"type":"string"}},"required":["requestId","sessionId","text"],"additionalProperties":false},
 +          },
 +        },
 +      ],
@@ -45,8 +55,11 @@
 +        mode: 'strict',
 +        typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptValue',
 +        create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema,
++        description: 'acknowledgement that the edit was admitted.',
++        jsonSchema: {"type":"object","properties":{"accepted":{"type":"boolean","const":true}},"required":["accepted"],"additionalProperties":true},
 +      },
 +      sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":340,"column":3},
-     },
-     {
-       id: '@deepseek-ai/dsh-api-session-controller#session/rename',
++    },
+     'session/rename': {
+       service: 'sessionController',
+       description: 'Rename one Session after explicitly resuming it.',

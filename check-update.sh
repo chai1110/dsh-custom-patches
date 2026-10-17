@@ -16,7 +16,7 @@ set -e
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; DIM='\033[2m'; NC='\033[0m'
 
 # 本仓库 main 分支固定适配的 DSH 版本（README「多版本支持」：其他版本 checkout 对应 tag）
-TARGET="0.2.0-rc.2"
+TARGET="0.2.1-rc.2"
 
 # 1. 本地已装版本
 #

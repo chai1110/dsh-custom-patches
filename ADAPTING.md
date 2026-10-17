@@ -104,7 +104,8 @@ bash patch-all.sh --check  # 只核对（推荐先用这个看现状）
 > 原则：**补丁只有一套**（`patches/**`，npm 与桌面共用 —— 锚点只修一次，两边受益）；
 > **但安装两条、配置两份** —— 因为 asar 内容 ≠ npm tarball，两边必须各自 `--dry-run`，
 > 不能一边通过就默认另一边也通过。npm 与桌面的**版本号可以不同步**
-> （当前两边均为 `0.2.0-rc.2`；2026-09-29 曾出现 npm rc.1 / 桌面 rc.2 并存），支持列表要同时覆盖。
+> （2026-10-17 现状：npm `next` = `0.2.1-rc.2`，桌面端自动更新到 `0.2.1-rc.1`；2026-09-29 曾出现 npm rc.1 / 桌面 rc.2 并存），
+> 支持列表要同时覆盖。
 
 | # | 步骤 | npm 版（网页 / VSCode 插件用） | 桌面版（Electron，Windows） |
 |---|---|---|---|
@@ -1164,3 +1165,170 @@ CSS 模块类名哈希（asar 是 `cJsG2q_…`，npm 是 `Sixlwa_…`）与构�
 - **真机升级验证（2026-09-29）**：`npm i -g @deepseek-ai/dsh@0.2.0-rc.2` → `node tools/dsh-patch.mjs -y`
   **9/9 应用**（23 处 hunk 行号平移、锚点精确命中）→ `node --check` 9/9 → launchd 服务干净重启 →
   dsh-vscode 0.5.4 与 dsh-lite 0.1.0 双 smoke **PASS**（令牌兑换 → 代理 200+boot → bridge/隐藏设置注入 → WS 升级 101）。
+
+---
+
+## 0.2.1-rc.2 适配记录（2026-10-17）—— 第一个「必须重打」的版本
+
+官方在 **5 小时内连发两版**：`0.2.1-rc.1`（03:17 UTC）、`0.2.1-rc.2`（08:36 UTC）。
+`latest` 仍停在 `0.2.0-rc.2`，`next` 跳到 `0.2.1-rc.2`。**0.2.1 是破坏性版本**，补丁集不能沿用。
+
+### 1. 先量化，别猜
+
+在隔离目录平铺装一份官方版（**别动全局安装**，12 分钟 / 615 包，记得后台跑）：
+
+```sh
+npm install --prefix /tmp/dshdesk/v021 @deepseek-ai/dsh@0.2.1-rc.2
+```
+
+然后对每个目标文件做**零模糊正向 dry-run**，统计失败 hunk：
+
+```sh
+patch --dry-run -N -F 0 -p1 "$TREE/node_modules/@deepseek-ai/$rel" < "patches/$pkg/$name.patch"
+```
+
+⚠️ **判定必须用 `grep -E -q 'FAILED|failed'`**。BSD `grep` 的 BRE 不支持 `\|`，
+写成 `grep -q 'FAILED\|failed'` 会**静默匹配不到任何东西**，把 7 个失败误报成「9/9 干净」。
+（2026-10-17 实际踩了这个坑，第一版统计表整张是错的。）
+
+初测结果：**2/9 干净，7 个文件 / 16 处 hunk 失败。**
+
+| 文件 | hunk 数 | 失败 |
+|---|---|---|
+| `dsh-api-session-controller/lib/index.js` | 5 | 1 |
+| `dsh-api-session-controller/lib/client.js` | 1 | 0 ✅ |
+| `dsh-api-session-controller/lib/typert.host.js` | 3 | 1 |
+| `dsh-api-session-controller/lib/typert.remote-client.js` | 2 | 1 |
+| `dsh-api-remotes/lib/client.js` | 2 | 2 |
+| `dsh-agent-loop/lib/index.js` | 2 | 1 |
+| `dsh-compaction-basic/lib/index.js` | 2 | 0 ✅ |
+| `dsh-client-ui-conversation/lib/client.js` | 13 | 3 |
+| `dsh-client-ui-chat/lib/client.js` | 12 | 7 |
+
+### 2. 用三方合并把「16 处 hunk 失败」压成「10 个冲突块」
+
+逐个 hunk 硬改锚点很慢。**更快的路子是 `git merge-file`**：
+
+```sh
+# base = 旧官方（把补丁反向套用到新官方文件上即可反推出来）
+patch -R -N -F 0 -p1 "$NEW_OFFICIAL" < "patches/$pkg/$name.patch"   # → base
+git merge-file -p "$NEW_OFFICIAL" "$base" "$OLD_PATCHED" > merged.out
+```
+
+- `ours` = 新官方（0.2.1-rc.2）
+- `base` = 旧官方（0.2.0-rc.2，反推得到）
+- `theirs` = 旧「官方 + 补丁」
+
+结果：**3 个文件自动合干净，6 个文件各剩 1–3 个冲突（合计 10 块）**，比 16 处 hunk 失败好收拾。
+
+⚠️ **但 `dsh-client-ui-chat` 不能用合并**：官方把 `UserMessageNodeView` 整体重构了
+（入参 `renderMessageImages/openFile/openSkill` → `renderFactorySlot/loadImage`，还挪走了 `PendingSubmissionBubble`），
+冲突的 `ours` 侧是**一个空行**而 `theirs` 侧是**几千行官方代码**，合出来不可用。
+这个文件改用「`patch -N -F 3` 先套能套的 5 处 + 9 处定点手改」。
+
+### 3. 本轮的四个结构性变更（以后还会再遇到）
+
+1. **typert 描述符换格式**。旧格式是数组，每条带 `id/service/namespace/method/invocation/parameters/result/sourceLocation`；
+   新格式是 **keyed map**，键就是方法名，多了 `description`，并且 `codec` 旁边多一个 **`strictCodec`**：
+
+   ```js
+   'session/rename': {
+     service: 'sessionController',
+     description: 'Rename one Session after explicitly resuming it.',
+     invocation: { kind: 'direct' },
+     parameters: [{
+       name: 'request',
+       description: 'Session identity and proposed title.',
+       source: 'json',
+       codec:       { mode:'strict', typeSymbol:'…#SessionRenameRequest', create: _…$schema,        jsonSchema: {…additionalProperties:true} },
+       strictCodec: { mode:'strict', typeSymbol:'…#SessionRenameRequest', create: _…_strict$schema, jsonSchema: {…additionalProperties:false} },
+     }],
+     …
+   }
+   ```
+
+   新增方法要**同时**补两个 `z.object` / `z.strictObject` schema 助手（`strict` 版用 `z.strictObject`），
+   条目插在**下一个已存在方法的键之前**（`'session/rename': {`）。
+   同样的改动要同步到 `dsh-api-remotes/lib/client.js`（浏览器端那份冻结副本，用 `zod.z.strictObject`）。
+
+2. **装饰器参数改多行**。`_page_decorators = [Remote("page")];` → `_page_decorators = [Remote({ name:"page", resources:{ session: addressedSession } })];`
+   —— 这一行是某个 hunk 的**最后一行上下文**，改了就必然失败。
+
+3. **`dsh-agent-loop` 新增 `runtime-context` 分支**。官方的 `if (firstAttempt) for (…)` 里现在会先判断
+   `message.source.kind === "runtime-context"`。**去重补丁必须挂到 `else` 臂**，保留官方分支：
+
+   ```js
+   let contextAdmitted = false;
+   if (firstAttempt) for (const message of decision.messages) if (message.source.kind === "runtime-context") { … }
+   else {
+     // 补丁：若同一 user/message 已经是 surface 末尾，跳过重复追加
+     const tail = this.session.surface.nodes.at(-1);
+     const tailEvent = tail === void 0 ? void 0 : this.session.eventAt(tail);
+     if (!(tailEvent?.type === "user/message" && tailEvent.data.id === message.id)) this.session.append(…);
+   }
+   ```
+
+4. **`acceptMatch` 签名变成 `(definition, id, match)`**（`dsh-client-ui-conversation`）。
+   补丁里那行 `return this.dispatchInput(input, this.acceptMatch)` **要用官方的新写法**，
+   别把旧版包了一层的箭头函数带回来。
+
+### 4. 官方没有内置我们的功能
+
+对 0.2.1-rc.2 的 `*/lib` 全量搜四个标记：`editLastPrompt` / `recallHistory` / `editLastPromptOnce` /
+`compactionBackoffDelay` —— **全部 0 次**。所以「官方已经做了，补丁可以退役」这条路走不通，必须继续维护。
+
+### 5. 验证口径（四道，缺一不可）
+
+```sh
+# ① 零模糊 dry-run（9/9）
+patch --dry-run -N -F 0 -p1 "$TREE/node_modules/@deepseek-ai/$rel" < "patches/$pkg/$name.patch"
+# ② 实套后与已解决工作副本逐字节一致
+cmp -s "$TREE/node_modules/@deepseek-ai/$rel" "$RESOLVED/$rel"
+# ③ 语法
+node --check "$TREE/node_modules/@deepseek-ai/$rel"
+# ④ 端到端（推荐安装器的自检：无 "hunks moved" + 二次运行幂等 + --restore 回原版）
+npm_config_prefix=/tmp/dshdesk/v021 node tools/dsh-patch.mjs --dry-run
+npm_config_prefix=/tmp/dshdesk/v021 node tools/dsh-patch.mjs -y
+npm_config_prefix=/tmp/dshdesk/v021 node tools/dsh-patch.mjs -y     # 应报 9 个「已存在」跳过
+npm_config_prefix=/tmp/dshdesk/v021 node tools/dsh-patch.mjs --restore
+```
+
+> 💡 `tools/dsh-patch.mjs` 的目录探测顺序是 `npm root -g` → `require.resolve` → 常见全局目录扫描。
+> 想让它认一个**临时树**，设 `npm_config_prefix=<前缀>`：它会去扫 `<前缀>/lib/node_modules` 和
+> `<前缀>/node_modules`，后者正是 `npm install --prefix` 的布局。这样不用碰全局安装就能端到端演练。
+
+### 6. 版本常量同步（3 处）
+
+`tools/dsh-patch.mjs` 的 `TARGET_VERSION`、`install-dsh-custom.sh` 的 `TARGET_VERSION`、
+`apply-dsh-patches.sh` 的 `TARGET_VERSION`、`check-update.sh` 的 `TARGET` —— 全部 → `0.2.1-rc.2`。
+`FILES` 数组（3 个脚本各一份）**不用改**，补丁集仍是 9 项。
+
+### 7. 配置侧：sensenova 无需改动
+
+`dsh --profile <p> --dump-config` 在 0.2.1-rc.2 上 exit 0、47,428 字节，
+`llm-pi-ai.providers.sensenova` 的 `compat: { requiresReasoningContentOnAssistantMessages: true, supportsDeveloperRole: false }`
+与 `retryPolicy` 都还在，`agent-default-model` 仍解析为 `provider: sensenova` / `model: deepseek-v4-flash` / `reasoningEffort: high`。
+
+### 8. 桌面版本轮没动（刻意的）
+
+官方桌面端**自动更新到 `0.2.1-rc.1`**（`update.zip` 347,752,406 字节，01:50 下载、01:51 ShipIt 安装），
+`app.asar` 121,387,457 → **182,759,178** 字节，5 个功能标记全部归零 —— 自动更新的必然结果。
+
+**不按 rc.1 重打**，两条理由：
+
+1. 桌面 rc.1 的 asar ≠ npm rc.2：`dsh-client-ui-chat/lib/client.js` **594,135 vs 594,185**、
+   `dsh-client-ui-conversation` **774,060 vs 774,080**；而 `dsh-api-remotes` / `dsh-agent-loop` /
+   `dsh-api-session-controller/lib/index.js` 逐字节相同。
+   **所以「在 npm 树上量出来的适配结果不能直接套到 asar」** —— 这是硬约束，不是保守。
+2. 等桌面端自动升到 rc.2 再按 asar 实抽文件重打，一次到位。
+
+### 9. 顺带发现的破坏性变更（与我们无关，但排查时会撞上）
+
+- 子路径插件**不再读自己的 `package.json`**；第三方兼容性改看 **`engines.dsh`** —— 我们自己的插件
+  （`dsh-vscode` / `dsh-vscode-lite` / `dsh-vscode-bridge` / `dsh-easyssh`）目前 `engines` 里都没有 `dsh` 字段，**建议补**。
+- 输入统计拆成 `activity` / `usage`；工具展示的 `both` 模式移除；
+  Agent Team 的消息改为直投目标 Inbox；`--from-default-profile` 变成**替换**配置；
+  Azure 供应商统一为 `azure`；headless 不再读已保存的凭据。
+- 桌面宿主端口**不再硬编码 19387**：`dsh-desktop-host/lib/index.js` 的启动参数改为
+  `["--no-open","--host","127.0.0.1","--port","0"]`（动态分配），实测监听 `127.0.0.1:55218`，
+  `19387` 在新宿主文件里出现 **0 次**。任何「按 19387 探活 / 取 token」的脚本都会失效。

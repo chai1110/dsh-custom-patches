@@ -219,7 +219,7 @@ if [ "$fails" -eq 0 ]; then
         ;;
       *)
         say "     • CLI 侧（浏览器）：${YELLOW}pkill -f 'dsh web'; dsh web${NC} 然后硬刷新页面"
-        say "     • 桌面版：${YELLOW}open \"$DESKTOP_APP\"${NC}（先退出官方版，二者共用 user-data + 端口 19387）"
+        say "     • 桌面版：${YELLOW}open \"$DESKTOP_APP\"${NC}（先退出官方版，二者共用 user-data 单实例锁；0.2.0 及更早还叠加固定端口 19387）"
         ;;
     esac
   fi

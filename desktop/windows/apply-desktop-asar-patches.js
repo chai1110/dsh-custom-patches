@@ -36,6 +36,11 @@ const { spawnSync, spawn } = require('child_process');
 // 补丁集已验证适配的 DSH 版本（npm 包与桌面版同为这个版本号）
 const SUPPORTED = ['0.2.0-rc.1', '0.2.0-rc.2'];
 const APP_NAME = 'DeepSeek Harness';
+// ⚠️ 0.2.1 起桌面宿主**不再固定 19387**：dsh-desktop-host/lib/index.js 的启动参数已从
+//    ["--no-open","--port","19387"] 改为 ["--no-open","--host","127.0.0.1","--port","0"]（动态分配），
+//    本机实测落在 127.0.0.1:55218。0.2.1+ 上跑 --restart 的健康检查必须显式给端口：
+//    DSH_DESKTOP_PORT=<实际端口> node apply-desktop-asar-patches.js --restart
+//    （实际端口从进程或宿主日志里读；19387 已静默。）
 const DEFAULT_PORT = 19387;
 
 // 补丁应用成功的功能标记（校验新 asar 必须命中）

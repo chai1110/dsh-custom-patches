@@ -155,8 +155,14 @@ node --expose-internals \
 ```
 
 - `runtimeDir` = the extracted `dsh/` directory; `profileDir` = `<DSH_HOME>/profiles/desktop`
-- The port is **hard-coded to 19387** inside the host, which collides with the running official
-  build — change that one spot in the extracted copy when accepting (the copy only, never the asar)
+- **0.2.0 and earlier**: the port is **hard-coded to 19387** inside the host, which collides with the
+  running official build — change that one spot in the extracted copy when accepting (the copy only, never the asar)
+- **Since 0.2.1 (measured 2026-10-17)**: the port is **no longer hard-coded** — the `dsh-desktop-host/lib/index.js`
+  args are now `["--no-open","--host","127.0.0.1","--port","0"]` (dynamic allocation), and `19387` appears
+  **0 times** in the new host file. On this machine the running host landed on `127.0.0.1:55218`. **Do not patch the
+  port during acceptance any more**; read the real port from stdout (`dsh web: http://127.0.0.1:<port>/?token=…`).
+  Any script that probes 19387 or pulls the token from it will fail outright.
+  Bonus: it no longer fights the official build for the port — only the user-data single-instance lock remains.
 - You **must** use an isolated `DSH_HOME`, otherwise it writes to your real desktop profile
 - ⚠️ The desktop profile is exclusive to Electron: `dsh --profile desktop` fails outright with
   `profile "desktop" is managed exclusively by the Electron application`, so the host is the only way
@@ -235,7 +241,7 @@ With the headless check green, one human pass over the interaction is still wort
 5. **③ Compaction retry**: hard to trigger by hand; covered by the `patches/compaction-basic` marker check
 
 > ⚠️ The patched build and the official build **share one user-data directory**
-> (single-instance lock + fixed port `19387`). Quit the official app before accepting.
+> (single-instance lock; 0.2.0 and earlier also had a fixed port `19387`). Quit the official app before accepting.
 
 ---
 
@@ -258,7 +264,7 @@ simply reinstall it.
 | `找不到 .../Contents/Resources/app.asar` | The vendor changed the app layout. Update `ASAR_REL` at the top of the script |
 | `work: unbound variable` | Fixed on 2026-09-29 (a bash `local` multi-assignment trap). Update the repo |
 | App will not open / "is damaged" | Re-signing did not finish. Re-run the script; if it still fails, read the `codesign --verify` output from step 6 |
-| The two apps cannot run at the same time | By design (shared user-data + single-instance lock + fixed port 19387) |
+| The two apps cannot run at the same time | By design (shared user-data + single-instance lock; 0.2.0 and earlier also had a fixed port 19387) |
 | No edit button after patching | First confirm all 9 markers are green in step 5; then confirm you opened the **patched** build, not the official one |
 | Patches vanish after a nightly update | The desktop app uses nightly auto-update; **re-run this script after every official update**. `bash check-update.sh` detects this |
 | The `ElectronAsarIntegrity` hash in `Info.plist` does not match the actual asar | **Not a problem, nothing to fix** — that fuse measures `0`, so Electron does not validate. See "Re-signing details" above |

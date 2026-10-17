@@ -64,7 +64,7 @@ CLI / 浏览器 / VS Code 三个界面走的是 `node_modules` 里的 npm 包，
 | 安装命令 | `node tools/dsh-patch.mjs -y` | `bash desktop/macos/dsh-desktop-patch.sh`（macOS）<br>`node desktop/windows/apply-desktop-asar-patches.js`（Windows） |
 | 补丁文件 | 同一份 `patches/**`（9 个，仓库根） | 同一份 `patches/**`（9 个，仓库根） |
 | 配置文件 | `~/.dsh/profiles/web/cordis.patch.yml` | `~/.dsh/profiles/desktop/cordis.patch.yml` |
-| 端口 | `3080`（launchd 常驻，浏览器与 VSCode 面板共用同一实例；插件无实例时也默认 3080 自起） | `127.0.0.1:19387`（硬编码） |
+| 端口 | `3080`（launchd 常驻，浏览器与 VSCode 面板共用同一实例；插件无实例时也默认 3080 自起） | 0.2.0 及更早：`127.0.0.1:19387`（硬编码）<br>0.2.1 起：`--port 0` **动态分配**（本机实测 `55218`） |
 | 谁在用 | 浏览器、**VSCode 插件**（硬编码 `dsh web`，无法复用桌面版） | 人（桌面 UI） |
 
 **关键**：补丁内容只有一套（`patches/**`），适配官方新版时**只需修一次锚点**；
@@ -338,8 +338,8 @@ macOS 侧 `4286629a…`，连跑两次字节完全相同）。
 | **签名变成 ad-hoc（仅 macOS）** | 重签后 `Signature=adhoc`、`TeamIdentifier=not set`、`flags=0x10002(adhoc,runtime)`。功能不受影响；若你有依赖「官方签名」的合规要求，请勿使用。Windows 无此问题。 |
 | **不需要改 `Info.plist`** | Electron 的保险丝 `EnableEmbeddedAsarIntegrityValidation = 0`（实测确认），所以 asar 内容变了也不会被拒绝，无需同步 `ElectronAsarIntegrity`。 |
 | **nightly 自动更新会覆盖** | 官方包更新后，补丁版需要**重新执行脚本**。`bash check-update.sh` 会检测并提示。 |
-| **与官方版不能同时运行** | 两者**共用同一个 user-data 目录**，加上单实例锁与固定端口 `19387`，同时启动会失败。用之前请先退出另一个。 |
-| **端口 19387 是硬编码的** | 桌面版不像 CLI 那样可以 `--port` 指定，冲突时只能让别的程序让路。 |
+| **与官方版不能同时运行** | 两者**共用同一个 user-data 目录**，加上单实例锁（0.2.0 及更早还叠加固定端口 `19387`），同时启动会失败。用之前请先退出另一个。 |
+| **端口 19387 曾是硬编码的** | 0.2.0 及更早确实如此（不像 CLI 可以 `--port`，冲突时只能让别的程序让路）。**0.2.1 起改为 `--port 0` 动态分配**，不再抢端口；任何按 19387 探活 / 取 token 的脚本需改为读 stdout 或进程信息。 |
 | **不改官方 app** | macOS 侧所有产出都在 `~/Applications/` 下，`/Applications/DeepSeek Harness.app` 始终保持官方原样。 |
 
 ---

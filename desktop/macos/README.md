@@ -149,8 +149,13 @@ node --expose-internals \
 ```
 
 - `runtimeDir` = 抽出来的 `dsh/` 目录；`profileDir` = `<DSH_HOME>/profiles/desktop`
-- host 里端口是**硬编码 19387** 的，与在跑的官方版冲突 —— 验收时改抽取副本里那一处
+- **0.2.0 及更早**：host 里端口是**硬编码 19387** 的，与在跑的官方版冲突 —— 验收时改抽取副本里那一处
   （只改副本，不动 asar）
+- **0.2.1 起（2026-10-17 实测）**：端口**不再硬编码** —— `dsh-desktop-host/lib/index.js` 的启动参数已变为
+  `["--no-open","--host","127.0.0.1","--port","0"]`（动态分配），`19387` 在新宿主文件里出现 **0 次**。
+  本机运行中的宿主落在 `127.0.0.1:55218`。**验收时不要再去改端口**，改为从 stdout 的
+  `dsh web: http://127.0.0.1:<port>/?token=…` 里读实际端口；若脚本按 19387 探活/取 token 会直接失败。
+  好处：与官方版不再抢端口，只剩 user-data 单实例锁的冲突。
 - 必须用**隔离的 `DSH_HOME`**，否则会写到你真实的桌面 profile
 - ⚠️ 桌面 profile 被 Electron 独占：`dsh --profile desktop` 会直接报
   `profile "desktop" is managed exclusively by the Electron application`，所以只能走 host
@@ -226,7 +231,7 @@ DSH_HOME=/tmp/probe node <runtimeDir>/node_modules/@deepseek-ai/dsh/lib/bin.js \
 4. **② 编辑**：鼠标移到**最后一条用户消息**上 —— 应出现 **✏️ 编辑**入口，改完可重新生成
 5. **③ 压缩重试**：这条不好手动造，跳过；由 `patches/compaction-basic` 的标记核对覆盖
 
-> ⚠️ 补丁版与官方版**共用同一个 user-data 目录**（单实例锁 + 固定端口 `19387`），
+> ⚠️ 补丁版与官方版**共用同一个 user-data 目录**（单实例锁；0.2.0 及更早还叠加固定端口 `19387`），
 > 验收前请先退出官方版。
 
 ---
@@ -249,7 +254,7 @@ rm -rf "$HOME/Applications/DeepSeek Harness Patched.app"
 | `找不到 .../Contents/Resources/app.asar` | 官方改了 app 布局。更新脚本顶部的 `ASAR_REL` |
 | `work: unbound variable` | 已在 2026-09-29 修复（`local` 多变量赋值的 bash 坑）。请更新仓库 |
 | 打不开 app / 提示已损坏 | 重签名未完成。重跑一次脚本；仍失败则看第 6 步的 `codesign --verify` 输出 |
-| 两个 app 不能同时开 | 设计如此（共用 user-data + 单实例锁 + 固定端口 19387） |
+| 两个 app 不能同时开 | 设计如此（共用 user-data + 单实例锁；0.2.0 及更早还叠加固定端口 19387） |
 | 打完补丁没有编辑按钮 | 先确认第 5 步 9 个标记全绿；再确认打开的是**补丁版**而不是官方版 |
 | 夜间更新后补丁消失 | 桌面版走 nightly 自动更新，**官方包每次更新后重跑本脚本**；`bash check-update.sh` 会检测 |
 | `Info.plist` 里的 `ElectronAsarIntegrity` 哈希和实际 asar 对不上 | **不是问题，无需处理** —— 该保险丝实测为 `0`，Electron 不校验。见上面「重签名细节」 |

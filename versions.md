@@ -4,7 +4,7 @@
 
 > **版本管理方式**：每个已适配的 DSH 版本对应**一个 git tag + 一个同名快照分支**（tag `vX` ↔ 分支 `version/X`，两者指向同一提交），tag 内补丁与脚本为该版本专用。用户 checkout 对应 tag 后直接 `bash install-dsh-custom.sh -y`，**无需版本参数**。
 >
-> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2`（共 8 个）。
+> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2` / `0.2.1-rc.2`（共 9 个）。
 > 一致性自查（在仓库目录执行）——**以命令输出为准，不要相信静态描述**：
 >
 > ```sh
@@ -16,10 +16,14 @@
 > done
 > ```
 >
-> ⭐ **当前基线是 `main` 分支（目标 `0.2.0-rc.2`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
-> ✅ **`0.2.0-rc.2` 已同时占据官方 `latest` 与 `next`**（2026-09-29 起），普通 `npm i -g @deepseek-ai/dsh` 即可。
-> 仍在 `0.2.0-rc.1` 的环境请 **checkout `v0.2.0-rc.1`**。补丁内容对 rc.1 / rc.2 完全相同
-> （rc.2 的 npm 树与桌面版 asar 均 9/9 零模糊通过，2026-09-29 实测），仅版本常量随基线更新。
+> ⭐ **当前基线是 `main` 分支（目标 `0.2.1-rc.2`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
+> ⚠️ **`0.2.1-rc.2` 只占官方 `next` 频道**（2026-10-17 起），`latest` 仍是 `0.2.0-rc.2`。
+> 想用本基线请显式装：`npm i -g @deepseek-ai/dsh@next`（或 `@0.2.1-rc.2`）；直接 `npm i -g @deepseek-ai/dsh` 会装到 0.2.0-rc.2。
+> 仍在 `0.2.0-rc.2` / `0.2.0-rc.1` 的环境请 **checkout `v0.2.0-rc.2` / `v0.2.0-rc.1`**。
+> ⚠️ **0.2.1 是破坏性版本**（typert 描述符改成 keyed map + `strictCodec`、子路径插件不再读自身 `package.json`、
+> 第三方兼容改看 `engines.dsh`、输入统计拆 `activity`/`usage`、工具展示 `both` 模式移除、Agent Team 消息直投目标 Inbox、
+> `--from-default-profile` 改为替换配置、Azure 供应商统一为 `azure`、headless 不再读已存凭据），
+> **补丁集必须重打**：7 个文件 / 16 处 hunk 失败，已全部适配并 9/9 零模糊通过（2026-10-17 实测）。
 > ✅ **每个 tag 都自带正确的版本常量。** tag 内的 `install-dsh-custom.sh` / `apply-dsh-patches.sh` / `check-update.sh`
 > 都把版本钉在该 tag 对应的官方版本上，checkout 后直接 `-y` 即可。
 > 一条命令自查全部 tag（在仓库目录执行）——**不要相信本文档的静态描述，以这条命令的输出为准**：
@@ -43,7 +47,8 @@
 | 0.1.2-alpha.2 | ❌ 需重打（架构重构） | ❌ | ❌ | **预发布**；host-apiproxy/client-runtime 包消失，见 `ADAPTING.md` 预研记录 |
 | 0.1.2-rc.1 | ✅ 全部可用（`.rc1` 版） | ❌ | ❌ | 架构重构版：编辑重发改由 `dsh-api-session-controller` + `dsh-client-ui-chat` + `dsh-api-remotes`（浏览器端方法表冻结副本，必须同步）承载。补丁集在 `version/0.1.2-rc.1` 分支 / tag `v0.1.2-rc.1` |
 | 0.1.5-rc.1 | ✅ 全部可套用（已重打，12/12） | ❌ | ❌ | **历史基准（`version/0.1.5-rc.1` 分支）**，已被 0.1.7-rc.2 取代；官方 0.1.5 收编了 `SURFACE_EVENT_TYPES`/`isSurfaceEvent`（`core/session/src/surface.ts`），本补丁已删重复声明。⚠️ 仅静态校验通过（可套用 + `node --check`） |
-| **0.2.0-rc.2** | ✅ **补丁集零改动，9/9 直接可用** | ❌ | ❌ | ⭐ **当前基准（`main` 分支）**；2026-09-29 起同时占据官方 `latest` 与 `next`。补丁内容与 rc.1 **完全相同**：npm 树（平铺临时安装）与桌面版 asar 双侧 `patch -F 0` **9/9 零模糊**通过，`node --check` 9/9 通过。官方本轮无锚点区改动；依赖变化：pi-ai 0.85.1 → **0.87.1**（官方注「部分旧模型 ID 被移除」—— 我们的自定义 sensenova 模型块是自备 ID，不受内置目录影响，`--dump-config` 组装校验通过）。
+| **0.2.1-rc.2** | ✅ **补丁集已重打，9/9 零模糊可用** | ❌ | ❌ | ⭐ **当前基准（`main` 分支 / tag `v0.2.1-rc.2`）**；2026-10-17 发布，只占官方 `next`（`latest` 仍为 0.2.0-rc.2）。⚠️ **0.2.1 是破坏性版本**，补丁集**不能零改动沿用**：初测 2/9 干净、**7 个文件 / 16 处 hunk 失败**。适配方式：`git merge-file` 三方合并（用「旧官方 = base」反推）把 16 处 hunk 失败压到 10 个冲突块，再逐文件手工解决 —— ① typert 描述符由「数组 + `id/service/namespace/method`」改为「**keyed map + `description` + `strictCodec`**」，`session/editLastPrompt` 条目需按新格式重写并补 `z.strictObject` 严格 schema 助手；② `_page_decorators = [Remote("page")]` 变为多行 `Remote({ name:"page", resources:{...} })`；③ `dsh-agent-loop` 官方新增 `runtime-context` 分支，去重补丁改挂到 `else` 臂（保留官方分支）；④ `client-ui-conversation` 的 `acceptMatch` 签名变成 `(definition, id, match)`；⑤ `client-ui-chat` 的 `UserMessageNodeView` 入参整体重构（`renderMessageImages/openFile/openSkill` → `renderFactorySlot/loadImage`），编辑气泡整块重写。校验：`patch --dry-run -N -F 0 -p1` **9/9 零模糊** + 实套后逐字节等于工作副本 + `node --check` 9/9 + `tools/dsh-patch.mjs --dry-run` 9/9 无 `hunks moved` + 二次运行幂等 + `--restore` 9/9 回到官方原版。**官方未内置我们的功能**（4 个标记在 `*/lib` 全为 0）。依赖侧：`llm-pi-ai` 升级后 `sensenova` 自定义供应商配置 `--dump-config` 仍组装通过（`compat.requiresReasoningContentOnAssistantMessages` + `retryPolicy` + 默认 `sensenova/deepseek-v4-flash` 均保留）。⚠️ 桌面版**尚未重打**：官方桌面端已自动更新到 `0.2.1-rc.1` 并覆盖了旧补丁，且 rc.1 的 asar 与 npm rc.2 存在构建产物级差异（`client-ui-chat` / `client-ui-conversation` 字节不同），需等桌面端自动升到 rc.2 后再按 asar 实抽文件重打 |
+| **0.2.0-rc.2** | ✅ **补丁集零改动，9/9 直接可用** | ❌ | ❌ | **上一基准**（tag `v0.2.0-rc.2` / 分支 `version/0.2.0-rc.2`），已被 0.2.1-rc.2 取代；2026-09-29 起同时占据官方 `latest` 与 `next`（**至今仍是 `latest`**）。补丁内容与 rc.1 **完全相同**：npm 树（平铺临时安装）与桌面版 asar 双侧 `patch -F 0` **9/9 零模糊**通过，`node --check` 9/9 通过。官方本轮无锚点区改动；依赖变化：pi-ai 0.85.1 → **0.87.1**（官方注「部分旧模型 ID 被移除」—— 我们的自定义 sensenova 模型块是自备 ID，不受内置目录影响，`--dump-config` 组装校验通过）。
 | 0.2.0-rc.1 | ✅ **补丁集零改动，9/9 直接可用** | ❌ | ❌ | **上一基准**（tag `v0.2.0-rc.1` / 分支 `version/0.2.0-rc.1`），已被 0.2.0-rc.2 取代；官方 `next` 频道首个 `0.2.0` 候选版。**官方这次没碰我们任何一个锚点区** —— 实测 `patch -F 0`（**零模糊**）9/9 干净套用，实套 + `node --check` 9/9 通过，端到端跑 `install-dsh-custom.sh -y` 9/9 成功且幂等（二次运行正确识别 9 个标记并跳过）。**无需重打任何补丁。** 依赖闭包只新增 `dsh-experimental-schedule-bundle`（对应「自动化任务改由可选插件包提供」），我们打补丁的 6 个包**全部仍在**。官方在 `dsh-agent-loop` 新增的 `ToolCallRecovery`（修「工具调度异常后对话无法继续」）与本补丁的 `__stack` 诊断 + `user/message` 去重**不是同一件事**，故保留。补丁依赖的运行时 API（`ctx.llm.providerRetryPolicy`、`session.surface.nodes`、`session.eventAt`、`isReplacementSurfaceEvent`）在新版**全部仍存在**。真机运行时验证原记为「尚未做」，2026-09-29 补齐 ✅ **真机运行时验证通过（2026-09-29）**：真机暴露 4 个静态校验查不出的 bug 并已全部修复 —— typert codec `schema:`→`create:`、`surfaceOp` `start/end`→`startSeq/endSeq`、ui-conversation `scanShadowed` 键名（导致重发后旧轮次残留）、安装脚本 Windows 版本检测转义；详见 ADAPTING.md 文末小节。 |
 | 0.1.7-rc.2 | ✅ 全部可用（11→9 项） | ❌ | ❌ | **上一基准**，已被 0.2.0-rc.1 取代；官方 `latest` 仍是本版。归档相关补丁（`client-connection` / `workspace` / `client-ui-workspace`）已全部退役：`client-connection` 在 0.1.7-rc.2 适配早期退役（12→11），`workspace` + `client-ui-workspace` 于 2026-09-28 退役（11→9）—— 官方已提供完整链路（归档 + 取消归档 + 侧边栏三态筛选 + 行内恢复 + 搜索恢复 + 归档提示的 undo），我们不再重复实现。适配要点：0.1.7 schema 全面改 lazy `??=` 风格、api-remotes codec 的 `schema:` 改名 `create:`、chat 组件签名重构（ChatNodeSeat/ChatView 新 props、inbox projection）、composer keymap 经 `installDraftKeymap` 薄封装（history recall 需直调 `registerComposerKeymap` 覆盖 arbitrate）。三道校验通过（dry-run 9/9 零失败 + 全新副本套用 + node --check）；运行时验证已通过（2026-09-26：套用后 launchd 服务干净启动、契约探针全绿、session/editLastPrompt 方法存在且形状被接受），并已修复 2 处真机运行时 bug（2026-09-27） |
 
@@ -53,6 +58,20 @@
 > （详见 README「🖥️ 桌面版支持」与 `ADAPTING.md` 末节）。两个要点：① asar 内容与 npm tarball 存在**构建产物级
 > 差异**（CSS 模块类名哈希、构建机绝对路径），试套必须对 asar 抽出的文件做，不能拿 npm 包推断；
 > ② 桌面版**自带自动更新**，更新会覆盖 `app.asar`，届时需重跑脚本（先 `--dry-run`）。
+>
+> ⚠️ **桌面版 0.2.1 状态（2026-10-17）**：官方桌面端已**自动更新到 `0.2.1-rc.1`**（`app.asar` 121,387,457 → 182,759,178 字节），
+> 旧补丁被整体覆盖 —— 实测 5 个功能标记 `recallHistory` / `editLastPrompt` / `session/editLastPrompt` /
+> `editLastPromptOnce` / `compactionBackoffDelay` 在运行中的包里全部为 **0 次**（打补丁时为 3 / 11 / 1 / 2 / 2）。
+> 这是自动更新的**必然结果**，不是异常。**本轮未重打桌面版**，原因两条：
+> ① 桌面 rc.1 的 asar 与 npm rc.2 **不是同一份产物**（`dsh-client-ui-chat/lib/client.js` 594,135 vs 594,185 字节，
+> `dsh-client-ui-conversation` 774,060 vs 774,080；而 `dsh-api-remotes` / `dsh-agent-loop` /
+> `dsh-api-session-controller/lib/index.js` 逐字节相同），在 npm 树上量出来的适配结果**不能直接套到 asar**；
+> ② 等桌面端自动升到 **rc.2** 再按 asar 实抽文件重打，可一次到位、避免按 rc.1 白做一遍。
+>
+> 📌 **桌面版宿主端口不再是硬编码 19387**：`0.2.1` 起 `dsh-desktop-host/lib/index.js` 的启动参数由
+> `["--no-open","--port","19387"]` 改为 `["--no-open","--host","127.0.0.1","--port","0"]`（**动态分配**），
+> 实测运行中的宿主监听 `127.0.0.1:55218`，`19387` 已静默且在新宿主文件里出现 **0 次**。
+> 脚本里若按 19387 探活/取 token，需改为从进程或日志读取实际端口。
 
 > **0.1.5-rc.1 适配要点（详见 `ADAPTING.md` 末节）**：
 > - 6 个补丁的锚点需重打（agent-loop / api-remotes / api-session-controller typert.remote-client /
@@ -172,7 +191,7 @@ patch --dry-run -N -p1 < 补丁文件.patch
 
 1. **走 nightly 自动更新** —— 官方包一更新，补丁就被覆盖。`bash check-update.sh` 会比对
    打补丁时记录的「来源指纹」（官方 asar 的 sha256）并重查功能标记，提示是否要重跑。
-2. **与官方版共用 user-data** —— 单实例锁 + 固定端口 `19387`，两者不能同时运行。
+2. **与官方版共用 user-data** —— 单实例锁；0.2.0 及更早还叠加固定端口 `19387`，两者不能同时运行。
    补丁版是**独立的一份 app**（默认 `~/Applications/DeepSeek Harness Patched.app`），回滚就是删掉它。
 
 > **Windows 桌面版是独立模块** —— 源码 `desktop/windows/apply-desktop-asar-patches.js`（跨平台，纯 Node），

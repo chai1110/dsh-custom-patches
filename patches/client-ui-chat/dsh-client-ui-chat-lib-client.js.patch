@@ -1,11 +1,81 @@
 --- @deepseek-ai/dsh-client-ui-chat/lib/client.js
 +++ @deepseek-ai/dsh-client-ui-chat/lib/client.js
-@@ -1450,8 +1450,106 @@
+@@ -2741,7 +2741,7 @@
+ 		* The chat view slot entry: pure component over the composed props; each
+ 		* ordered business Node crosses the keyed renderer seat.
+ 		*/
+-		function ChatView({ useSession, useChat, useConversation, useSessions, renderSlot, sessionId, openFile, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions, usePresentation, useProjection, t }) {
++		function ChatView({ useSession, useChat, useConversation, useSessions, renderSlot, sessionId, openFile, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions, editLastPrompt, usePresentation, useProjection, t }) {
+ 			const order = useChat((s) => s.order);
+ 			const groupedEntries = useConversation((snapshot) => snapshot.views.grouped("chat")?.entries);
+ 			const entries = (0, react.useMemo)(() => groupedEntries ?? order.map((key) => ({
+@@ -2755,6 +2755,21 @@
+ 			const turnOutline = useProjection("turnOutline");
+ 			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
+ 			const inbox = useProjection("inbox");
++			const lastUserKey = (0, react.useMemo)(() => {
++				const list = groupedEntries ?? order.map((key) => ({
++					kind: "node",
++					key
++				}));
++				for (let i = list.length - 1; i >= 0; i--) {
++					const entry = list[i];
++					if (entry.kind === "node" && nodeStore.get(entry.key)?.kind === "user") return entry.key;
++				}
++				return null;
++			}, [
++				groupedEntries,
++				order,
++				nodeStore
++			]);
+ 			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
+ 			const fileImages = (0, react.useMemo)(() => ({
+ 				resolve: (path) => fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, path)),
+@@ -2920,7 +2935,9 @@
+ 											inspectCall,
+ 											forkAt,
+ 											loadImage,
+-											fileMentions
++											fileMentions,
++											editLastPrompt,
++											lastUserKey
+ 										}, { hookContext: flowContext })
+ 									})
+ 								]
+@@ -3709,7 +3726,7 @@
+ 		* Policy reads select this seat's own conclusion, so a mode change re-renders
+ 		* only seats whose visibility actually changes.
+ 		*/
+-		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, groupPart, useChatNode, useChatNodeProcess, usePresentation, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions, useStore, actions, renderSlot, t, useChatNodeBottom, deferCollapse, useGroupAction }) {
++		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, groupPart, useChatNode, useChatNodeProcess, usePresentation, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t, useChatNodeBottom, deferCollapse, useGroupAction }) {
+ 			const bottom = useChatNodeBottom(nodeKey);
+ 			const node = useChatNode(nodeKey);
+ 			const routedNode = node;
+@@ -3781,6 +3798,8 @@
+ 				forkAt,
+ 				loadImage,
+ 				fileMentions,
++				isLastUser: nodeKey === lastUserKey,
++				editLastPrompt,
+ 				turnProcess
+ 			}, [
+ 				node,
+@@ -3791,6 +3810,9 @@
+ 				forkAt,
+ 				loadImage,
+ 				fileMentions,
++				nodeKey,
++				lastUserKey,
++				editLastPrompt,
+ 				turnProcess
+ 			]);
+ 			if (routedNode === void 0 || owner === null) return null;
+@@ -5482,8 +5504,106 @@
  			});
  		}
  		/** User and admitted-steering keyed Chat renderer. */
--		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, openFile, openSkill, t }) {
-+		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, openFile, openSkill, t, isLastUser = false, editLastPrompt }) {
+-		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderFactorySlot, loadImage, t }) {
++		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderFactorySlot, loadImage, t, isLastUser = false, editLastPrompt }) {
  			const data = node.data;
 +			const [editing, setEditing] = (0, react.useState)(false);
 +			const [editText, setEditText] = (0, react.useState)("");
@@ -78,7 +148,7 @@
 +								},
 +								autoFocus: true,
 +								"aria-label": t("message.editPrompt"),
-+								style: { boxSizing: "border-box", width: "100%", minHeight: "3em", resize: "vertical", border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", lineHeight: "inherit", padding: "10px 16px" }
++								style: { boxSizing: "border-box", width: "100%", minHeight: "3em", resize: "vertical", border: "none", outline: "none", background: "transparent", color: "inherit", font: "inherit", padding: "12px" }
 +							}), editError !== null && (0, react_jsx_runtime.jsx)("div", {
 +								style: { color: "var(--dsw-static-red-400, #e06c75)", fontSize: 12, padding: "0 12px 6px", overflowWrap: "anywhere" },
 +								children: editError
@@ -107,11 +177,11 @@
 +			}
  			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
  				content: data.content,
- 				references: {
-@@ -1462,13 +1560,7 @@
+ 				interactive: true,
+@@ -5491,13 +5611,7 @@
+ 				loadImage,
  				...data.referenceLabels === void 0 ? {} : { referenceLabels: data.referenceLabels },
  				...data.skillNames === void 0 ? {} : { skillNames: data.skillNames },
- 				t,
 -				actions: (text) => (0, react_jsx_runtime.jsx)(MessageIconActions, {
 -					text,
 -					time: data.time,
@@ -123,68 +193,27 @@
  			});
  		});
  		/** Injected-context keyed Chat renderer. */
-@@ -1665,7 +1757,7 @@
- 		* Policy reads select this seat's own conclusion, so a mode change re-renders
- 		* only seats whose visibility actually changes.
- 		*/
--		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, groupPart, useChatNode, useChatNodeProcess, usePresentation, cwd, openFile, openSkill, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, useStore, actions, renderSlot, t }) {
-+		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, groupPart, useChatNode, useChatNodeProcess, usePresentation, cwd, openFile, openSkill, inspectCall, forkAt, loadImage, renderMessageImages, fileMentions, editLastPrompt, lastUserKey, useStore, actions, renderSlot, t }) {
- 			const node = useChatNode(nodeKey);
- 			const routedNode = node;
- 			const turn = turnOf$1(routedNode);
-@@ -1734,6 +1826,8 @@
+@@ -5639,7 +5753,7 @@
+ 		//#region lib/types/client/chat/ChatFlow.js
+ 		/** Ordered Chat rows, local echoes, and running status share the flow slot's parent. */
+ 		/** Render the flow without adding a DOM parent or changing keyed row positions. */
+-		const ChatFlow = (0, react.memo)(function ChatFlow({ entries, pendingInputs, lastInputTurn, deferCollapse, useSession, useChat, useChatNode, useChatNodeBottom, useChatNodeProcess, useChatGroup, usePresentation, useStore, actions, renderSlot, renderFactorySlot, t, useGroupAction, useGroupHeaderAction, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions }) {
++		const ChatFlow = (0, react.memo)(function ChatFlow({ entries, pendingInputs, lastInputTurn, deferCollapse, useSession, useChat, useChatNode, useChatNodeBottom, useChatNodeProcess, useChatGroup, usePresentation, useStore, actions, renderSlot, renderFactorySlot, t, useGroupAction, useGroupHeaderAction, cwd, openFile, inspectCall, forkAt, loadImage, fileMentions, editLastPrompt, lastUserKey }) {
+ 			const nodeStore = useChat((snapshot) => snapshot.nodes);
+ 			const running = useSession((snapshot) => snapshot.running);
+ 			const runningStartTime = useChatNode(useChat((snapshot) => snapshot.navigation.items().at(-1)?.anchorKey) ?? "", (node) => {
+@@ -5663,7 +5777,9 @@
+ 				inspectCall,
+ 				forkAt,
  				loadImage,
- 				renderMessageImages,
- 				fileMentions,
-+				isLastUser: nodeKey === lastUserKey,
+-				fileMentions
++				fileMentions,
 +				editLastPrompt,
- 				turnProcess
- 			}, [
- 				node,
-@@ -1746,6 +1840,9 @@
- 				loadImage,
- 				renderMessageImages,
- 				fileMentions,
-+				nodeKey,
-+				lastUserKey,
-+				editLastPrompt,
- 				turnProcess
- 			]);
- 			if (routedNode === void 0 || owner === null) return null;
-@@ -5040,7 +5137,7 @@
- 		* The chat view slot entry: pure component over the composed props; each
- 		* ordered business Node crosses the keyed renderer seat.
- 		*/
--		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useChatGroup, useConversation, useSessions, useStore, actions, renderSlot, sessionId, openFile, openSkill, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions, usePresentation, useProjection, t }) {
-+		function ChatView({ useSession, useChat, useChatNode, useChatNodeProcess, useChatGroup, useConversation, useSessions, useStore, actions, renderSlot, sessionId, openFile, openSkill, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions, editLastPrompt, usePresentation, useProjection, t }) {
- 			const order = useChat((s) => s.order);
- 			const groupedEntries = useConversation((snapshot) => snapshot.views.grouped("chat")?.entries);
- 			const entries = (0, react.useMemo)(() => groupedEntries ?? order.map((key) => ({
-@@ -5052,6 +5149,14 @@
- 			const turnOutline = useProjection("turnOutline");
- 			const railItems = (0, react.useMemo)(() => mergeTurnRailItems(turnNavigationItems, turnOutline), [turnNavigationItems, turnOutline]);
- 			const inbox = useProjection("inbox");
-+			const lastUserKey = (0, react.useMemo)(() => {
-+				const list = groupedEntries ?? order.map((key) => ({ kind: "node", key }));
-+				for (let i = list.length - 1; i >= 0; i--) {
-+					const entry = list[i];
-+					if (entry.kind === "node" && nodeStore.get(entry.key)?.kind === "user") return entry.key;
-+				}
-+				return null;
-+			}, [groupedEntries, order, nodeStore]);
- 			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
- 			const fileImages = (0, react.useMemo)(() => ({
- 				resolve: (path) => fileMediaUrl(document.baseURI, resolveWorkspacePath(cwd, path)),
-@@ -5208,6 +5313,8 @@
- 											loadImage,
- 											renderMessageImages,
- 											fileMentions,
-+											editLastPrompt,
-+											lastUserKey,
- 											renderSlot,
- 											t
- 										})
-@@ -5371,6 +5478,10 @@
++				lastUserKey
+ 			};
+ 			const rows = entries.map((entry) => {
+ 				switch (entry.kind) {
+@@ -5824,6 +5940,10 @@
  			"fileOpen.title": "无法打开文件",
  			"fileOpen.unknown": "无法打开此文件",
  			"message.extraBlock": "附加内容块",
@@ -195,7 +224,7 @@
  			"message.systemPrompt": "系统提示词",
  			"message.systemPromptUpdate": "系统提示词更新",
  			"message.toolAdded": "已添加工具：{name}",
-@@ -5560,6 +5671,10 @@
+@@ -6018,6 +6138,10 @@
  			"fileOpen.title": "Couldn’t open file",
  			"fileOpen.unknown": "Couldn’t open this file",
  			"message.extraBlock": "Extra content block",
@@ -206,7 +235,7 @@
  			"message.systemPrompt": "System prompt",
  			"message.systemPromptUpdate": "System prompt update",
  			"message.toolAdded": "Tool added: {name}",
-@@ -9195,13 +9310,10 @@
+@@ -9844,13 +9968,10 @@
  		const messageDefinition = {
  			kind: "input-message",
  			target: "chat",
@@ -224,7 +253,7 @@
  			start: (_context, match, reader) => {
  				const event = match.event;
  				if (event.type !== "user/message") throw new Error("input-message start requires user/message");
-@@ -12369,7 +12481,11 @@
+@@ -13280,7 +13401,11 @@
  								}).then((childId) => {
  									ctx.uiWorkspace.openSession(childId);
  								}).catch(() => {});

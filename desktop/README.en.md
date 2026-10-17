@@ -189,8 +189,8 @@ build and only appear once patched**. Measured (patches target desktop `0.2.0-rc
 | **Signature becomes ad-hoc** | After re-signing: `Signature=adhoc`, `TeamIdentifier=not set`, `flags=0x10002(adhoc,runtime)`. Functionality is unaffected; if you have compliance requirements that depend on the vendor signature, do not use this. |
 | **`Info.plist` needs no update** | Electron's `EnableEmbeddedAsarIntegrityValidation` fuse is `0` (verified), so changed asar contents are not rejected and `ElectronAsarIntegrity` need not be updated. |
 | **Nightly auto-update overwrites it** | After the official app updates, re-run the script. `bash check-update.sh` detects and warns about this. |
-| **Cannot run alongside the official app** | They **share the same user-data directory**, plus a single-instance lock and the fixed port `19387` — starting both fails. Quit one first. |
-| **Port 19387 is hard-coded** | Unlike the CLI, the desktop app takes no `--port`; on a conflict, the other program must move. |
+| **Cannot run alongside the official app** | They **share the same user-data directory**, plus a single-instance lock (0.2.0 and earlier also had a fixed port `19387`) — starting both fails. Quit one first. |
+| **Port 19387 *used to be* hard-coded** | True for 0.2.0 and earlier (unlike the CLI it took no `--port`, so on a conflict the other program had to move). **Since 0.2.1 it is `--port 0` (dynamic)**, so it no longer fights for the port; any script that probes 19387 or pulls the token from it must read stdout or the process info instead. |
 | **The official app is never modified** | All output lives under `~/Applications/`; `/Applications/DeepSeek Harness.app` stays pristine. |
 
 ---
