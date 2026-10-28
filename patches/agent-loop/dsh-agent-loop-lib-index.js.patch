@@ -19,10 +19,10 @@
  				}
 -			} else this.session.append("user/message", message, { surfaceOp: "append" });
 +			} else {
-+				// 补丁：若同一 user/message 已经是 surface 末尾，跳过重复追加
 +				const tail = this.session.surface.nodes.at(-1);
 +				const tailEvent = tail === void 0 ? void 0 : this.session.eventAt(tail);
-+				if (!(tailEvent?.type === "user/message" && tailEvent.data.id === message.id)) this.session.append("user/message", message, { surfaceOp: "append" });
++				if (tailEvent?.type === "user/message" && tailEvent.data.id === message.id) continue;
++				this.session.append("user/message", message, { surfaceOp: "append" });
 +			}
  			if (context !== void 0 && !contextAdmitted) this.session.append("user/message", context, { surfaceOp: "append" });
  			firstAttempt = false;

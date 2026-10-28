@@ -34,7 +34,7 @@ const crypto = require('crypto');
 const { spawnSync, spawn } = require('child_process');
 
 // 补丁集已验证适配的 DSH 版本（npm 包与桌面版同为这个版本号）
-const SUPPORTED = ['0.2.0-rc.1', '0.2.0-rc.2'];
+const SUPPORTED = ['0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-rc.3'];
 const APP_NAME = 'DeepSeek Harness';
 // ⚠️ 0.2.1 起桌面宿主**不再固定 19387**：dsh-desktop-host/lib/index.js 的启动参数已从
 //    ["--no-open","--port","19387"] 改为 ["--no-open","--host","127.0.0.1","--port","0"]（动态分配），

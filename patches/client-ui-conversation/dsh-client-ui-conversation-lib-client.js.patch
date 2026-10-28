@@ -36,11 +36,10 @@
  				this.locationIndex.rebuild(sorted);
  				this.timelineDirty = true;
  				for (const entry of sorted) this.matchInput(entry);
-@@ -2593,6 +2608,15 @@
- 				for (const context of this.contexts.values()) this.markDirty(context);
+@@ -2594,6 +2609,15 @@
  				this.replacePending = true;
  				return "immediate";
-+			}
+ 			}
 +			/** Fold every replace surfaceOp in a window into the shadowed-seq set. */
 +			scanShadowed(sorted) {
 +				this.shadowed.clear();
@@ -49,9 +48,10 @@
 +					const op = entry.event.surfaceOp;
 +					for (let seq = op.startSeq; seq <= op.endSeq; seq++) this.shadowed.add(seq);
 +				}
- 			}
++			}
  			/**
  			* Add one contiguous live tail event without scanning existing Contexts.
+ 			* @param record - appended Session event entry.
 @@ -2602,6 +2626,13 @@
  			append(record) {
  				const event = record.event;
@@ -97,10 +97,10 @@
  			/** Pull one older history page for the scoped Session. */
  			async loadOlder() {
  				await this.scopedSession("loadOlder").loadOlder();
-@@ -14946,6 +14987,16 @@
+@@ -14973,6 +15014,16 @@
+ 			rev = 0;
+ 			unregister;
  			noticeSeq = 0;
- 			lastPublishedDraft;
- 			draftSnapshotCache;
 +			/** Sent-message history for ArrowUp recall in the composer (newest last, deduped).
 +			 *  持久化到 localStorage：页面重载后仍能 ↑ 召回之前发送过的消息（Lite 补丁增强）。 */
 +			sendHistory = (() => {
@@ -111,14 +111,13 @@
 +					return [];
 +				}
 +			})();
+ 			lastPublishedDraft;
+ 			draftSnapshotCache;
  			attachmentIds = [];
- 			disposed = false;
- 			/** Conversation store writer for the current semantic document. */
-@@ -15203,6 +15254,14 @@
- 				if (before.phase === "claimed" && this.attachmentIds.length > 0 && before.claim?.attachments !== true) {
+@@ -15242,6 +15293,14 @@
  					this.notify("error", this.deps.commandAttachments.unsupportedNotice(before.claim?.token ?? before.draft));
  					return;
-+				}
+ 				}
 +				const sentText = this.snapshot.draft.trim();
 +				if (sentText !== "" && this.sendHistory[this.sendHistory.length - 1] !== sentText) {
 +					this.sendHistory.push(sentText);
@@ -126,10 +125,11 @@
 +						localStorage.setItem("dsh-send-history", JSON.stringify(this.sendHistory.slice(-50)));
 +					} catch {
 +					}
- 				}
++				}
  				this.dispatchRun({
  					type: "enter",
-@@ -18775,6 +18834,8 @@
+ 					mode,
+@@ -18958,6 +19017,8 @@
  			const editor = keyboard?.editor ?? null;
  			const attachments = (0, react.useMemo)(() => input === void 0 || resolveDraftAttachments === void 0 ? [] : resolveDraftAttachments(input.attachmentIds), [resolveDraftAttachments, input?.attachmentIds]);
  			const empty = draft.trim() === "" && attachments.length === 0;
@@ -138,11 +138,10 @@
  			const uploads = useFileUploads((snapshot) => snapshot);
  			const uploadsPending = attachments.some((attachment) => attachment.kind === "file" && uploads[attachment.id]?.status !== "ready");
  			const [toast, setToast] = (0, react.useState)(null);
-@@ -18910,6 +18971,38 @@
- 				showToast,
+@@ -19094,13 +19155,88 @@
  				t,
  				canAcceptDrop
-+			};
+ 			};
 +			/**
 +			* Recall sent messages with ArrowUp/ArrowDown, shell-history style.
 +			* @param direction - -1 recalls older messages, +1 newer ones.
@@ -174,10 +173,10 @@
 +					el.focus({ preventScroll: true });
 +				});
 +				return true;
- 			};
++			};
  			(0, react.useEffect)(() => {
  				if (keyboard === void 0) return;
-@@ -18917,7 +19010,50 @@
+ 				return installDraftFilePicker(keyboard, gate, fileInputRef);
  			}, [keyboard]);
  			(0, react.useEffect)(() => {
  				if (editor === null || keyboard === void 0) return;

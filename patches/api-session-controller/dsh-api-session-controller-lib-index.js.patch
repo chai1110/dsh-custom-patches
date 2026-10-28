@@ -1,12 +1,9 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/index.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/index.js
-@@ -994,7 +994,77 @@
- 		} catch (error) {
- 			if (error instanceof AttachmentError) throw new RemoteError("session/attachment-invalid", error.message, { reason: error.code });
- 			throw new RemoteError("gateway/internal", "Unable to read image attachment.", {});
-+		}
-+	}
-+	/**
+@@ -997,6 +997,76 @@
+ 		}
+ 	}
+ 	/**
 +	* Rewrite the LAST user message of a session and regenerate from it,
 +	* Replacement semantics: the new text replaces the previous user message AND all
 +	* assistant/tool surface nodes that followed it (they are shadowed by a
@@ -72,12 +69,14 @@
 +			});
 +		} catch (error) {
 +			throw new RemoteError("session/edit-rejected", `unable to rewrite the last message: ${String(error)}`, {});
- 		}
++		}
 +		agent.followup(message);
 +		return { accepted: true };
- 	}
- 	/**
++	}
++	/**
  	* Mutate one pending Inbox occurrence, restoring an ordinary cold Agent when needed.
+ 	* @param request - Session, queue item, and requested mutation.
+ 	* @returns acknowledgement that the queue mutation was applied.
 @@ -2664,6 +2734,7 @@
  	let _fork_decorators;
  	let _prompt_decorators;
@@ -94,13 +93,10 @@
  			_updateQueue_decorators = [Remote("updateQueue")];
  			_cancel_decorators = [Remote("cancel")];
  			_page_decorators = [Remote({
-@@ -2838,6 +2910,17 @@
- 				access: {
- 					has: (obj) => "attachment" in obj,
- 					get: (obj) => obj.attachment
-+				},
-+				metadata: _metadata
-+			}, null, _instanceExtraInitializers);
+@@ -2841,6 +2913,17 @@
+ 				},
+ 				metadata: _metadata
+ 			}, null, _instanceExtraInitializers);
 +			__esDecorate(this, null, _editLastPrompt_decorators, {
 +				kind: "method",
 +				name: "editLastPrompt",
@@ -109,15 +105,16 @@
 +				access: {
 +					has: (obj) => "editLastPrompt" in obj,
 +					get: (obj) => obj.editLastPrompt
- 				},
- 				metadata: _metadata
- 			}, null, _instanceExtraInitializers);
-@@ -3236,6 +3319,15 @@
- 		*/
- 		attachment(request) {
++				},
++				metadata: _metadata
++			}, null, _instanceExtraInitializers);
+ 			__esDecorate(this, null, _updateQueue_decorators, {
+ 				kind: "method",
+ 				name: "updateQueue",
+@@ -3238,6 +3321,15 @@
  			return this.commands.attachment(request);
-+		}
-+		/**
+ 		}
+ 		/**
 +		* Rewrite the last user message and regenerate from it.
 +		* @param request - Session identity and replacement plain text.
 +		* @returns acknowledgement that the rewrite was admitted.
@@ -125,6 +122,8 @@
 +		editLastPrompt(request, signal) {
 +			signal.throwIfAborted();
 +			return this.commands.editLastPrompt(request);
- 		}
- 		/**
++		}
++		/**
  		* Mutate one still-pending queue occurrence, resuming a cold Agent first.
+ 		* @param request - Session, queue item, and requested mutation.
+ 		* @returns acknowledgement that the queue mutation was applied.

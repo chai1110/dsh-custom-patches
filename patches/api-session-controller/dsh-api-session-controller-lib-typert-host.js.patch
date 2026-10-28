@@ -1,41 +1,47 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
-@@ -1143,6 +1143,22 @@
- }))
- let _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value
+@@ -1145,6 +1145,16 @@
  const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value ??= z.object({
-+  'accepted': z.literal(true).readonly(),
-+}))
+   'accepted': z.literal(true).readonly(),
+ }))
 +let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema$value
 +const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema$value ??= z.object({
 +  'requestId': z.intersection(z.string(), z.unknown()).readonly(),
 +  'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
 +  'text': z.string().readonly(),
 +}))
-+let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value
-+const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value ??= z.strictObject({
-+  'requestId': z.intersection(z.string(), z.unknown()).readonly(),
-+  'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
-+  'text': z.string().readonly(),
-+}))
 +let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema$value
 +const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema$value ??= z.object({
-   'accepted': z.literal(true).readonly(),
- }))
++  'accepted': z.literal(true).readonly(),
++}))
  let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value
-@@ -1811,6 +1827,39 @@
-         jsonSchema: {"type":"object","properties":{"accepted":{"type":"boolean","const":true}},"required":["accepted"],"additionalProperties":true},
+ const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value ??= z.object({
+   'sessionId': z.string().readonly(),
+@@ -1323,6 +1333,12 @@
+ })])).readonly().describe('At least one non-whitespace text part or attachment.'),
+   'clientTimeZone': z.string().readonly().optional(),
+ }))
++let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value
++const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value ??= z.strictObject({
++  'requestId': z.string().readonly(),
++  'sessionId': z.string().readonly(),
++  'text': z.string().readonly(),
++}))
+ let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value
+ const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value ??= z.strictObject({
+   'sessionId': z.string().readonly(),
+@@ -1812,6 +1828,39 @@
        },
        sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":462,"column":9},
-+    },
+     },
 +    'session/editLastPrompt': {
 +      service: 'sessionController',
-+      description: 'Rewrite the last user message of a Session and regenerate from it.',
++      description: 'Rewrite the last user message and regenerate from it.',
 +      invocation: { kind: 'direct' },
 +      parameters: [
 +        {
 +          name: 'request',
-+          description: 'Session identity and the replacement plain text.',
++          description: 'Session identity and replacement plain text.',
 +          source: 'json',
 +          codec: {
 +            mode: 'strict',
@@ -56,13 +62,14 @@
 +        mode: 'strict',
 +        typeSymbol: '@deepseek-ai/dsh-api-session-controller/types#SessionEditLastPromptValue',
 +        create: _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_result$schema,
-+        description: 'acknowledgement that the edit was admitted.',
++        description: 'acknowledgement that the Agent accepted the rewrite.',
 +        jsonSchema: {"type":"object","properties":{"accepted":{"type":"boolean","const":true}},"required":["accepted"],"additionalProperties":true},
 +      },
 +      sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":340,"column":3},
-     },
++    },
      'session/rename': {
        service: 'sessionController',
+       description: 'Rename one Session after explicitly resuming it.',
 @@ -2140,6 +2189,13 @@
            },
            {

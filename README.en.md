@@ -73,7 +73,8 @@ This repo only commits to the versions marked 「✅」 above.
 - Hover over the **last user message** to see an **✏️ Edit** button
 - Click to turn the message into an editable text box (pre-filled with original text)
 - After editing, click **"Save & regenerate"**: the new text replaces the original, **discards all AI replies / tool calls after it**, and AI regenerates from the new content
-- Earlier messages are preserved as read-only; editing is blocked while AI is working (conflict prevention)
+- Earlier messages are preserved as read-only; to rewrite an earlier one, fork a new session at that message
+- Editing while the AI is generating is allowed: it aborts the running turn (queued input is kept) and regenerates from the new text
 - Click **Cancel** to restore original
 
 **How it works**: Editing uses DSH session layer's **surface replace** (append-only log + shadow replacement) — history is preserved, but the model and UI only see the replaced sequence.
