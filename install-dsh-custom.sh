@@ -31,7 +31,7 @@ err()  { echo -e "${RED}[x]${NC} $*"; }
 
 # 本仓库（version/0.2.0-rc.2 分支）固定适配的 DSH 版本：0.2.0-rc.2。
 # 其他 DSH 版本用户：请 checkout 对应版本分支/tag（见 README「多版本支持」）。
-TARGET_VERSION="0.2.1-rc.3"
+TARGET_VERSION="0.2.1-rc.5"
 
 ASK=1
 for arg in "$@"; do

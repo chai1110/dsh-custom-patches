@@ -11,7 +11,7 @@ set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
 # 本仓库（version/0.2.0-rc.2 分支）固定适配的 DSH 版本
-TARGET_VERSION="0.2.1-rc.3"
+TARGET_VERSION="0.2.1-rc.5"
 
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
 # 格式: "相对插件路径|补丁在仓库中的相对路径"

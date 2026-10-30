@@ -48,7 +48,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const TARGET_VERSION = '0.2.1-rc.3';
+const TARGET_VERSION = '0.2.1-rc.5';
 
 // rel          = path under node_modules/@deepseek-ai/  (npm layout)
 // patch        = .patch file path inside this repo
