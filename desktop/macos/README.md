@@ -27,6 +27,43 @@ bash desktop/macos/dsh-desktop-patch.sh --help    # 打印脚本头部说明
 
 ---
 
+## ⭐ 只保留一个 app（推荐）
+
+上面的脚本产出的是**副本**，于是机器上会有两个 app。这不只是「多一个文件」的问题，
+而是会真的踩坑 —— 两个 app 的 `CFBundleIdentifier` **完全相同**（都是 `com.deepseek.dsh`）：
+
+- macOS 按 bundle id 认 app，`open "…Patched.app"` 会**直接激活已在跑的官方版**，
+  补丁版进程当场退出。你看到的还是官方版，于是以为「补丁没打进去」。
+- 两者还共用同一个 user-data 目录（单实例锁），本来就只能开一个。
+
+如果你只想要**一个 app**（官方路径、官方名字、双击即开、带补丁），用换位安装：
+
+```bash
+# 先完全退出 DeepSeek Harness（⌘Q）
+bash desktop/macos/dsh-desktop-install.sh
+```
+
+它做的事：在 `~/Applications` 造补丁版 → 把 `/Applications` 现有 app 整个挪到
+`~/Documents/dsh_data/backups/DeepSeek Harness.app.original-<时间戳>.app` → 把补丁版挪进
+`/Applications` 占回官方路径 → 校验签名与标记。
+
+```bash
+bash desktop/macos/dsh-desktop-install.sh --no-build   # 补丁版已存在，只做换位
+bash desktop/macos/dsh-desktop-install.sh --rollback   # 回到最近一次备份的官方版
+```
+
+> **为什么不「就地改 `/Applications` 里的 asar」？**
+> macOS 13+ 的「App 管理」保护会给 `/Applications` 下的第三方 app 打上
+> `com.apple.provenance` / `com.apple.macl` 扩展属性。实测结果是：
+> **bundle 内部完全不能写**（普通用户 EPERM、`sudo` 也不行、`xattr -d` 也被拒），
+> **但整个 `.app` 可以移进移出**。所以「换位」是唯一可行的单 app 方案。
+>
+> 换位后签名变成 ad-hoc，macOS 可能要求**重新授权**辅助功能 / 屏幕录制 / 完全磁盘访问
+> （TCC 记录跟着签名走）。官方 nightly 更新仍会覆盖 `app.asar` 清空补丁，
+> 届时重跑一次 `dsh-desktop-install.sh` 即可。
+
+---
+
 ## 前置条件
 
 | 依赖 | 说明 |

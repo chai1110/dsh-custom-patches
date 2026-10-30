@@ -27,6 +27,49 @@ bash desktop/macos/dsh-desktop-patch.sh --help    # print the script header
 
 ---
 
+## ⭐ Keep a single app (recommended)
+
+The script above produces a **copy**, so you end up with two apps on the machine. That is not
+merely "one extra file" — it is a real trap, because both apps share the **same**
+`CFBundleIdentifier` (`com.deepseek.dsh`):
+
+- macOS resolves apps by bundle ID, so `open "…Patched.app"` simply **activates the official app
+  that is already running** and the patched process exits immediately. You end up looking at the
+  unpatched official build and conclude "the patch did not go in".
+- They also share one user-data directory (single-instance lock), so only one can run anyway.
+
+If you want **one app** (official path, official name, double-click to launch, patches included),
+use the swap install:
+
+```bash
+# quit DeepSeek Harness completely first (⌘Q)
+bash desktop/macos/dsh-desktop-install.sh
+```
+
+What it does: build the patched copy in `~/Applications` → move the existing app from
+`/Applications` wholesale to
+`~/Documents/dsh_data/backups/DeepSeek Harness.app.original-<timestamp>.app` → move the patched
+copy into `/Applications`, taking back the official path → verify signature and markers.
+
+```bash
+bash desktop/macos/dsh-desktop-install.sh --no-build   # patched copy already exists, just swap
+bash desktop/macos/dsh-desktop-install.sh --rollback   # restore the most recent official backup
+```
+
+> **Why not patch the asar inside `/Applications` in place?**
+> macOS 13+ "App Management" protection tags third-party apps under `/Applications` with the
+> `com.apple.provenance` / `com.apple.macl` extended attributes. Measured result:
+> **the bundle interior is completely unwritable** (EPERM for the normal user, for `sudo` too, and
+> even `xattr -d` is refused), **but the whole `.app` can be moved in and out**. So the swap is the
+> only viable single-app route.
+>
+> After the swap the signature becomes ad-hoc, and macOS may ask you to **re-authorise**
+> Accessibility / Screen Recording / Full Disk Access (TCC records follow the signature). Official
+> nightly updates still overwrite `app.asar` and clear the patches — re-run
+> `dsh-desktop-install.sh` when that happens.
+
+---
+
 ## Prerequisites
 
 | Dependency | Note |
