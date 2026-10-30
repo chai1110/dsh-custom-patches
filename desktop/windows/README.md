@@ -109,8 +109,8 @@ Windows 不需要签名，所以脚本没有这段逻辑。在 macOS 上：
 
 ### 3. 来源指纹 ✅ 已支持（2026-09-29 补上）
 
-脚本会在替换完成后，往 asar 同目录写一份 `.dsh-desktop-patch.json`，供 `check-update.sh`
-判断「官方是否已更新、补丁是否被覆盖」：
+脚本会在替换完成后，往 asar 同目录写一份 `.dsh-desktop-patch.json`，
+记录「这份 asar 是用哪个版本、什么时候打的补丁」：
 
 ```json
 { "patchedAt": "...", "platform": "macos",
@@ -189,7 +189,8 @@ dsh-client-ui-chat/lib/client.js
 **Status: ✅ Verified.** The driver script `apply-desktop-asar-patches.js` is verified on the
 **Windows desktop build `0.2.0-rc.1` / `0.2.0-rc.2`**, and **its macOS branch was verified on real
 hardware on 2026-09-29** (see "Running this script on macOS"). It now also writes the
-`.dsh-desktop-patch.json` source fingerprint, so `check-update.sh` works for installs made with it.
+`.dsh-desktop-patch.json` source fingerprint, so you can tell whether an official update has
+overwritten the patches.
 
 Relationship to the macOS module: **the two modules coexist and never overwrite each other**, following
 a "separate first, merge later" strategy (merge criterion below). `../dsh-desktop-asar.mjs` is the
@@ -227,9 +228,8 @@ The script is cross-platform and its macOS branch works, but two things must be 
    `codesign --force --sign - --options runtime --entitlements <plist> <app>` + `xattr -dr com.apple.quarantine <app>`.
 
 3. **No source fingerprint is written.** The macOS module drops a `.dsh-desktop-patch.json` into the
-   target app so `check-update.sh` can tell whether an official update overwrote the patches. This
-   script does not write it, so `check-update.sh` reports "no source fingerprint" for installs made
-   with this script — only the feature markers can be checked. PRs welcome.
+   target app so one can tell whether an official update overwrote the patches. This script does not
+   write it, so there is no fingerprint to compare — only the feature markers can be checked. PRs welcome.
 
 ### Merge criterion
 

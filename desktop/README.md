@@ -5,9 +5,8 @@
 本目录负责把本仓库的功能补丁（**撤回上一条消息**、**编辑上一条消息并重新生成**、**压缩失败自动重试**）
 打进 **DeepSeek Harness 桌面版**（Electron 应用）。
 
-CLI / 浏览器 / VS Code 三个界面走的是 `node_modules` 里的 npm 包，直接 `patch` 就行（见仓库根目录的
-`apply-dsh-patches.sh` / `tools/dsh-patch.mjs`）。**桌面版不一样** —— 它的 dsh 运行时被封在一个
-**签名过的 `app.asar`** 里，必须做「asar 外科手术」。这就是本目录存在的原因。
+桌面版的 dsh 运行时被封在一个**签名过的 `app.asar`** 里，改不到也绕不开，必须做「asar 外科手术」。
+这就是本目录存在的原因。
 
 ---
 
@@ -52,24 +51,6 @@ CLI / 浏览器 / VS Code 三个界面走的是 `node_modules` 里的 npm 包，
 > ⚠️ **排查这类问题时的一个坑**：如果工具环境里**已经设了 `ELECTRON_RUN_AS_NODE=1`**，
 > Electron 二进制会以 **Node 模式**启动，报出 `Cannot find module 'electron'` ——
 > 那是假象，不是真实行为。要看到真 Electron 行为，请用 `env -u ELECTRON_RUN_AS_NODE ...`。
-
----
-
-## 🔀 桌面版 vs npm 版：两条路，同一套补丁
-
-| | npm 版（网页 / VSCode 插件） | 桌面版（Electron） |
-|---|---|---|
-| 安装方式 | `npm i -g @deepseek-ai/dsh` | 官方安装包 / 自动更新 |
-| 补丁目标位置 | `node_modules/@deepseek-ai/*/lib/*.js` | **`resources/app.asar`（内部打包）** |
-| 安装命令 | `node tools/dsh-patch.mjs -y` | `bash desktop/macos/dsh-desktop-patch.sh`（macOS）<br>`node desktop/windows/apply-desktop-asar-patches.js`（Windows） |
-| 补丁文件 | 同一份 `patches/**`（9 个，仓库根） | 同一份 `patches/**`（9 个，仓库根） |
-| 配置文件 | `~/.dsh/profiles/web/cordis.patch.yml` | `~/.dsh/profiles/desktop/cordis.patch.yml` |
-| 端口 | `3080`（launchd 常驻，浏览器与 VSCode 面板共用同一实例；插件无实例时也默认 3080 自起） | 0.2.0 及更早：`127.0.0.1:19387`（硬编码）<br>0.2.1 起：`--port 0` **动态分配**（本机实测 `55218`） |
-| 谁在用 | 浏览器、**VSCode 插件**（硬编码 `dsh web`，无法复用桌面版） | 人（桌面 UI） |
-
-**关键**：补丁内容只有一套（`patches/**`），适配官方新版时**只需修一次锚点**；
-但**安装要跑两条命令、配置要维护两份**，而且每版两边都要各自 `--dry-run` —— 因为 **asar 内容 ≠ npm tarball**
-（CSS 模块类名哈希、构建机绝对路径不同），一边通过不代表另一边也通过。
 
 ---
 
@@ -210,13 +191,6 @@ node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 
 > 该脚本是**跨平台**的，`--asar` 默认路径按平台探测，macOS 分支已于 2026-09-29 在真机实测通过。
 
-### 两面一起
-
-```bash
-bash patch-all.sh          # CLI 侧（浏览器 + VS Code）+ 桌面版，并交叉核对功能标记
-bash patch-all.sh --check  # 只核对，不修改任何东西
-```
-
 ---
 
 ## 🔧 工作原理（为什么敢直接改 asar）
@@ -322,12 +296,11 @@ macOS 侧 `4286629a…`，连跑两次字节完全相同）。
 | `dsh-client-ui-conversation/lib/client.js` | `recallHistory` | 0 | 3 |
 | `dsh-client-ui-chat/lib/client.js` | `editLastPrompt` | 0 | 11 |
 
-> 这张表存在 `tools/patch-markers.tsv`（**单一数据源**）—— `patch-all.sh`、桌面版脚本、
-> `check-update.sh` 都读同一份，避免三处各写一套标记而漂移。
+> 这张表存在 `tools/patch-markers.tsv`（**单一数据源**）—— 桌面版脚本读它做功能标记核对。
 >
 > 选标记时的教训：一开始给 `dsh-agent-loop` 选的是 `surfaceOp: "append"`，
 > 但它在官方原版里**已经出现 8 次** —— 完全不能用来判别。标记必须是「原版 0 次」的字符串。
-> `bash check-update.sh` 会重新跑这张表，官方更新后标记消失即说明补丁被覆盖。
+> 官方更新后标记消失即说明补丁被覆盖 —— 跑一次 `apply-desktop-asar-patches.js --dry-run` 就能看出来（会显示「待应用」）。
 
 ---
 
@@ -337,7 +310,7 @@ macOS 侧 `4286629a…`，连跑两次字节完全相同）。
 |---|---|
 | **签名变成 ad-hoc（仅 macOS）** | 重签后 `Signature=adhoc`、`TeamIdentifier=not set`、`flags=0x10002(adhoc,runtime)`。功能不受影响；若你有依赖「官方签名」的合规要求，请勿使用。Windows 无此问题。 |
 | **不需要改 `Info.plist`** | Electron 的保险丝 `EnableEmbeddedAsarIntegrityValidation = 0`（实测确认），所以 asar 内容变了也不会被拒绝，无需同步 `ElectronAsarIntegrity`。 |
-| **nightly 自动更新会覆盖** | 官方包更新后，补丁版需要**重新执行脚本**。`bash check-update.sh` 会检测并提示。 |
+| **nightly 自动更新会覆盖** | 官方包更新后，补丁版需要**重新执行脚本**。跑 `--dry-run` 会显示「待应用」提醒你。 |
 | **与官方版不能同时运行** | 两者**共用同一个 user-data 目录**，加上单实例锁（0.2.0 及更早还叠加固定端口 `19387`），同时启动会失败。用之前请先退出另一个。 |
 | **端口 19387 曾是硬编码的** | 0.2.0 及更早确实如此（不像 CLI 可以 `--port`，冲突时只能让别的程序让路）。**0.2.1 起改为 `--port 0` 动态分配**，不再抢端口；任何按 19387 探活 / 取 token 的脚本需改为读 stdout 或进程信息。 |
 | **不改官方 app** | macOS 侧所有产出都在 `~/Applications/` 下，`/Applications/DeepSeek Harness.app` 始终保持官方原样。 |
@@ -375,15 +348,6 @@ rm -rf "$HOME/Applications/DeepSeek Harness Patched.app"
 （替换前一定有备份，除非用了 `--no-backup`）。
 
 若想把官方版恢复成「刚下载」的状态，重新从官方渠道安装一次即可（本仓库不会碰它）。
-
----
-
-## 🔗 与 CLI 侧补丁的关系
-
-- **补丁文件是同一套**：`patches/**` 下的 9 个 `.patch`，CLI 侧与桌面版共用，不重复维护。
-- **目标不同**：CLI 侧打在 `node_modules/@deepseek-ai/**`，桌面版打在 `app.asar` 内部。
-- **一键打两面**：仓库根目录的 `patch-all.sh` 会依次处理两面，并对**两面都做功能标记交叉核对**，
-  输出一张矩阵 —— 这是确认「浏览器 / VS Code / 桌面版三个界面功能一致」最快的方法。
 
 ---
 

@@ -48,211 +48,94 @@ Adds three practical improvements to the [DeepSeek Harness (DSH)](https://github
 
 ---
 
-## ⚠️ Platform & Prerequisites
+## ⚠️ Prerequisites
 
-### Recommended: the Node installer (identical on every platform, no separator or tool dependencies)
+- **Node.js** (18+) — only to run the patch script; the desktop app itself does not need it
+- **`patch`** command — ships with Git for Windows; or point `PATCH_BIN` at it
+- **DeepSeek Harness desktop app** installed
 
-```bash
-node tools/dsh-patch.mjs -y
-```
-
-`tools/dsh-patch.mjs` is a **zero-dependency Node script**. Node is already a hard prerequisite for DSH (you installed DSH with npm), so it needs **none** of `patch` / `cp` / `find` / `pgrep`, and every path is built with `path.join` — so **Windows backslash problems cannot occur in the first place**. It also does two things the shell version does not:
-
-- **Zero-fuzz matching**: `patch` defaults to a fuzz factor of 2, silently tolerating context lines that no longer match (i.e. it can "succeed" onto the wrong anchor). This installer requires every context line to match exactly — if upstream moved the code you get a **loud failure** instead of a silent mis-patch.
-- **`node --check` validation after applying**: if the result does not parse, it automatically rolls back from the `.bak` copy.
-
-| Platform | Supported | Notes |
-|---|---|---|
-| **macOS** | ✅ Native | Built-in `/bin/bash` (**still 3.2.57**) and `patch` are enough; `pgrep` is built-in too. **Both shell scripts were actually run on this machine under bash 3.2** |
-| **Linux** | ✅ Native | `patch` built-in; some minimal distros need `sudo apt install patch` |
-| **Windows** | ✅ Use the Node installer above | Pure Node — no `patch`/`pgrep`/`cp`/`find`, **no path-separator problems**. If you still use the shell version: Git for Windows supplies `bash`; restart with `taskkill /F /IM node.exe` (`pgrep` does not exist on Windows) |
-
-**Why the Node installer is the first choice on *every* platform** (not just Windows) — it does four things the shell version does not:
-
-1. **Zero fuzz**: `patch` defaults to fuzz=2 and silently tolerates context lines that no longer match; the Node version requires every line to match exactly.
-2. **It reports hunk offsets**: `patch -F 0` disables fuzz but **not offset**, and normal output hides offsets anyway. The Node version prints `N hunk(s) matched at a different line than declared` — the key signal for catching upstream drift.
-3. **`node --check` after applying**: if the result no longer parses, it rolls back from `.bak` automatically.
-4. **It checks "already applied" (in reverse) before applying**: this prevents a pure-insertion patch from being **applied twice** (the shell version had exactly this incident — see "Critical bug: the shell version double-applies pure-insertion patches" in [`ADAPTING.md`](ADAPTING.md)).
-
-**Universal prerequisites** (any platform):
-- **Node.js** (with `npm`) installed
-- **`@deepseek-ai/dsh`** installed globally via npm; or built from source (see "Source Build (monorepo) Users" below)
-
-> **No CLI tools needed**: The easiest path is to send this repo link (`https://github.com/chai1110/dsh-custom-patches`) to your AI assistant and let it follow the "Quick Start" section to install and configure on your machine — it will handle Windows `taskkill` differences automatically.
+> The script auto-detects the asar: Windows `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\app.asar`,
+> macOS `/Applications/DeepSeek Harness.app/Contents/Resources/app.asar`, Linux `/opt/DeepSeek Harness/resources/app.asar`.
+> Elsewhere, pass `--asar <path>` (or set `DSH_DESKTOP_ASAR`).
 
 ---
 
-## 🚀 Quick Start (all platforms)
+## 🚀 Quick Start
 
-Four steps total, **HTTPS clone recommended** (no SSH key needed). You can paste this whole block to an AI assistant:
+**This repo targets the desktop (Electron) app only.** CLI / web / VS Code are no longer supported — those scripts were retired on 2026-10-30; checkout an older tag if you need them.
 
 ```bash
-# 1) Install matching DSH version (skip if already installed and correct version)
-npm install -g @deepseek-ai/dsh@next
-dsh --version          # confirm it installed
-
-# 2) Clone this repo (HTTPS, works for everyone)
+# 1) Clone
 git clone https://github.com/chai1110/dsh-custom-patches.git
 cd dsh-custom-patches
 
-# 3) One-click install (-y skips interactive confirm; script auto-locates DSH, validates version, detects built-ins, backs up, and applies)
-node tools/dsh-patch.mjs -y
-
-# 4) Restart DSH — macOS / Linux
-pkill -f 'dsh web'; dsh web
-```
-
-> **Windows restart**: replace step 4 with `taskkill /F /IM node.exe` (or kill the node process) then `dsh web`.
-> **Source build (monorepo) users**: replace step 3 with `DSH_SOURCE=/path/to/deepseek-harness node tools/dsh-patch.mjs -y`, then rebuild/restart your dev server (see "Source Build (monorepo) Users" below).
-> **The shell versions still work**: `bash install-dsh-custom.sh -y` (with version diagnosis + built-in detection) and `bash apply-dsh-patches.sh` (minimal). Both apply the same patch set — pick whichever you prefer; **but the Node version is the recommended entry point** (stricter: it reports hunk offsets, has `node --check` rollback, and prevents double-application).
-
-Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
-- Press **↑** in the composer to recall history
-- Hover over the **last user message** to see the **✏️ Edit** button
-
-> You can also send this repo link `https://github.com/chai1110/dsh-custom-patches` directly to your AI assistant and let it follow the "Quick Start" steps to configure on your machine; all commands in this document are directly executable.
-
----
-
-## 🖥️ Desktop App Support (DeepSeek Harness Desktop)
-
-**The desktop app is an Electron application — it is NOT installed via npm**, so all 9 patch targets live inside
-`resources/app.asar`. Use `desktop/windows/apply-desktop-asar-patches.js` (pure Node, no third-party dependencies).
-**Full tutorial, platform differences and the macOS plan: [`desktop/README.md`](desktop/README.md)**:
-
-```bash
-# 1) Dry-run first: check whether the patches fit, changes nothing
+# 2) Dry run: check the patches still apply, touch nothing
 node desktop/windows/apply-desktop-asar-patches.js --dry-run
 
-# 2) Install: quit app -> back up app.asar -> patch -> full verify -> swap -> relaunch
+# 3) Install: quit the app -> back up app.asar -> patch -> verify -> swap -> relaunch
 node desktop/windows/apply-desktop-asar-patches.js
-
-# Only produce a new asar at a given path (original untouched; app keeps running)
-node desktop/windows/apply-desktop-asar-patches.js --out new.asar
 ```
 
-- **Requirements**: Node (asar read/write is built into the script) + the `patch` command — on Windows that comes
-  with Git for Windows; point `PATCH_BIN` at the executable if it is somewhere else.
-- **Auto-detected paths**: Windows `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\app.asar`,
-  macOS `/Applications/DeepSeek Harness.app/Contents/Resources/app.asar`,
-  Linux `/opt/DeepSeek Harness/resources/app.asar`; otherwise pass `--asar <path>` (or env `DSH_DESKTOP_ASAR`).
-- **Idempotent**: reruns reverse-dry-run each target, skip anything already applied — never double-applies.
-- **Every swap is fully verified first**: the new asar must parse, keep the same path order, have **every file
-  except the 9 targets byte-identical**, and the targets must contain the feature markers. If any check fails
-  the original file is left untouched (and a failure during swap is rolled back).
-- **⚠️ The desktop app auto-updates**: an update overwrites `app.asar` and the patches are gone — rerun the script,
-  or use `bash check-update.sh` to detect it.
-- **Rollback**: rename `resources/app.asar.bak-<timestamp>` back to `app.asar`.
-- **Port**: the desktop host no longer uses a fixed port (older builds hard-coded `19387`); it is now allocated
-  dynamically, so any script that probes a fixed port or pulls the token from it will break.
-- **Shares the `~/.dsh` root** (credentials, sessions) with the npm version, but plugin config is **per profile**:
-  the desktop default profile is `~/.dsh/profiles/desktop`, so settings cannot be copied verbatim from the web
-  profile (see `dsh-provider-config`).
+After installing, open the app and check three things:
+
+- Pressing **↑** in the composer recalls the previous message
+- Hovering the **last** user message shows an **✏️ Edit** button
+- "Compaction retry" has **no UI signal** (it only kicks in on rate limits / network errors); look for `llm/retry` in the session log
+
+**What the script does**: locate `app.asar` → list patches → reverse-dry-run to detect "already applied" (idempotent) → back up → apply → rebuild asar → full verify (every non-target file byte-identical + feature markers present) → swap. If any check fails, the original file is left untouched.
+
+> You can also hand this repo link to your AI assistant and let it follow this section.
 
 ---
 
-## 🧩 Source Build (monorepo) Users
+## 🔧 Notes
 
-If you don't use `npm install -g` for DSH but instead **cloned the source** (e.g. official [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) pnpm monorepo, built with `pnpm` + `tsdown`, and serve packages directly), you can still apply these patches — **patches are fully portable**, only target file paths differ, and the script supports this layout.
-
-### Step 1: Confirm Two Things
-- You have the **DSH source repo root** (a directory containing `packages/` and `pnpm-workspace.yaml`), e.g. `/path/to/deepseek-harness`
-- Each plugin package has been **built** (produced `lib/` artifacts; if only `src/` exists, there's nothing to patch)
-
-### Step 2: Set `DSH_SOURCE` and Run the One-click Script
-```bash
-export DSH_SOURCE=/path/to/deepseek-harness          # point to source repo root
-bash install-dsh-custom.sh -y
-```
-When the script detects `DSH_SOURCE`, it automatically switches to source layout:
-- Locates target files under `<DSH_SOURCE>/packages/**/lib/`, backs up, and applies
-- **Skips npm version validation** (source has no semver string), but please ensure your source checkout matches the patch version
-- After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
-
-### Source Layout Target File Mapping
-How the current patch set (9 items) maps between the two layouts:
-
-| Patch target (npm layout) | Source layout path |
-|---|---|
-| `dsh-api-session-controller/lib/index.js` | `packages/api/session-controller/lib/index.js` |
-| `dsh-api-session-controller/lib/client.js` | `packages/api/session-controller/lib/client.js` |
-| `dsh-api-session-controller/lib/typert.host.js` | `packages/api/session-controller/lib/typert.host.js` |
-| `dsh-api-session-controller/lib/typert.remote-client.js` | `packages/api/session-controller/lib/typert.remote-client.js` |
-| `dsh-api-remotes/lib/client.js` | `packages/api/remotes/lib/client.js` |
-| `dsh-agent-loop/lib/index.js` | `packages/core/agent-loop/lib/index.js` |
-| `dsh-compaction-basic/lib/index.js` | `packages/core/compaction-basic/lib/index.js` |
-| `dsh-client-ui-conversation/lib/client.js` | `packages/client/ui-conversation/lib/client.js` |
-| `dsh-client-ui-chat/lib/client.js` | `packages/client/ui-chat/lib/client.js` |
-
-> In other words: a patch path like `dsh-xxx/lib/file.js` maps to `<DSH_SOURCE>/packages/<corresponding-dir>/lib/file.js` in source layout — same content, different root. That's why source-build users can use the exact same patch set.
-> The table above is the mapping between fields 1 and 4 of the script's `FILES` array; when the patch set changes, the script is authoritative.
-
-### How to Restore (source layout)
-```bash
-# run from the repo directory; the list is taken from field 4 of the script's FILES, so it always matches the current patch set
-for e in $(sed -n '/^FILES=(/,/^)/p' install-dsh-custom.sh | grep '^  "' | sed 's/.*|\([^|]*\)"$/\1/'); do
-  [ -f "$DSH_SOURCE/packages/$e.bak" ] && cp "$DSH_SOURCE/packages/$e.bak" "$DSH_SOURCE/packages/$e" && echo "restored $e"
-done
-```
-
-> For more source-layout details or how to re-adapt a broken patch, see [ADAPTING.md](ADAPTING.md).
+- **Generate without swapping**: `node desktop/windows/apply-desktop-asar-patches.js --out new.asar` writes the patched asar to a path of your choice; the running app is untouched.
+- **Idempotent**: reruns detect "already applied" and skip — never double-applies.
+- **Port**: the desktop host no longer uses a fixed port (older builds hard-coded `19387`); it is allocated dynamically now, so scripts that probe a fixed port will break.
+- **Per-profile config**: the desktop app shares the `~/.dsh` root (credentials, sessions) with npm, but plugin config is per profile — desktop uses `~/.dsh/profiles/desktop` (see `dsh-provider-config`).
+- **macOS**: `desktop/macos/dsh-desktop-patch.sh` is a separate branch (different signing flow) — see [`desktop/README.md`](desktop/README.md).
 
 ---
 
-## ↩️ How to Restore Original (uninstall patches)
+## ↩️ How to Restore Original
 
-The install script backs up each modified file as `.bak`. To restore, copy those backups back (path is dynamically obtained via `npm root -g`, works with any global install layout; **the file list is derived from the script's `FILES`, so it always matches the current patch set**):
+Patching creates `app.asar.bak-<timestamp>` next to the asar. Renaming it back restores the stock build:
 
 ```bash
-# run from the repo directory
-PLUGIN="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
-for e in $(grep -oE '"dsh-[a-z-]+/lib/[a-z.-]+\.js' install-dsh-custom.sh | tr -d '"'); do
-  [ -f "$PLUGIN/$e.bak" ] && cp "$PLUGIN/$e.bak" "$PLUGIN/$e" && echo "restored $e"
-done
+cd "$LOCALAPPDATA/Programs/DeepSeek Harness/resources"
+mv app.asar.bak-20261030060331. app.asar    # use your own timestamp
 ```
 
 ---
 
-## 🔄 Keeping Up with Official Updates
+## 🔄 After an Official Update
 
-Official upgrades overwrite these patches (because they modify `node_modules` compiled artifacts). Recommended workflow:
+**The desktop app auto-updates on a nightly channel, and every update overwrites `app.asar` — the patches are gone.** That is expected, not a failure.
 
 ```bash
-# 1) Check for new official version (auto-compares local / latest / targeted; can specify version: bash check-update.sh <version>)
-bash check-update.sh
-
-# 2) Upgrade official
-npm install -g @deepseek-ai/dsh@<new-version>
-
-# 3) Re-apply (includes built-in detection; succeeds directly if official didn't change much)
-bash install-dsh-custom.sh -y
+cd dsh-custom-patches
+git pull
+node desktop/windows/apply-desktop-asar-patches.js --dry-run   # confirm they still apply
+node desktop/windows/apply-desktop-asar-patches.js             # re-apply
 ```
 
-- **Did official already bundle our features?** The one-click script auto-detects and skips built-in patches; you can also manually confirm using the grep method in [`versions.md`](versions.md).
-- **Patches broke?** Follow [`ADAPTING.md`](ADAPTING.md) to re-adapt and append a new version row in `versions.md`.
-- **Desktop patches overwritten?** The desktop app uses **nightly auto-update**, so an official update wipes them.
-  `bash check-update.sh` compares the recorded **source fingerprint** and re-checks the feature markers, and tells
-  you whether to re-run `bash desktop/macos/dsh-desktop-patch.sh`.
-- **Want to confirm both surfaces are alive at once?** `bash patch-all.sh --check` — verify only, modifies nothing;
-  exit code 0 means both are fully green.
+- **`--dry-run` says "version not in supported list"**: upstream touched the anchor regions — re-adapt via [`ADAPTING.md`](ADAPTING.md) and add a row to `versions.md`.
+- **`--dry-run` passes and only reports "pending"**: zero-change compatible — just run the installer.
+- **Wondering whether upstream built these features in?** `versions.md` has a grep recipe; if the markers already exist, that patch can retire.
 
-> ⚠️ If `patch` errors after upgrade, the new version changed the relevant code — re-adapt per `ADAPTING.md`.
+> ⚠️ The updater also **deletes the backups** (`app.asar.bak-*` vanishes), so every re-patch must regenerate one — do not count on an old rollback point.
 
 ---
 
 ## 🤝 Contributing & Feedback
 
-Small project — **there is no separate contributing guide**. Just open an [Issue](https://github.com/chai1110/dsh-custom-patches/issues) or send a PR.
+Small project, **no separate contributing guide** — open an [Issue](https://github.com/chai1110/dsh-custom-patches/issues) or send a PR.
 
-- **Reporting a problem**: include the symptom, your environment (`dsh --version` / OS / Node version), reproduction steps, and the expected result; the `patch` output (`Hunk #N failed`) helps most.
-- **Pull requests**: new feature patches and adaptation fixes are welcome. Only four hard rules — ① **keep patches minimal** (change only what's necessary); ② leave a greppable **feature marker**; ③ **keep all three `FILES` tables in sync**: `tools/dsh-patch.mjs`, `install-dsh-custom.sh`, and `apply-dsh-patches.sh` (the Node one is the recommended entry point; the other two are the shell versions — their fields differ, so don't update just one); ④ **update `tools/patch-markers.tsv`** — the single source of truth for feature markers, read by `patch-all.sh`, `desktop/macos/dsh-desktop-patch.sh`, and `check-update.sh`. Iron rule for picking a marker: it must have **zero** occurrences in the official build (counter-example: `surfaceOp: "append"` already appears 8 times upstream and cannot discriminate).
-- **Desktop-related changes**: see [`desktop/README.en.md`](desktop/README.en.md) and
-  [`desktop/windows/README.md`](desktop/windows/README.md) (Windows contribution checklist).
-- **Doc changes**: always refer to the main entry point as `node tools/dsh-patch.mjs` (the shell versions are alternatives — note that when mentioning them); examples must run directly after a fresh clone.
-- **After editing a patch body**: run `node tools/dsh-patch.mjs --dry-run` once and confirm there is no
-  `N hunk(s) matched at a different line than declared` — ideally it should be **0**
-  (see the `-F 0` vs. offset correction in [`ADAPTING.md`](ADAPTING.md)).
-- The full re-adaptation workflow lives in [`ADAPTING.md`](ADAPTING.md).
+- **Reporting**: include the symptom, desktop version, OS, repro steps and expected result; a `Hunk #N failed` log helps.
+- **PRs**: three hard requirements — ① minimal patch (change only what is needed); ② add a greppable **feature marker**; ③ update `tools/patch-markers.tsv` (the desktop script reads it for verification). Marker rule: **must be 0 hits in the stock build** (counter-example: `surfaceOp: "append"` already appears 8 times).
+- **After editing a patch**: run `node desktop/windows/apply-desktop-asar-patches.js --dry-run --force` and confirm all 9 apply without failed hunks.
+- **Full adaptation flow**: [`ADAPTING.md`](ADAPTING.md); desktop details: [`desktop/README.md`](desktop/README.md).
 
 ---
 

@@ -256,7 +256,7 @@ rm -rf "$HOME/Applications/DeepSeek Harness Patched.app"
 | 打不开 app / 提示已损坏 | 重签名未完成。重跑一次脚本；仍失败则看第 6 步的 `codesign --verify` 输出 |
 | 两个 app 不能同时开 | 设计如此（共用 user-data + 单实例锁；0.2.0 及更早还叠加固定端口 19387） |
 | 打完补丁没有编辑按钮 | 先确认第 5 步 9 个标记全绿；再确认打开的是**补丁版**而不是官方版 |
-| 夜间更新后补丁消失 | 桌面版走 nightly 自动更新，**官方包每次更新后重跑本脚本**；`bash check-update.sh` 会检测 |
+| 夜间更新后补丁消失 | 桌面版走 nightly 自动更新，**官方包每次更新后重跑本脚本**；跑一次 `--dry-run` 就能确认 |
 | `Info.plist` 里的 `ElectronAsarIntegrity` 哈希和实际 asar 对不上 | **不是问题，无需处理** —— 该保险丝实测为 `0`，Electron 不校验。见上面「重签名细节」 |
 
 ---

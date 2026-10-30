@@ -266,7 +266,7 @@ simply reinstall it.
 | App will not open / "is damaged" | Re-signing did not finish. Re-run the script; if it still fails, read the `codesign --verify` output from step 6 |
 | The two apps cannot run at the same time | By design (shared user-data + single-instance lock; 0.2.0 and earlier also had a fixed port 19387) |
 | No edit button after patching | First confirm all 9 markers are green in step 5; then confirm you opened the **patched** build, not the official one |
-| Patches vanish after a nightly update | The desktop app uses nightly auto-update; **re-run this script after every official update**. `bash check-update.sh` detects this |
+| Patches vanish after a nightly update | The desktop app uses nightly auto-update; **re-run this script after every official update**. a `--dry-run` run shows it |
 | The `ElectronAsarIntegrity` hash in `Info.plist` does not match the actual asar | **Not a problem, nothing to fix** — that fuse measures `0`, so Electron does not validate. See "Re-signing details" above |
 
 ---

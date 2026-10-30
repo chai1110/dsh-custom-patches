@@ -2,7 +2,10 @@
 
 记录每个官方版本下，本补丁集是否可用，以及官方是否已内置我们的功能。
 
-> **版本管理方式**：每个已适配的 DSH 版本对应**一个 git tag + 一个同名快照分支**（tag `vX` ↔ 分支 `version/X`，两者指向同一提交），tag 内补丁与脚本为该版本专用。用户 checkout 对应 tag 后直接 `bash install-dsh-custom.sh -y`，**无需版本参数**。
+> ⚠️ **2026-10-30 起只支持桌面版（Electron）**：CLI / 网页端 / VS Code 相关脚本（`install-dsh-custom.sh`、`apply-dsh-patches.sh`、`patch-all.sh`、`check-update.sh`、`tools/dsh-patch.mjs`）已全部退役。
+> 下文提到的这些命令只在**旧 tag** 里仍然存在；最新的 `main` 与 `v0.2.1-rc.5` 及以后只有 `desktop/windows/` 与 `desktop/macos/` 两条链。
+
+> **版本管理方式**：每个已适配的 DSH 版本对应**一个 git tag + 一个同名快照分支**（tag `vX` ↔ 分支 `version/X`，两者指向同一提交），tag 内补丁为该版本专用。桌面版用户直接跑 `node desktop/windows/apply-desktop-asar-patches.js`。
 >
 > 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2` / `0.2.1-rc.2`（共 9 个）。
 > 一致性自查（在仓库目录执行）——**以命令输出为准，不要相信静态描述**：

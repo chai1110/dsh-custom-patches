@@ -6,10 +6,8 @@ This directory applies this repository's feature patches — **recall the last m
 **edit the last message and regenerate**, and **automatic retry for failed compaction** —
 to the **DeepSeek Harness desktop app** (Electron).
 
-The CLI / browser / VS Code surfaces load dsh from `node_modules` as ordinary npm packages,
-so patching them is a plain `patch` run (see `apply-dsh-patches.sh` / `tools/dsh-patch.mjs`
-at the repository root). **The desktop app is different** — its dsh runtime is sealed inside a
-**code-signed `app.asar`**, which requires actual asar surgery. That is why this directory exists.
+The desktop app's dsh runtime is sealed inside a **code-signed `app.asar`**, which cannot be reached
+or bypassed — actual asar surgery is required. That is why this directory exists.
 
 ---
 
@@ -178,7 +176,7 @@ build and only appear once patched**. Measured (patches target desktop `0.2.0-rc
 > Lesson learned while picking markers: `surfaceOp: "append"` was first chosen for
 > `dsh-agent-loop`, but it **already appears 8 times** in the official build — useless as a
 > discriminator. A marker must be a string with **zero** occurrences upstream.
-> `bash check-update.sh` re-runs this table; a marker disappearing means the patch was overwritten.
+> a marker disappearing means the patch was overwritten — a `--dry-run` run confirms it.
 
 ---
 
@@ -188,7 +186,7 @@ build and only appear once patched**. Measured (patches target desktop `0.2.0-rc
 |---|---|
 | **Signature becomes ad-hoc** | After re-signing: `Signature=adhoc`, `TeamIdentifier=not set`, `flags=0x10002(adhoc,runtime)`. Functionality is unaffected; if you have compliance requirements that depend on the vendor signature, do not use this. |
 | **`Info.plist` needs no update** | Electron's `EnableEmbeddedAsarIntegrityValidation` fuse is `0` (verified), so changed asar contents are not rejected and `ElectronAsarIntegrity` need not be updated. |
-| **Nightly auto-update overwrites it** | After the official app updates, re-run the script. `bash check-update.sh` detects and warns about this. |
+| **Nightly auto-update overwrites it** | After the official app updates, re-run the script. `--dry-run` reports it. |
 | **Cannot run alongside the official app** | They **share the same user-data directory**, plus a single-instance lock (0.2.0 and earlier also had a fixed port `19387`) — starting both fails. Quit one first. |
 | **Port 19387 *used to be* hard-coded** | True for 0.2.0 and earlier (unlike the CLI it took no `--port`, so on a conflict the other program had to move). **Since 0.2.1 it is `--port 0` (dynamic)**, so it no longer fights for the port; any script that probes 19387 or pulls the token from it must read stdout or the process info instead. |
 | **The official app is never modified** | All output lives under `~/Applications/`; `/Applications/DeepSeek Harness.app` stays pristine. |
@@ -206,23 +204,6 @@ rm -rf "$HOME/Applications/DeepSeek Harness Patched.app"
 The official app was never modified, so deleting the copy restores the original state.
 To return `/Applications` to a freshly-downloaded state, simply reinstall from the vendor
 (this repository never touches it).
-
----
-
-## 🔗 Relationship to the CLI-side patches
-
-- **Same patch files**: the 9 `.patch` files under `patches/**` are shared between the CLI
-  surfaces and the desktop app — no duplicate maintenance.
-- **Different targets**: the CLI side patches `node_modules/@deepseek-ai/**`; the desktop
-  side patches inside `app.asar`.
-- **Patch both at once**: `patch-all.sh` at the repository root handles both surfaces in turn
-  and **cross-checks feature markers on each**, printing a matrix — the fastest way to confirm
-  that the browser / VS Code / desktop surfaces are functionally in sync.
-
-```bash
-bash patch-all.sh          # CLI side + desktop, with cross-check
-bash patch-all.sh --check  # verify only; modifies nothing
-```
 
 ---
 
