@@ -7,7 +7,7 @@
 
 > **版本管理方式**：每个已适配的 DSH 版本对应**一个 git tag + 一个同名快照分支**（tag `vX` ↔ 分支 `version/X`，两者指向同一提交），tag 内补丁为该版本专用。桌面版用户直接跑 `node desktop/windows/apply-desktop-asar-patches.js`。
 >
-> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2` / `0.2.1-rc.2`（共 9 个）。
+> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2` / `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.5`（共 11 个）。
 > 一致性自查（在仓库目录执行）——**以命令输出为准，不要相信静态描述**：
 >
 > ```sh
@@ -19,23 +19,24 @@
 > done
 > ```
 >
-> ⭐ **当前基线是 `main` 分支（目标 `0.2.1-rc.2`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
-> ⚠️ **`0.2.1-rc.2` 只占官方 `next` 频道**（2026-10-17 起），`latest` 仍是 `0.2.0-rc.2`。
-> 想用本基线请显式装：`npm i -g @deepseek-ai/dsh@next`（或 `@0.2.1-rc.2`）；直接 `npm i -g @deepseek-ai/dsh` 会装到 0.2.0-rc.2。
+> ⭐ **当前基线是 `main` 分支（目标 `0.2.1-rc.5`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
+> ✅ **`0.2.1-rc.5` 已于 2026-10-29 同时占据官方 `latest` 与 `next`**（`alpha` 已跑到 `0.2.2-alpha.2`，不跟）。
+> 桌面版走 **nightly** 自动更新，2026-10-29 21:47 实测已升到 `rc.5`；`rc.3`（10-23）/ `rc.4`（10-26）为过渡版。
 > 仍在 `0.2.0-rc.2` / `0.2.0-rc.1` 的环境请 **checkout `v0.2.0-rc.2` / `v0.2.0-rc.1`**。
 > ⚠️ **0.2.1 是破坏性版本**（typert 描述符改成 keyed map + `strictCodec`、子路径插件不再读自身 `package.json`、
 > 第三方兼容改看 `engines.dsh`、输入统计拆 `activity`/`usage`、工具展示 `both` 模式移除、Agent Team 消息直投目标 Inbox、
 > `--from-default-profile` 改为替换配置、Azure 供应商统一为 `azure`、headless 不再读已存凭据），
-> **补丁集必须重打**：7 个文件 / 16 处 hunk 失败，已全部适配并 9/9 零模糊通过（2026-10-17 实测）。
-> ✅ **每个 tag 都自带正确的版本常量。** tag 内的 `install-dsh-custom.sh` / `apply-dsh-patches.sh` / `check-update.sh`
-> 都把版本钉在该 tag 对应的官方版本上，checkout 后直接 `-y` 即可。
-> 一条命令自查全部 tag（在仓库目录执行）——**不要相信本文档的静态描述，以这条命令的输出为准**：
+> **补丁集必须重打**：7 个文件 / 16 处 hunk 失败，已在 `rc.2` 全部适配并 9/9 零模糊通过（2026-10-17 实测）；
+> `rc.3` 因 typert / UI 二次重构**又重打了一遍**，`rc.4` / `rc.5` 才是零改动沿用。
 >
-> ```sh
-> for t in $(git tag -l); do echo -n "$t → "; git show "$t:install-dsh-custom.sh" | grep -m1 '^TARGET_VERSION='; done
-> ```
+> ✅ **判断补丁是否真的生效，只看「功能标记」**（`tools/patch-markers.tsv`）：一段在官方原版里 0 次出现、
+> 打过补丁才出现的字符串。`patch` 的退出码**不可靠**（纯插入型补丁套用后正向 dry-run 仍会成功）。
+> 当前 6 个唯一标记：`editLastPromptOnce` / `editLastPrompt` / `session/editLastPrompt` /
+> `tailEvent?.type === "user/message"` / `compactionBackoffDelay` / `recallHistory`。
 >
-> 正常应逐行输出与 tag 名一致的版本号。**若某个 tag 的常量与 tag 名不符，说明该 tag 已损坏** —— 请改用 `main`，并在 Issue 里附上上面这条命令的输出。
+> ⚠️ **`TARGET_VERSION` 已随 CLI 链一起退役**（`1e8ba06`），现在脚本里没有版本常量，也就不再有
+> 「tag 内常量与 tag 名不符」这类损坏模式。旧的 `install-dsh-custom.sh` 自查命令只对旧 tag 有效，
+> 新 tag 上会直接报 `fatal: path ... does not exist` —— **属正常，不是损坏**。
 >
 > 🕘 **历史事故（2026-09-28 已修复）**：`v0.1.7-rc.2` 曾指向 `d389396`（落后 `main` 11 个提交），
 > 其内置脚本仍钉在 `0.1.5-rc.1`，checkout 该 tag 会因版本不匹配直接失败。
@@ -77,6 +78,19 @@
 > `["--no-open","--port","19387"]` 改为 `["--no-open","--host","127.0.0.1","--port","0"]`（**动态分配**），
 > 实测运行中的宿主监听 `127.0.0.1:55218`，`19387` 已静默且在新宿主文件里出现 **0 次**。
 > 脚本里若按 19387 探活/取 token，需改为从进程或日志读取实际端口。
+>
+> 🍎 **macOS 只保留一个 app（2026-10-30 起）**：`desktop/macos/dsh-desktop-patch.sh` 产出的是**副本**，
+> 两个 app 的 `CFBundleIdentifier` 完全相同（`com.deepseek.dsh`），`open "…Patched.app"` 会**直接激活已在跑的
+> 官方版**，补丁版进程当场退出 —— 用户看到的一直是官方版，于是误判「补丁没打进去」。改用换位安装：
+>
+> ```bash
+> bash desktop/macos/dsh-desktop-install.sh              # 构建 + 换位
+> bash desktop/macos/dsh-desktop-install.sh --no-build   # 只换位
+> bash desktop/macos/dsh-desktop-install.sh --rollback   # 回官方版
+> ```
+>
+> 就地改 `/Applications` 里的 asar **不可行**（App 管理保护 → bundle 内部 EPERM，`sudo` 与 `xattr -d` 都被拒），
+> 但整个 `.app` 可以移进移出，所以「换位」是唯一单 app 方案。详见 `desktop/macos/README.md`。
 
 > **0.1.5-rc.1 适配要点（详见 `ADAPTING.md` 末节）**：
 > - 6 个补丁的锚点需重打（agent-loop / api-remotes / api-session-controller typert.remote-client /
