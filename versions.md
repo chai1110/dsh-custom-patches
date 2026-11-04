@@ -19,7 +19,11 @@
 > done
 > ```
 >
-> ⭐ **当前基线是 `main` 分支（目标 `0.2.1-rc.5`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
+> ⭐ **当前基线是 `main` 分支（目标 `0.2.2-rc.1`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
+> ✅ **`0.2.2-rc.1` 已于 2026-11-04 占据 nightly 通道**（灰度 30%）。较 `rc.5` 需重打 **2 个补丁**：
+> `dsh-agent-loop`（错误对象 `code:` 行被改动，`__stack` 落点迁移）与 `dsh-client-ui-chat`
+> （用户消息渲染重构成 `UserStyleBubble` + `renderSlotChain`，原 12 hunk 中 6 个失效，
+> 编辑按钮改用「纯 Context」方案重写）；其余 7 个仅为消除偏移而重新生成。9/9 以 `-F0` 零模糊通过。
 > ✅ **`0.2.1-rc.5` 已于 2026-10-29 同时占据官方 `latest` 与 `next`**（`alpha` 已跑到 `0.2.2-alpha.2`，不跟）。
 > 桌面版走 **nightly** 自动更新，2026-10-29 21:47 实测已升到 `rc.5`；`rc.3`（10-23）/ `rc.4`（10-26）为过渡版。
 > 仍在 `0.2.0-rc.2` / `0.2.0-rc.1` 的环境请 **checkout `v0.2.0-rc.2` / `v0.2.0-rc.1`**。
