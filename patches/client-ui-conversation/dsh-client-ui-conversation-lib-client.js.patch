@@ -28,15 +28,54 @@
  			locationIndex = new ConversationLocationIndex();
  			dirty = /* @__PURE__ */ new Set();
  			dirtyByTarget = /* @__PURE__ */ new Map();
-@@ -2585,6 +2599,7 @@
+@@ -2585,7 +2599,45 @@
  				this.hasMore = hasMore;
  				const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq);
  				for (const entry of sorted) this.inputs.set(entry.event.seq, entry);
+-				this.locationIndex.rebuild(sorted);
 +				this.scanShadowed(sorted);
- 				this.locationIndex.rebuild(sorted);
++				// 编辑重发后，被替换的整个回合（含「已停止」等 turn 级状态条）不该继续显示。
++				// 只剔除「start 与 end 都落在替换范围内」的 Turn —— 整轮拿走，Turn 结构保持完整；
++				// 绝不单点剔除 turn/start 之类的边界事件（那样会让消息失去归属，视图直接塌掉）。
++				const turnSpans = /* @__PURE__ */ new Map();
++				for (const entry of sorted) {
++					const ev = entry.event;
++					if (ev.type === "turn/start") turnSpans.set(ev.data.turn, { start: ev.seq, end: void 0 });
++					else if (ev.type === "turn/end") {
++						const span = turnSpans.get(ev.data.turn);
++						if (span !== void 0) span.end = ev.seq;
++					}
++				}
++				const deadRanges = [];
++				for (const span of turnSpans.values()) {
++					// 判据用「内容」而非「边界」：编辑重发时 turn/end 常常落在替换范围的
++					// 边界之外（例如 replace 到 23980、turn/end 在 23982），若要求 end 也被
++					// 阴影，被打断的回合就会漏掉、继续显示「已停止」。
++					if (!this.shadowed.has(span.start)) continue;
++					const end = span.end === void 0 ? Infinity : span.end;
++					let wholeTurnShadowed = true;
++					for (const entry of sorted) {
++						const seq = entry.event.seq;
++						if (seq <= span.start || seq >= end) continue;
++						const type = entry.event.type;
++						if (type === "turn/start" || type === "turn/end") continue;
++						if (!this.shadowed.has(seq)) {
++							wholeTurnShadowed = false;
++							break;
++						}
++					}
++					if (wholeTurnShadowed) deadRanges.push({ start: span.start, end });
++				}
++				const rebuildInput = deadRanges.length === 0 ? sorted : sorted.filter((entry) => {
++					const seq = entry.event.seq;
++					for (const range of deadRanges) if (seq >= range.start && seq <= range.end) return false;
++					return true;
++				});
++				this.locationIndex.rebuild(rebuildInput);
  				this.timelineDirty = true;
  				for (const entry of sorted) this.matchInput(entry);
-@@ -2594,6 +2609,15 @@
+ 				this.replayDependencies();
+@@ -2594,6 +2646,15 @@
  				this.replacePending = true;
  				return "immediate";
  			}
@@ -52,7 +91,7 @@
  			/**
  			* Add one contiguous live tail event without scanning existing Contexts.
  			* @param record - appended Session event entry.
-@@ -2602,6 +2626,13 @@
+@@ -2602,6 +2663,13 @@
  			append(record) {
  				const event = record.event;
  				if (this.inputs.has(event.seq)) return "none";
@@ -66,7 +105,7 @@
  				if (this.revised.size > 0) this.revised.clear();
  				this.inputs.set(event.seq, record);
  				let publication = "none";
-@@ -2667,6 +2698,7 @@
+@@ -2667,6 +2735,7 @@
  				for (const entry of fresh) this.inputs.set(entry.event.seq, entry);
  				this.hasMore = hasMore;
  				const previousTimeline = this.locationIndex.snapshot();
@@ -74,7 +113,7 @@
  				const changedLocations = this.locationIndex.rebuild(this.sortedInputs());
  				if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true;
  				const affected = this.refreshMatchLocations(changedLocations);
-@@ -2774,6 +2806,7 @@
+@@ -2774,6 +2843,7 @@
  				return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq);
  			}
  			matchInput(input) {
@@ -82,7 +121,7 @@
  				return this.dispatchInput(input, this.acceptMatch);
  			}
  			collectInput(input, pending) {
-@@ -4941,6 +4974,14 @@
+@@ -5068,6 +5138,14 @@
  				const result = await this.scopedSession("cancel").cancel();
  				if (!result.ok) throw new Error(`conversation.cancel failed: ${result.error.code}: ${result.error.message}`);
  			}
@@ -97,7 +136,7 @@
  			/** Pull one older history page for the scoped Session. */
  			async loadOlder() {
  				await this.scopedSession("loadOlder").loadOlder();
-@@ -14973,6 +15014,16 @@
+@@ -15401,6 +15479,16 @@
  			rev = 0;
  			unregister;
  			noticeSeq = 0;
@@ -114,7 +153,7 @@
  			lastPublishedDraft;
  			draftSnapshotCache;
  			attachmentIds = [];
-@@ -15242,6 +15293,14 @@
+@@ -15628,6 +15716,14 @@
  					this.notify("error", this.deps.commandAttachments.unsupportedNotice(before.claim?.token ?? before.draft));
  					return;
  				}
@@ -129,17 +168,17 @@
  				this.dispatchRun({
  					type: "enter",
  					mode,
-@@ -18958,6 +19017,8 @@
+@@ -21779,6 +21875,8 @@
  			const editor = keyboard?.editor ?? null;
  			const attachments = (0, react.useMemo)(() => input === void 0 || resolveDraftAttachments === void 0 ? [] : resolveDraftAttachments(input.attachmentIds), [resolveDraftAttachments, input?.attachmentIds]);
  			const empty = draft.trim() === "" && attachments.length === 0;
 +			const historyIndexRef = (0, react.useRef)(-1);
 +			const savedDraftRef = (0, react.useRef)("");
  			const uploads = useFileUploads((snapshot) => snapshot);
- 			const uploadsPending = attachments.some((attachment) => attachment.kind === "file" && uploads[attachment.id]?.status !== "ready");
+ 			const uploadsPending = attachments.some((attachment) => attachment.kind === "file" ? uploads[attachment.id]?.status !== "ready" : uploads[attachment.id] !== void 0 && uploads[attachment.id]?.status !== "ready");
  			const [toast, setToast] = (0, react.useState)(null);
-@@ -19094,13 +19155,88 @@
- 				t,
+@@ -21934,13 +22032,88 @@
+ 				showToast,
  				canAcceptDrop
  			};
 +			/**
@@ -226,5 +265,5 @@
 +					}
 +				});
  			}, [editor, keyboard]);
- 			const keepFocus = (e) => {
- 				keepDraftFocus(e, editor);
+ 			(0, react.useEffect)(() => {
+ 				if (editor === null) return;

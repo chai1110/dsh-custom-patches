@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
-@@ -1145,6 +1145,16 @@
+@@ -1493,6 +1493,16 @@
  const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value ??= z.object({
    'accepted': z.literal(true).readonly(),
  }))
@@ -17,7 +17,7 @@
  let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value
  const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value ??= z.object({
    'sessionId': z.string().readonly(),
-@@ -1323,6 +1333,12 @@
+@@ -1777,6 +1787,12 @@
  })])).readonly().describe('At least one non-whitespace text part or attachment.'),
    'clientTimeZone': z.string().readonly().optional(),
  }))
@@ -30,9 +30,9 @@
  let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value
  const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value ??= z.strictObject({
    'sessionId': z.string().readonly(),
-@@ -1812,6 +1828,39 @@
+@@ -2412,6 +2428,39 @@
        },
-       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":462,"column":9},
+       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":465,"column":9},
      },
 +    'session/editLastPrompt': {
 +      service: 'sessionController',
@@ -70,7 +70,7 @@
      'session/rename': {
        service: 'sessionController',
        description: 'Rename one Session after explicitly resuming it.',
-@@ -2140,6 +2189,13 @@
+@@ -2799,6 +2848,13 @@
            },
            {
              "kind": "method",

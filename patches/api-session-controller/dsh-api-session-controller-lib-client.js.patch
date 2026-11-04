@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/client.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/client.js
-@@ -2420,6 +2420,18 @@
+@@ -2430,6 +2430,18 @@
  				});
  			}
  			/**

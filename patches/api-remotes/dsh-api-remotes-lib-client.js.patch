@@ -1,6 +1,6 @@
 --- @deepseek-ai/dsh-api-remotes/lib/client.js
 +++ @deepseek-ai/dsh-api-remotes/lib/client.js
-@@ -14863,6 +14863,14 @@
+@@ -21616,6 +21616,14 @@
  		});
  		let _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value;
  		const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = () => _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value ??= zod.z.object({ "accepted": zod.z.literal(true).readonly() });
@@ -15,7 +15,7 @@
  		let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value;
  		const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = () => _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value ??= zod.z.object({
  			"sessionId": zod.z.string().readonly(),
-@@ -15040,6 +15048,12 @@
+@@ -21924,6 +21932,12 @@
  			])).readonly().describe("At least one non-whitespace text part or attachment."),
  			"clientTimeZone": zod.z.string().readonly().optional()
  		});
@@ -28,7 +28,7 @@
  		let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value;
  		const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema = () => _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value ??= zod.z.strictObject({
  			"sessionId": zod.z.string().readonly(),
-@@ -19639,6 +19653,67 @@
+@@ -23868,6 +23882,67 @@
  						"column": 9
  					}
  				},
