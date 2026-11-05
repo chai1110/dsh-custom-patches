@@ -27,6 +27,11 @@
 > ✅ **`0.2.1-rc.5` 已于 2026-10-29 同时占据官方 `latest` 与 `next`**（`alpha` 已跑到 `0.2.2-alpha.2`，不跟）。
 > 桌面版走 **nightly** 自动更新，2026-10-29 21:47 实测已升到 `rc.5`；`rc.3`（10-23）/ `rc.4`（10-26）为过渡版。
 > 仍在 `0.2.0-rc.2` / `0.2.0-rc.1` 的环境请 **checkout `v0.2.0-rc.2` / `v0.2.0-rc.1`**。
+>
+> ⚠️ **2026-11-05：macOS ad-hoc 重签必须带官方 designated requirement**，
+> 否则 Squirrel 会拒绝安装更新（`code failed to satisfy specified code requirement(s)`，
+> 见 `desktop/macos/README.md`）。另注意：`0.2.2-rc.1` 的适配在 `7ac0c1b`，
+> **跑脚本前务必先 `git pull`** —— 用旧的 rc.5 补丁集打 0.2.2 会 hunk 失败。
 > ⚠️ **0.2.1 是破坏性版本**（typert 描述符改成 keyed map + `strictCodec`、子路径插件不再读自身 `package.json`、
 > 第三方兼容改看 `engines.dsh`、输入统计拆 `activity`/`usage`、工具展示 `both` 模式移除、Agent Team 消息直投目标 Inbox、
 > `--from-default-profile` 改为替换配置、Azure 供应商统一为 `azure`、headless 不再读已存凭据），

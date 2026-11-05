@@ -48,8 +48,9 @@ bash desktop/macos/dsh-desktop-install.sh
 `/Applications` 占回官方路径 → 校验签名与标记。
 
 ```bash
-bash desktop/macos/dsh-desktop-install.sh --no-build   # 补丁版已存在，只做换位
-bash desktop/macos/dsh-desktop-install.sh --rollback   # 回到最近一次备份的官方版
+bash desktop/macos/dsh-desktop-install.sh --no-build     # 补丁版已存在，只做换位
+bash desktop/macos/dsh-desktop-install.sh --resign-only  # 只补官方 DR，不重新打补丁
+bash desktop/macos/dsh-desktop-install.sh --rollback     # 回到最近一次备份的官方版
 ```
 
 > **为什么不「就地改 `/Applications` 里的 asar」？**
@@ -85,7 +86,7 @@ bash desktop/macos/dsh-desktop-install.sh --rollback   # 回到最近一次备�
 | 3/6 打补丁 | `patch -N -F 0 -p1`，**零 fuzz**；产生 `.rej` 即中止 | 中止，**不会**碰目标 app |
 | 4/6 改写 | 只替换这 9 个条目，其余字节原样保留 | 工具内部有键序安全检查，不通过即拒绝改写 |
 | 5/6 校验 | 逐条目比对 + **9 个功能标记核对** | 任一标记未命中 → **放弃写入**，目标 app 保持原样 |
-| 6/6 重签 | ad-hoc 重签（保留 hardened runtime + 原 entitlements），去 quarantine | 报错退出（此时 asar 已替换，重跑一次即可） |
+| 6/6 重签 | ad-hoc 重签（保留 hardened runtime + 原 entitlements + **官方 designated requirement**），去 quarantine | 报错退出（此时 asar 已替换，重跑一次即可） |
 
 **安全设计**：第 3、5 步任何一环失败，都不会留下「半成品」的 app —— 要么完整可用，要么原样未动。
 
@@ -129,6 +130,45 @@ bash desktop/macos/dsh-desktop-install.sh --rollback   # 回到最近一次备�
 
 > 为什么 ad-hoc 就够：Electron 用该保险丝自行校验 asar 完整性，与 macOS 的代码签名是两套机制。
 > 保险丝关着 → 改完 asar 只要让 macOS 的签名重新生效（ad-hoc 即可）就能跑。
+
+### ⚠️ 自动更新与 designated requirement（2026-11-05 修复）
+
+旧版脚本重签时没有指定 designated requirement，ad-hoc 签名的 DR 会退化成
+`# designated => cdhash H"<当前二进制>"`。Squirrel.Mac 安装更新时会用**当前运行 app** 的 DR
+去校验**下载的官方包**（`SecStaticCodeCheckValidityWithErrors`），于是必然报：
+
+```
+Could not install the update. Please try again later.
+Code signature at URL …/update.XXXXXX/DeepSeek Harness.app/ did not pass validation:
+code failed to satisfy specified code requirement(s)
+```
+
+**修复**：重签时用 `codesign -r desktop/macos/official-designated-requirement.txt`
+显式嵌入官方 DR（`identifier "com.deepseek.dsh"` + `anchor apple generic` +
+`certificate leaf[subject.OU] = NAN929V4UM`，取自官方 `0.2.2-rc.1` 包）。
+官方新包满足这条要求 → 校验放行。实测对照：
+
+| 当前 app 的 DR | 用它验官方 0.2.2 包 | 结果 |
+|---|---|---|
+| ad-hoc 默认的 `cdhash H"9049de6a…"` | `codesign -v -R '=cdhash …'` | `exit=3`，`code failed to satisfy specified code requirement(s)` |
+| 显式写入的官方 DR | `codesign -v -R '=identifier … and …'` | `exit=0` 放行 |
+
+`codesign --verify` 会提示 `does not satisfy its designated Requirement` —— 这是预期的
+（ad-hoc 没有官方证书），退出码仍为 0，不影响运行；Squirrel 只**读取**当前 app 的 DR，
+并不要求当前 app 满足它。
+
+已经装好的旧补丁版不用重新打补丁，只补签名（脚本把 app 整体移出 `/Applications`
+到临时目录重签、再移回，全程仍只有一个 app）：
+
+```bash
+# 先完全退出 DeepSeek Harness（⌘Q）
+bash desktop/macos/dsh-desktop-install.sh --resign-only
+```
+
+> ⚠️ 放行之后官方包会覆盖 `app.asar` 清空补丁，届时重跑 `dsh-desktop-install.sh` 即可补回。
+> 补丁按版本适配：`0.2.2-rc.1` 的适配已在 `7ac0c1b` 完成（9/9 零模糊通过，本地复测
+> 22096/22096 未改动条目哈希一致、9 个标记全命中）。**务必先 `git pull`** —— 拿旧的 rc.5
+> 补丁集打 0.2.2 会在 `dsh-api-session-controller/lib/index.js` 出现 hunk 失败。
 
 ---
 

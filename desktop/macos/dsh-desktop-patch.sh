@@ -16,7 +16,8 @@
 #   3. 用仓库里 patches/ 下的 9 个 .patch 打补丁（-N -F 0 -p1，零 fuzz）
 #   4. 外科式改写 asar：只替换这 9 个条目，其余条目逐字节不变
 #   5. 逐条目校验改写结果 + 功能标记核对
-#   6. ad-hoc 重签名（保留 hardened runtime 与原 entitlements）+ 去 quarantine
+#   6. ad-hoc 重签名（保留 hardened runtime、原 entitlements，
+#      并显式嵌入官方 designated requirement）+ 去 quarantine
 #
 # ───────────────────────────────── 用法 ─────────────────────────────────
 #   bash desktop/macos/dsh-desktop-patch.sh [源app] [目标app]
@@ -26,6 +27,10 @@
 # ───────────────────────────────── 注意 ─────────────────────────────────
 #   * 桌面版走 nightly 自动更新（app-update.yml → download.deepseek.com/dsh-desk/...），
 #     官方包每次更新后需对本脚本重新执行一次。`bash check-update.sh` 会检测这件事。
+#   * ⚠️ 重签必须显式写入官方 designated requirement（见
+#     official-designated-requirement.txt）。否则 ad-hoc 签名把 DR 退化成 cdhash，
+#     Squirrel 拿当前运行 app 的 DR 去验下载的官方包必然不匹配，自动更新会一直报
+#     「code failed to satisfy specified code requirement(s)」而装不上。
 #   * 补丁是「按版本适配」的：官方升到新版本后，若 patch 不再零 fuzz 应用，
 #     需先按 ADAPTING.md 更新 patches/。
 #   * 打完补丁的副本与官方版**共用同一个 user-data 目录**，二者不能同时运行
@@ -54,25 +59,63 @@ clone_app() { cp -c -R "$1" "$2" 2>/dev/null || cp -R "$1" "$2"; }
 # 重签名：macOS 改动 asar 后必须重签（ad-hoc 即可，因为 Electron 的
 # EnableEmbeddedAsarIntegrityValidation 保险丝 = 0，不需要更新 Info.plist）；
 # Windows 无需对应步骤 —— Electron 不校验 Authenticode。
+#
+# ⚠️ 必须用 -r 显式写入「官方 designated requirement」：
+#    ad-hoc 重签默认把 DR 退化成 `# designated => cdhash H"<当前二进制>"`，
+#    而 Squirrel.Mac 安装更新时会用**当前运行 app** 的 DR 去校验**下载的官方包**，
+#    cdhash 必然不同 → `code failed to satisfy specified code requirement(s)`
+#    → 自动更新永远装不上。写入官方 DR 后官方新包满足该要求，校验放行。
+#    （代价：ad-hoc 签名自身不满足这条 DR，codesign --verify 可能提示
+#     "does not satisfy its Designated Requirement"，属预期，不影响运行。）
 sign_app() {
   # ⚠️ 必须分两句：`local a="$1" b="$a/..."` 在同一句里引用刚声明的局部变量，
   # 在 `set -u` 下会报 "b: unbound variable"（bash 会把本句所有名字先声明为未赋值）。
   local app="$1" work="$2"
   local ent="$work/entitlements.plist"
+  local dr="$work/designated-requirement.txt"
+  local dr_file
+  dr_file="$(cd "$(dirname "$0")/../.." && pwd)/desktop/macos/official-designated-requirement.txt"
+  # 优先从源 app（官方原版）提取 DR；若源已是补丁版（DR 是 cdhash），
+  # 退回仓库内的固定文件，绝不把 cdhash 又写回新签名。
+  if [ -n "${SRC_APP:-}" ] && [ -d "$SRC_APP" ]; then
+    codesign -d -r- "$SRC_APP" 2>/dev/null | grep '^designated => identifier "com.deepseek.dsh"' > "$dr" || true
+  fi
+  if [ ! -s "$dr" ]; then
+    [ -s "$dr_file" ] || { say "${RED}缺少官方 DR 文件: $dr_file${NC}"; return 1; }
+    cp "$dr_file" "$dr"
+    say "  ${YELLOW}源 app 已是补丁版，改用仓库内官方 DR${NC}"
+  fi
   codesign -d --entitlements :- "$app" > "$ent" 2>/dev/null || true
   if [ -s "$ent" ]; then
-    codesign --force --sign - --options runtime --entitlements "$ent" "$app"
+    codesign --force --sign - --options runtime --entitlements "$ent" -r "$dr" "$app"
   else
     say "  ${YELLOW}未取到 entitlements，按无 entitlements 重签${NC}"
-    codesign --force --sign - --options runtime "$app"
+    codesign --force --sign - --options runtime -r "$dr" "$app"
   fi
   xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
-  codesign --verify --verbose=2 "$app" 2>&1 | tail -2
+  say "  designated requirement: $(grep '^designated =>' "$dr")"
+  codesign --verify --verbose=2 "$app" 2>&1 | tail -2 || true
 }
 # ══════════════════════════════════════════════════════════════════════════════
 
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
-  sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,48p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+# ── 只重签：给已装好的补丁版补上官方 DR（不打补丁、不产出副本）──
+# 供 dsh-desktop-install.sh --resign-only 调用。
+if [ "${1:-}" = "--sign-only" ]; then
+  target="${2:-}"
+  [ -n "$target" ] && [ -d "$target" ] || { say "${RED}用法: $0 --sign-only <app>${NC}"; exit 1; }
+  SRC_APP=""   # 目标就是补丁版，禁止从它提取 DR（否则会把 cdhash 又写回去）
+  work="$(mktemp -d "${TMPDIR:-/tmp}/dsh-resign.XXXXXX")"
+  trap 'rm -rf "$work"' EXIT
+  say "${YELLOW}== 只重签（嵌入官方 designated requirement）==${NC}"
+  sign_app "$target" "$work"
+  actual="$(codesign -d -r- "$target" 2>/dev/null | grep '^designated => identifier "com.deepseek.dsh"' || true)"
+  [ -n "$actual" ] || { say "${RED}重签后 DR 校验失败${NC}"; exit 1; }
+  say "${GREEN}重签完成：$actual${NC}"
   exit 0
 fi
 

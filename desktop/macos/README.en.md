@@ -52,8 +52,9 @@ What it does: build the patched copy in `~/Applications` → move the existing a
 copy into `/Applications`, taking back the official path → verify signature and markers.
 
 ```bash
-bash desktop/macos/dsh-desktop-install.sh --no-build   # patched copy already exists, just swap
-bash desktop/macos/dsh-desktop-install.sh --rollback   # restore the most recent official backup
+bash desktop/macos/dsh-desktop-install.sh --no-build    # patched copy already exists, just swap
+bash desktop/macos/dsh-desktop-install.sh --resign-only # re-sign with official DR only, no rebuild
+bash desktop/macos/dsh-desktop-install.sh --rollback    # restore the most recent official backup
 ```
 
 > **Why not patch the asar inside `/Applications` in place?**
@@ -138,6 +139,32 @@ Changing the asar **requires** re-signing, or macOS refuses to launch (the signa
 > Why ad-hoc suffices: Electron validates asar integrity through that fuse, which is a separate
 > mechanism from macOS code signing. With the fuse off, it is enough to make the macOS signature
 > valid again (ad-hoc is fine).
+
+### Automatic updates and the designated requirement (fixed 2026-11-05)
+
+An ad-hoc signature defaults to `# designated => cdhash H"<this binary>"`. Squirrel.Mac verifies
+a downloaded update against the **running app's** designated requirement, so an official
+(Developer ID) package never matches and installation fails with
+`code failed to satisfy specified code requirement(s)`.
+
+The re-sign step now embeds the official DR via
+`-r desktop/macos/official-designated-requirement.txt`
+(`identifier "com.deepseek.dsh"` + `anchor apple generic` + `leaf[subject.OU] = NAN929V4UM`).
+`codesign --verify` may print `does not satisfy its designated Requirement` — expected; the exit
+code is still 0, and Squirrel only **reads** the DR, it does not require the running app to
+satisfy it. Verified: the official `0.2.2-rc.1` package passes `codesign -v -R` with the official
+DR (`exit=0`) and fails with the old cdhash DR (`exit=3`).
+
+For an already-patched app, re-sign without rebuilding (one app throughout):
+
+```bash
+# quit DeepSeek Harness first (Cmd+Q)
+bash desktop/macos/dsh-desktop-install.sh --resign-only
+```
+
+> Note: a successful official update overwrites `app.asar` and clears every patch — just re-run
+> `dsh-desktop-install.sh` afterwards. The `0.2.2-rc.1` rebase landed in `7ac0c1b` (9/9, zero fuzz).
+> **Run `git pull` first**: the older rc.5 patch set fails hunks on 0.2.2.
 
 ---
 

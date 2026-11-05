@@ -21,6 +21,13 @@
 > ⚠️ 桌面版走 nightly 自动更新，**官方每次升级都会覆盖 `app.asar`、把补丁清空**。
 > 2026-10-29 官方桌面从 rc.3 自动升到 rc.5，四个功能标记全部归零 —— 这是必然结果，不是故障，
 > 重跑一次本目录的脚本即可恢复。
+>
+> ⚠️ 另注（2026-11-05）：macOS 的 ad-hoc 重签若不带官方 designated requirement，
+> Squirrel 会因签名校验失败**直接拒绝安装更新**
+> （`code failed to satisfy specified code requirement(s)`）。macOS 脚本现已显式嵌入官方 DR；
+> 已装好的旧补丁版用 `dsh-desktop-install.sh --resign-only` 补签名即可。
+> 详见 [macos/README.md](macos/README.md)。`0.2.2-rc.1` 的补丁适配已在 `7ac0c1b` 完成
+> （9/9 零模糊通过）；升级后重跑脚本前请先 `git pull` 取最新 `patches/`。
 
 > 两个平台**各有一份驱动脚本、暂时分开放置**（理由与合并判据见下文）。
 > `desktop/dsh-desktop-asar.mjs` 是两者共享的、**平台无关**的 asar 读写层。

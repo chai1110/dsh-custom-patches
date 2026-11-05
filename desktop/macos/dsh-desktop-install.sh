@@ -18,15 +18,19 @@
 #  macOS 按 bundle id 认 app，`open` 会直接激活已在跑的那个）。
 #
 # ───────────────────────────────── 用法 ─────────────────────────────────
-#   bash desktop/macos/dsh-desktop-install.sh            # 构建 + 换位安装
-#   bash desktop/macos/dsh-desktop-install.sh --no-build # 跳过构建，直接换位（补丁版已存在时）
-#   bash desktop/macos/dsh-desktop-install.sh --rollback # 从最近一次备份回滚官方版
+#   bash desktop/macos/dsh-desktop-install.sh             # 构建 + 换位安装
+#   bash desktop/macos/dsh-desktop-install.sh --no-build  # 跳过构建，直接换位（补丁版已存在时）
+#   bash desktop/macos/dsh-desktop-install.sh --resign-only # 只重签（补官方 DR），不重新打补丁
+#   bash desktop/macos/dsh-desktop-install.sh --rollback   # 从最近一次备份回滚官方版
 #
 # ───────────────────────────────── 注意 ─────────────────────────────────
 #   * 运行前请**完全退出** DeepSeek Harness（单实例锁 + 正在运行的 asar 无法被替换）
 #   * 换位后 app 的签名是 ad-hoc 的，macOS 可能要求重新授权
 #     辅助功能 / 屏幕录制 / 完全磁盘访问（签名变了，TCC 记录会失效）
 #   * 官方 nightly 自动更新仍会覆盖 app.asar 并清空补丁，届时重跑本脚本即可
+#   * ⚠️ 旧版脚本 ad-hoc 重签不带官方 designated requirement，会让 Squirrel 的更新校验
+#     失败（「Could not install the update / code failed to satisfy ...」）。已装好的补丁版
+#     用 `--resign-only` 只补签名即可；新装的补丁版会自动带上正确 DR。
 
 set -euo pipefail
 
@@ -48,7 +52,7 @@ NODE="$HOME/.local/node-v24/bin/node"
 [ -n "$NODE" ] || { say "${RED}需要 node${NC}"; exit 1; }
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -72,6 +76,44 @@ if [ "${1:-}" = "--rollback" ]; then
   mv "$OFFICIAL" "$BACKUP_DIR/DeepSeek Harness.app.patched-$ts.app"
   mv "$latest" "$OFFICIAL"
   say "${GREEN}已回滚。${NC}当前标记数: $(marker_count "$OFFICIAL/$ASAR_REL")（0 = 官方原版）"
+  exit 0
+fi
+
+# ── 只重签：给已装好的补丁版补上官方 DR（不重新打补丁、不留第二个 app）──
+if [ "${1:-}" = "--resign-only" ]; then
+  if app_running; then
+    say "${RED}请先完全退出 DeepSeek Harness（⌘Q）${NC}"
+    exit 1
+  fi
+  [ -d "$OFFICIAL" ] || { say "${RED}app 不存在: $OFFICIAL${NC}"; exit 1; }
+  work="$(mktemp -d "${TMPDIR:-/tmp}/dsh-resign.XXXXXX")"
+  target="$work/DeepSeek Harness.app"
+  restore() {
+    [ -d "$target" ] && mv "$target" "$OFFICIAL" 2>/dev/null || true
+    rmdir "$work" 2>/dev/null || true
+  }
+  say "${YELLOW}== 只重签（不重新打补丁）==${NC}"
+  say "  1) 移出 /Applications → 可写临时目录"
+  if ! mv "$OFFICIAL" "$target"; then
+    say "${RED}移出失败${NC}"; rmdir "$work" 2>/dev/null || true; exit 1
+  fi
+  if ! PATH="$HOME/.local/node-v24/bin:$PATH" bash "$HERE/dsh-desktop-patch.sh" --sign-only "$target"; then
+    say "${RED}重签失败，已还原${NC}"; restore; exit 1
+  fi
+  dr="$(codesign -d -r- "$target" 2>/dev/null | grep '^designated => identifier "com.deepseek.dsh"' || true)"
+  if [ -z "$dr" ]; then
+    say "${RED}DR 校验失败，已还原${NC}"; restore; exit 1
+  fi
+  say "  2) 移回 /Applications"
+  if ! mv "$target" "$OFFICIAL"; then
+    say "${RED}移回失败，尝试还原${NC}"; restore; exit 1
+  fi
+  rmdir "$work" 2>/dev/null || true
+  say "${YELLOW}== 校验 ==${NC}"
+  say "  designated requirement: $dr"
+  say "  $MARKER 标记数: $(marker_count "$OFFICIAL/$ASAR_REL")"
+  say "${GREEN}重签完成。Squirrel 的自动更新签名校验现在应能放行。${NC}"
+  say "  启动: open \"$OFFICIAL\""
   exit 0
 fi
 
