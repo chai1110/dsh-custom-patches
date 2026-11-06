@@ -155,7 +155,11 @@ fi
 
 # ── 校验 ──
 say "${YELLOW}== 校验 ==${NC}"
-codesign --verify --verbose=2 "$OFFICIAL" 2>&1 | tail -2
+# ad-hoc 重签显式嵌入官方 DR 后，codesign --verify --verbose=2 会输出
+# "does not satisfy its designated Requirement" 并返回非 0（属预期：当前 app
+# 没有官方证书，Squirrel 只读取 DR、不要求当前 app 满足它）。
+# 在 set -o pipefail 下必须吞掉这个退出码，否则脚本会在这里提前中断、误报失败。
+codesign --verify --verbose=2 "$OFFICIAL" 2>&1 | tail -2 || true
 final="$(marker_count "$OFFICIAL/$ASAR_REL")"
 say "  $MARKER 标记数: $final"
 if [ "$final" -ge 1 ]; then
