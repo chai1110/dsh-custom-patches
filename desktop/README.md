@@ -26,8 +26,12 @@
 > Squirrel 会因签名校验失败**直接拒绝安装更新**
 > （`code failed to satisfy specified code requirement(s)`）。macOS 脚本现已显式嵌入官方 DR；
 > 已装好的旧补丁版用 `dsh-desktop-install.sh --resign-only` 补签名即可。
-> 详见 [macos/README.md](macos/README.md)。`0.2.2-rc.1` 的补丁适配已在 `7ac0c1b` 完成
-> （9/9 零模糊通过）；升级后重跑脚本前请先 `git pull` 取最新 `patches/`。
+> 详见 [macos/README.md](macos/README.md)。升级后重跑脚本前请先 `git pull` 取最新 `patches/`。
+>
+> ⚠️ **0.2.2-rc.2（2026-11-12）**：官方把浏览器侧 bundle 压成单行并启用 minify，
+> 6 个补丁已基于 rc.2 重新生成（3 个沿用）；`client-ui-conversation` 的 ↑/↓ 历史改为
+> **DOM 外挂**实现，不依赖压缩变量名。9/9 零模糊、21777/21777 条目哈希一致。
+> 详见 [macOS 适配记录](../docs/adapt-0.2.2-rc.2-macos.md)。
 
 > 两个平台**各有一份驱动脚本、暂时分开放置**（理由与合并判据见下文）。
 > `desktop/dsh-desktop-asar.mjs` 是两者共享的、**平台无关**的 asar 读写层。
