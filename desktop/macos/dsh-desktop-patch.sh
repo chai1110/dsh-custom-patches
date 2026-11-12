@@ -74,7 +74,8 @@ sign_app() {
   local ent="$work/entitlements.plist"
   local dr="$work/designated-requirement.txt"
   local dr_file
-  dr_file="$(cd "$(dirname "$0")/../.." && pwd)/desktop/macos/official-designated-requirement.txt"
+  # 用脚本开头求好的绝对路径：sign_app 在末尾执行时 cwd 可能已变。
+  dr_file="$REPO/desktop/macos/official-designated-requirement.txt"
   # 优先从源 app（官方原版）提取 DR；若源已是补丁版（DR 是 cdhash），
   # 退回仓库内的固定文件，绝不把 cdhash 又写回新签名。
   if [ -n "${SRC_APP:-}" ] && [ -d "$SRC_APP" ]; then
@@ -108,6 +109,8 @@ fi
 if [ "${1:-}" = "--sign-only" ]; then
   target="${2:-}"
   [ -n "$target" ] && [ -d "$target" ] || { say "${RED}用法: $0 --sign-only <app>${NC}"; exit 1; }
+  # --sign-only 分支在 REPO 定义之前执行，这里先算好（此时 cwd 仍是仓库根）
+  REPO="$(cd "$(dirname "$0")/../.." && pwd)"
   SRC_APP=""   # 目标就是补丁版，禁止从它提取 DR（否则会把 cdhash 又写回去）
   work="$(mktemp -d "${TMPDIR:-/tmp}/dsh-resign.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
