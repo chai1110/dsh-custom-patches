@@ -72,3 +72,29 @@ codesign --verify: valid on disk
   若编辑重发后旧消息仍显示，下次按同样方式补。
 - 官方每次自动更新仍会覆盖 `app.asar` 清空补丁；新版本需重新量化 hunk 失败情况再重打。
 - 脚本重签已显式写入官方 designated requirement，自动更新不会再因签名校验失败而装不上。
+
+## 六、运行时修复（2026-11-12，真机反馈后）
+
+初版只做了语法 / 标记 / 进程启动验证，真机暴露两个问题：
+
+1. **编辑重发后旧回合不消失、消息一遍遍累积**。
+   根因：rc.1 补丁 h1–h7 的 `wholeTurnShadowed` / `deadRanges` / `scanShadowed`
+   残留修复没移植（Windows 侧 `c43a363` 的 revert 说明也点出这一点）。
+   会话转录证实 host 是对的：每次编辑发一个
+   `{op:"replace",startSeq,endSeq}` 的 `user/message`，范围逐次覆盖上一轮。
+   修法：在投影引擎 `dispatchInput(input,accept){const event=input.event;` 后注入
+   一段过滤——遍历 `this.inputs`，若某 replacement 的 `startSeq..endSeq` 覆盖
+   `event.seq` 就 `return \`none\``（不派发该回合）。等价于整轮隐藏，
+   且不依赖 rc.2 压缩后的方法名，也不需要 7 个人工锚点。
+2. **↑/↓ 无反应**。输入框是 Lexical 的
+   `<div contentEditable data-composer-input>`，初版外挂用 `textContent` 写值会被
+   虚拟 DOM 覆盖。v2 改为：`window` 捕获阶段注册、用 `[data-composer-input]` 定位、
+   全选后 `document.execCommand('insertText', ...)` 写入（触发原生 input 让 Lexical 同步）、
+   MutationObserver 在输入框清空时把内容记入 `localStorage` 历史。
+
+> Windows 侧 `5328a37` 的 `subst_apply.mjs`（去空白映射）实测 12 个 hunk 自动定位 5 个，
+> 失败 7 个；其文档也标注 `client-ui-conversation` 的 ↑↓ 待重写。
+> macOS 侧因此没有硬套 12 个 hunk，改用上述两处等效注入。
+> `main` 已由 `c43a363` 恢复为实测可用的 rc.1 补丁集；本分支保留 rc.2 适配成果待合并。
+>
+> ⚠️ 这两处只做了语法 / 9/9 补丁 / 标记 / 进程启动验证，**运行时仍需真机点测**。
