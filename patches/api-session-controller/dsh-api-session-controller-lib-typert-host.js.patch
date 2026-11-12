@@ -1,15 +1,9 @@
 --- @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
 +++ @deepseek-ai/dsh-api-session-controller/lib/typert.host.js
-@@ -1528,6 +1528,22 @@
+@@ -1493,6 +1493,16 @@
  const _deepseek_ai_dsh_api_session_controller_session_prompt_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_prompt_result$schema$value ??= z.object({
    'accepted': z.literal(true).readonly(),
  }))
-+let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value
-+const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value ??= z.strictObject({
-+  'requestId': z.string().readonly(),
-+  'sessionId': z.string().readonly(),
-+  'text': z.string().readonly(),
-+}))
 +let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema$value
 +const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0$schema$value ??= z.object({
 +  'requestId': z.intersection(z.string(), z.unknown()).readonly(),
@@ -23,12 +17,24 @@
  let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value
  const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_rename_parameter_0$schema$value ??= z.object({
    'sessionId': z.string().readonly(),
-@@ -2447,7 +2463,40 @@
+@@ -1777,6 +1787,12 @@
+ })])).readonly().describe('At least one non-whitespace text part or attachment.'),
+   'clientTimeZone': z.string().readonly().optional(),
+ }))
++let _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value
++const _deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_editLastPrompt_parameter_0_strict$schema$value ??= z.strictObject({
++  'requestId': z.string().readonly(),
++  'sessionId': z.string().readonly(),
++  'text': z.string().readonly(),
++}))
+ let _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value
+ const _deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema = () => (_deepseek_ai_dsh_api_session_controller_session_rename_parameter_0_strict$schema$value ??= z.strictObject({
+   'sessionId': z.string().readonly(),
+@@ -2412,6 +2428,39 @@
        },
-       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":468,"column":9},
+       sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":465,"column":9},
      },
--    'session/rename': {
-+        'session/editLastPrompt': {
++    'session/editLastPrompt': {
 +      service: 'sessionController',
 +      description: 'Rewrite the last user message and regenerate from it.',
 +      invocation: { kind: 'direct' },
@@ -61,11 +67,10 @@
 +      },
 +      sourceLocation: {"file":"packages/api/session-controller/src/index.ts","line":340,"column":3},
 +    },
-+'session/rename': {
+     'session/rename': {
        service: 'sessionController',
        description: 'Rename one Session after explicitly resuming it.',
-       invocation: { kind: 'direct' },
-@@ -2834,6 +2883,13 @@
+@@ -2799,6 +2848,13 @@
            },
            {
              "kind": "method",

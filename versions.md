@@ -7,7 +7,7 @@
 
 > **版本管理方式**：每个已适配的 DSH 版本对应**一个 git tag + 一个同名快照分支**（tag `vX` ↔ 分支 `version/X`，两者指向同一提交），tag 内补丁为该版本专用。桌面版用户直接跑 `node desktop/windows/apply-desktop-asar-patches.js`。
 >
-> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2` / `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.5` / `0.2.2-rc.2`（共 12 个）。
+> 已发布的版本：`0.1.0-rc.7` / `0.1.0-rc.8` / `0.1.1-rc.2` / `0.1.2-rc.1` / `0.1.5-rc.1` / `0.1.7-rc.2` / `0.2.0-rc.1` / `0.2.0-rc.2` / `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.5`（共 11 个）。
 > 一致性自查（在仓库目录执行）——**以命令输出为准，不要相信静态描述**：
 >
 > ```sh
@@ -19,11 +19,7 @@
 > done
 > ```
 >
-> ⭐ **当前基线是 `main` 分支（目标 `0.2.2-rc.2`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
-> ⚠️ **rc.2 是一次破坏性构建变更**：官方把浏览器侧 bundle 压成单行并 minify，9 个补丁里
-> **6 个基于 rc.2 重新生成**（3 个沿用），`client-ui-conversation` 的 ↑/↓ 历史改为 DOM 外挂。
-> 过程、锚点与验证见 [`docs/adapt-0.2.2-rc.2-macos.md`](docs/adapt-0.2.2-rc.2-macos.md)。
-> 旧 tag `v0.2.1-rc.5` 及更早的补丁**不能**套在 rc.2 上。
+> ⭐ **当前基线是 `main` 分支（目标 `0.2.2-rc.1`）** —— 直接 `git clone` 用 `main` 即可，不必 checkout tag。
 > ✅ **`0.2.2-rc.1` 已于 2026-11-04 占据 nightly 通道**（灰度 30%）。较 `rc.5` 需重打 **2 个补丁**：
 > `dsh-agent-loop`（错误对象 `code:` 行被改动，`__stack` 落点迁移）与 `dsh-client-ui-chat`
 > （用户消息渲染重构成 `UserStyleBubble` + `renderSlotChain`，原 12 hunk 中 6 个失效，
@@ -34,8 +30,8 @@
 >
 > ⚠️ **2026-11-05：macOS ad-hoc 重签必须带官方 designated requirement**，
 > 否则 Squirrel 会拒绝安装更新（`code failed to satisfy specified code requirement(s)`，
-> 见 `desktop/macos/README.md`）。
-> **跑脚本前务必先 `git pull`** —— 补丁集按版本生成，跨版本套用必然 hunk 失败。
+> 见 `desktop/macos/README.md`）。另注意：`0.2.2-rc.1` 的适配在 `7ac0c1b`，
+> **跑脚本前务必先 `git pull`** —— 用旧的 rc.5 补丁集打 0.2.2 会 hunk 失败。
 > ⚠️ **0.2.1 是破坏性版本**（typert 描述符改成 keyed map + `strictCodec`、子路径插件不再读自身 `package.json`、
 > 第三方兼容改看 `engines.dsh`、输入统计拆 `activity`/`usage`、工具展示 `both` 模式移除、Agent Team 消息直投目标 Inbox、
 > `--from-default-profile` 改为替换配置、Azure 供应商统一为 `azure`、headless 不再读已存凭据），
